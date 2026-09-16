@@ -1,0 +1,7 @@
+# 루트 requirements.txt 를 먼저 설치한 뒤 이 파일을 설치한다.
+# pip install -r ../../requirements.txt -r requirements.txt
+anthropic>=1.0.0
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+PyYAML>=6.0
+pytest>=8.0.0

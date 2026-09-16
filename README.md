@@ -54,8 +54,9 @@ tests/             테스트
 | 2 | [`hook-script/`](./products/hook-script) | 후킹 대본 생성기 (롱폼·쇼츠·릴스) | 운영 중 |
 | 3 | [`ebook-gen/`](./products/ebook-gen) | 전자책 원고 생성기 (docx) | 운영 중 |
 | 4 | [`lecture-deck/`](./products/lecture-deck) | 강의 슬라이드 생성기 (pptx) | 운영 중 |
-| 5 | `agency-kit/` | 자동화 대행 납품 키트 | 미착수 |
-| 6 | `niche-research/` | 저가 유튜브 니치 리서치 | 미착수 |
+| 5 | [`kmong-copy/`](./products/kmong-copy) | 크몽 상세페이지 카피 생성기 | 운영 중 |
+| 6 | `agency-kit/` | 자동화 대행 납품 키트 | 미착수 |
+| 7 | `niche-research/` | 저가 유튜브 니치 리서치 | 미착수 |
 
 ## 확인
 

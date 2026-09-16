@@ -1,0 +1,215 @@
+# 프로그램 매니페스트 — 통합 대시보드가 이 파일만 읽고 등록한다.
+# 규격 설명: core/manifest.py
+
+id: kmong-copy
+number: 5
+name: 크몽 상세페이지 카피 생성기
+tagline: 상세페이지·패키지·문의 응답을 만들고 등록 전 정책 위반을 잡습니다
+status: ready
+version: "1.0.0"
+owner: 관리자
+
+summary: |
+  크몽에 서비스를 올릴 때 필요한 글 전부 — 상세페이지·패키지 3단·제목 10안·
+  검색 태그 20개·문의 응답 템플릿 8종 — 을 만듭니다.
+
+  **핵심은 등록 전 점검입니다.** 크몽에서 서비스가 내려가는 이유는 대개 셋인데,
+  셋 다 자동으로 검사합니다.
+
+  - 성과를 단정하는 표현 30개
+  - **외부 연락처 유도 8가지 패턴** (전화·카톡·외부 링크·직거래 등)
+  - 지어낸 실적 (`proof` 가 비면 수치를 아예 만들지 않음)
+
+  AI가 쓴 글뿐 아니라 **입력하신 값도 검사합니다.** 차별점 칸에 전화번호를
+  적는 일이 실제로 있기 때문입니다.
+
+  **이 도구는 초안 생성기입니다. 등록 전 판매자 검수가 필수입니다.**
+  특히 환불·수정 정책은 실제 운영 방식에 맞춰 고치셔야 합니다.
+
+steps:
+  - title: 서비스 정보 적기
+    body: |
+      '수정' 탭에서 `service_input.yaml` 을 엽니다.
+
+      **`who_for` 를 좁게 쓰는 것이 글 품질을 가장 크게 좌우합니다.**
+      "사업자"가 아니라 "명함과 간판을 만들어야 하는데 로고가 없는 1인 사업자"처럼.
+
+      `differentiators` 는 정확히 3개이고, 경력이 아니라
+      **구매자에게 뭐가 좋은지**를 적어야 합니다.
+
+      ⚠️ 차별점이나 제공 내용 칸에 전화번호·카톡 아이디를 적지 마세요. 크몽 정책 위반입니다.
+    estimate: 15분
+  - title: 모의 실행으로 형태 확인
+    body: |
+      '테스트' 탭에서 **모의 실행**을 먼저 누르세요. 비용이 들지 않습니다.
+      다섯 개 파일이 어떤 모양으로 나오는지 확인합니다.
+    estimate: 1분
+  - title: 실제 생성
+    body: |
+      **실제 실행**을 누릅니다. 호출 3회로 1~2분 걸리고 **수백 원 수준**입니다.
+      5개 상품 중 비용이 가장 적게 들어 여러 번 돌려 고르셔도 부담이 적습니다.
+    estimate: 2분
+  - title: compliance_report.md 부터 열기 (가장 중요)
+    body: |
+      상세페이지보다 이걸 먼저 보세요. 순서대로 확인합니다.
+
+      1. **크몽 정책 — 외부 연락처** ⚠️ 가 있으면 **등록하지 마세요.** 서비스가 내려갑니다
+      2. **금지 문구** 해당 표현을 찾아 고치세요
+      3. **전자상거래법 필수 표기** 비어 있는 항목을 채우세요
+      4. **근거 없는 수치** 실적을 안 넣었는데 숫자가 보이면 확인
+    estimate: 10분
+  - title: 환불·수정 정책을 본인 기준으로 고치기
+    body: |
+      `detail_page.md` 의 '수정·환불 정책' 표는 **초안**입니다.
+      수정 횟수·추가 비용·환불 가능 시점을 실제 운영에 맞게 고치세요.
+
+      **적어놓고 안 지키면 분쟁에서 불리합니다.** 지킬 수 있는 선으로 적으세요.
+    estimate: 20분
+  - title: 포트폴리오 이미지 준비
+    body: |
+      프로그램은 글만 만듭니다. **이미지는 직접 올리셔야 합니다.**
+      작업물 3~5장. 실적이 없어도 샘플 작업물을 만들어 올리는 편이 훨씬 낫습니다.
+    estimate: 1시간
+  - title: 크몽에 등록
+    body: |
+      README 의 **크몽 등록 순서 매핑표** 13단계를 따라가세요.
+      어느 파일을 어느 칸에 넣는지 순서대로 적혀 있습니다.
+
+      상세 설명은 크몽 에디터가 마크다운을 그대로 받지 않아
+      섹션 단위로 복사해 붙여넣고 서식을 다시 잡아야 합니다.
+    estimate: 40분
+
+faq:
+  - q: 왜 외부 연락처 검사가 중요한가요?
+    a: |
+      크몽은 플랫폼 밖 거래 유도를 금지합니다. "급하시면 카톡 주세요" 한 줄로
+      서비스가 내려가고 반복되면 계정이 정지됩니다.
+      판매자 본인도 모르고 쓰는 경우가 많아서 8가지 패턴으로 자동 검사합니다.
+    audience: both
+  - q: 입력한 값도 검사한다는 게 무슨 뜻인가요?
+    a: |
+      AI가 쓴 글만 보는 게 아니라 사장님이 적으신 서비스명·차별점·산출물·실적까지
+      검사합니다. 차별점 칸에 전화번호를 적는 일이 실제로 많기 때문입니다.
+    audience: both
+  - q: 실적이 하나도 없는데 괜찮을까요?
+    a: |
+      `proof` 를 비우면 포트폴리오 자리에 "사례 준비 중"이 들어가고
+      대본에 수치를 아예 만들지 않습니다. 정직한 편이 낫습니다.
+      대신 샘플 작업물을 만들어 이미지로 올리세요. 그게 첫 실적이 됩니다.
+    audience: both
+  - q: 비용이 얼마나 드나요?
+    a: |
+      호출 3회(상세페이지 / 패키지·제목 / 문의 응답)로 **1회에 수백 원 수준**입니다.
+      5개 상품 중 가장 쌉니다. 마음에 들 때까지 여러 번 돌려 고르셔도 부담이 적습니다.
+    audience: both
+  - q: 만든 글을 크몽 어디에 넣나요?
+    a: |
+      README 에 **크몽 등록 순서 매핑표**가 13단계로 있습니다.
+      제목은 `title_variants.json`, 패키지는 `packages.json`,
+      상세 설명과 FAQ 는 `detail_page.md` 에서 가져옵니다.
+      이미지는 직접 올리셔야 합니다.
+    audience: both
+  - q: 상세 설명을 붙여넣으니 서식이 깨집니다.
+    a: |
+      크몽 에디터는 `## 제목` 같은 마크다운 표시를 그대로 받지 않습니다.
+      섹션 단위로 복사해 붙여넣고 제목 굵기나 목록 서식은 에디터에서 다시 잡으세요.
+    audience: both
+  - q: 제목이 잘렸다고 나옵니다.
+    a: |
+      크몽 제목은 25자 제한이라 넘으면 프로그램이 잘라냅니다.
+      잘린 제목이 어색하면 `title_variants.json` 의 다른 안을 고르거나 직접 고치세요.
+    audience: both
+  - q: 크몽 패키지 폼이 바뀌었습니다.
+    a: |
+      `kmong_copy/writers.py` 의 `KMONG_FIELDS` 를 고치면 `packages.json` 의
+      칸 이름이 바뀝니다. 크몽이 폼을 개편하면 여기만 손보면 됩니다.
+    audience: admin
+  - q: 새로운 우회 표현을 추가하고 싶습니다.
+    a: |
+      `kmong_copy/policy.py` 의 `CONTACT_PATTERNS` 에 (설명, 정규식) 을 추가하세요.
+      크몽 정책이 바뀌거나 새 패턴이 보이면 여기를 고칩니다.
+    audience: admin
+
+settings:
+  - key: CLAUDE_MODEL
+    label: 사용할 Claude 모델
+    type: select
+    default: claude-sonnet-4-6
+    options:
+      - claude-sonnet-4-6
+      - claude-sonnet-5
+      - claude-opus-5
+      - claude-haiku-4-5
+    help: |
+      호출이 3회뿐이라 모델을 올려도 비용 부담이 적습니다.
+      다만 who_for 를 좁히는 쪽이 효과가 더 큽니다.
+  - key: AI_LABEL
+    label: AI 생성물 표시
+    type: boolean
+    default: true
+    help: |
+      인공지능기본법 제31조 대응. 켜두는 것을 권합니다.
+      끄더라도 상세페이지의 'AI 활용 고지' 섹션은 항상 들어갑니다.
+
+editable_files:
+  - path: service_input.yaml
+    label: 입력 (서비스 정보)
+    kind: yaml
+    help: 실행 전에 여기부터 채웁니다. who_for 를 좁게, 차별점은 이득 중심으로.
+  - path: prompts/common.md
+    label: 공통 규칙 (금지 표현·크몽 정책·문체)
+    kind: markdown
+    help: 전 섹션에 공통으로 들어갑니다. 업종을 명시하거나 금지 표현을 추가할 때 고칩니다.
+  - path: prompts/detail_page.md
+    label: 상세페이지 작성 규칙
+    kind: markdown
+    help: 섹션별 작성 방식을 정의합니다. 여기가 상세페이지 품질을 좌우합니다.
+  - path: prompts/packages.md
+    label: 패키지·제목 작성 규칙
+    kind: markdown
+    help: 3단 구성 원리와 제목·태그 규칙. 제목이 자꾸 잘리면 여기 예시를 늘리세요.
+  - path: prompts/inquiry.md
+    label: 문의 응답 템플릿 규칙
+    kind: markdown
+    help: 8가지 상황과 어투를 정의합니다.
+
+outputs:
+  - path: detail_page.md
+    label: 상세페이지 전문
+    description: |
+      헤드라인(30자) → 요약 3줄 → 이런 분께 추천 → 제공 내용(표) → 프로세스 5단계 →
+      차별점 → 포트폴리오 자리 → FAQ 7개 → 준비 요청 → 수정·환불 정책 → AI 고지.
+      **환불 정책은 초안이니 본인 기준으로 고치세요.**
+  - path: packages.json
+    label: 패키지 3단
+    description: BASIC/STANDARD/PREMIUM. 크몽 입력 폼 필드명 기준이라 칸별로 옮겨 적으면 됩니다.
+  - path: title_variants.json
+    label: 제목 10안 + 검색 태그
+    description: 제목은 25자 이내이고 글자 수와 앞세운 키워드가 함께 표시됩니다. 태그 20개.
+  - path: inquiry_scripts.md
+    label: 문의 응답 템플릿 8종
+    description: 견적·기간 단축·범위 밖·수정·환불·지연·리뷰 요청. 복사해서 쓰되 `[ ]` 를 채우세요.
+  - path: compliance_report.md
+    label: 등록 전 점검
+    description: |
+      **상세페이지보다 이걸 먼저 보세요.** 금지 문구·크몽 정책(외부 연락처)·
+      전자상거래법 필수 표기·근거 없는 수치를 검사한 결과입니다.
+
+pricing:
+  - plan: 단품
+    price: 120000
+    description: 프로그램 파일 일체와 크몽 등록 매핑표
+  - plan: 퍼널 빌더 묶음
+    price: 240000
+    description: 크몽 카피 생성기 + 퍼널 빌더 (크몽에 올리고 자체 랜딩까지)
+
+manuals:
+  admin: docs/admin.md
+  client: docs/client.md
+
+run:
+  input_file: service_input.yaml
+  command: ["python", "cli.py", "build", "{input}"]
+  dry_run_command: ["python", "cli.py", "build", "{input}", "--dry-run"]
+  output_dir: outputs
+  timeout_seconds: 900
