@@ -1,0 +1,42 @@
+# 비밀키 — 절대 커밋 금지 (CLAUDE.md §6)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+token.json
+client_secret*.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# Node / TypeScript
+node_modules/
+dist/
+build/
+.next/
+
+# DB · 로컬 데이터
+*.sqlite
+*.sqlite3
+*.db
+data/
+
+# 산출물 (생성물은 저장소에 담지 않는다)
+outputs/
+renders/
+*.mp4
+*.wav
+
+# OS · 에디터
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
