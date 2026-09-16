@@ -1,0 +1,241 @@
+<title>통합 관리자 대시보드</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --ground:      #e9edf2;
+    --chrome:      #1b2735;
+    --chrome-2:    #24344757;
+    --hairline:    #32475c;
+    --ink:         #f2f6fa;
+    --muted:       #94a7ba;
+    --amber:       #e0a44a;
+    --chip:        #26374a;
+    --chip-on:     #e0a44a;
+    --chip-on-ink: #1b2735;
+    --frame-edge:  #c3ccd6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:     #0f151c;
+      --frame-edge: #2a3744;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:     #0f151c;
+    --frame-edge: #2a3744;
+  }
+
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic",
+                 system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ---------------------------------------------------------- 머리말 */
+  .bar {
+    background: var(--chrome);
+    padding-block: 12px 10px;
+    padding-inline: 16px;
+    border-bottom: 1px solid var(--hairline);
+    flex: none;
+  }
+  .bar-top {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .bar h1 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -.01em;
+  }
+  .tag {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    color: var(--amber);
+    border: 1px solid var(--amber);
+    border-radius: 3px;
+    padding: 1px 6px;
+    white-space: nowrap;
+  }
+  .bar p {
+    margin: 6px 0 0;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--muted);
+    max-width: 68ch;
+  }
+  .bar p b { color: var(--ink); font-weight: 500; }
+  .bar p.stamp { font-size: 11.5px; opacity: .7; margin-top: 3px; }
+
+  /* ---------------------------------------------------------- 이동 칩 */
+  .strip {
+    background: var(--chrome);
+    border-bottom: 1px solid var(--hairline);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    flex: none;
+  }
+  .strip-inner {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 16px;
+    width: max-content;
+    min-width: 100%;
+    box-sizing: border-box;
+  }
+  .group-label {
+    font-size: 10.5px;
+    letter-spacing: .08em;
+    color: var(--muted);
+    white-space: nowrap;
+    margin-inline: 4px 2px;
+  }
+  .group-label:first-child { margin-left: 0; }
+  .divider {
+    width: 1px;
+    align-self: stretch;
+    background: var(--hairline);
+    margin-inline: 6px;
+    flex: none;
+  }
+  .chip {
+    font: inherit;
+    font-size: 12.5px;
+    color: var(--ink);
+    background: var(--chip);
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 5px 12px;
+    white-space: nowrap;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background .12s ease, color .12s ease;
+  }
+  .chip:hover { background: #31475f; }
+  .chip:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 2px;
+  }
+  .chip[aria-current="true"] {
+    background: var(--chip-on);
+    color: var(--chip-on-ink);
+    font-weight: 600;
+  }
+  .chip .n {
+    font-size: 10.5px;
+    font-variant-numeric: tabular-nums;
+    opacity: .65;
+  }
+  .chip[aria-current="true"] .n { opacity: .8; }
+
+  /* ---------------------------------------------------------- 화면 */
+  .stage {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    background: var(--ground);
+  }
+  iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+    background: #fff;
+    /* 액자가 안내 문구를 덮게 한다. 자리잡은 요소가 위에 그려지므로
+       액자에도 자리를 지정해 주어야 문구가 화면 위로 비쳐 보이지 않는다. */
+    position: relative;
+    z-index: 1;
+  }
+  .fallback {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    display: grid;
+    place-content: center;
+    gap: 10px;
+    text-align: center;
+    padding: 24px;
+    color: #45586b;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .fallback a { color: #1f5f9e; }
+
+  @media (max-width: 560px) {
+    .bar p { font-size: 12px; }
+    .bar h1 { font-size: 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+
+<header class="bar">
+  <div class="bar-top">
+    <h1>통합 관리자 대시보드</h1>
+    <span class="tag">정적 스냅샷</span>
+  </div>
+  <p>
+    실제로 돌아가는 화면 <b>{{COUNT}}개</b>를 그대로 떠 온 것입니다.
+    눌러서 돌아다니실 수 있지만, 서버가 아니라 화면만 있어서
+    <b>저장·실행·검색은 되지 않습니다.</b>
+    각 프로그램의 메뉴·매뉴얼·설정값을 보시는 용도입니다.
+  </p>
+  <p class="stamp">{{STAMP}}</p>
+</header>
+
+<nav class="strip" aria-label="화면 이동">
+  <div class="strip-inner">
+{{CHIPS}}
+  </div>
+</nav>
+
+<main class="stage">
+  <p class="fallback" id="fallback">
+    화면이 안 보이면 <a href="{{HOME}}">여기를 눌러 직접 여세요</a>.
+  </p>
+  <iframe id="stage" src="{{HOME}}" title="대시보드 화면"></iframe>
+</main>
+
+<script>
+  (function () {
+    var frame = document.getElementById("stage");
+    var chips = Array.prototype.slice.call(document.querySelectorAll(".chip"));
+
+    chips.forEach(function (chip) {
+      chip.addEventListener("click", function () {
+        chips.forEach(function (other) { other.removeAttribute("aria-current"); });
+        chip.setAttribute("aria-current", "true");
+        frame.src = chip.dataset.src;
+      });
+    });
+
+    // 액자 안에서 다른 화면으로 넘어가면 위쪽 칩의 표시를 맞춰 준다
+    frame.addEventListener("load", function () {
+      var here;
+      try { here = frame.contentWindow.location.pathname; } catch (e) { return; }
+      chips.forEach(function (chip) {
+        var mine = here.indexOf(chip.dataset.src.replace("app/", "")) !== -1;
+        if (mine) { chip.setAttribute("aria-current", "true"); }
+        else { chip.removeAttribute("aria-current"); }
+      });
+    });
+  })();
+</script>

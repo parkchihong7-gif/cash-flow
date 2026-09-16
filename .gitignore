@@ -46,3 +46,7 @@ Thumbs.db
 
 # 대시보드 세션 서명용 비밀값. 절대 커밋하지 않는다.
 .dashboard_secret
+
+# 정적 스냅샷 결과 (python -m dashboard.snapshot)
+dashboard-snapshot/
+dashboard-snapshot.zip

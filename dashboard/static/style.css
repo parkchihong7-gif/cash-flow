@@ -323,3 +323,15 @@ svg.bars .muted-svg { fill: var(--ink-faint); font-weight: 400; }
   .side.open { display: block; }
   .main { padding: 20px 16px 48px; }
 }
+
+/* ------------------------------------------------- 설정 한눈에 (/config) */
+.card.cfg h3 { margin: 0 0 4px; font-size: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.card.cfg h4 { margin: 14px 0 6px; font-size: 13px; color: var(--muted, #667); }
+.card.cfg table { margin-top: 10px; }
+.cfg-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; }
+ul.plain { list-style: none; margin: 0; padding: 0; }
+ul.plain li { padding: 3px 0; font-size: 13px; }
+ul.plain li .muted { font-size: 12px; }
+@media (max-width: 860px) {
+  .cfg-cols { grid-template-columns: minmax(0, 1fr); }
+}

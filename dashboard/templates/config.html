@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>설정 한눈에</h1>
+<p class="muted">
+  프로그램 {{ configs|length }}개의 설정값·편집 파일·매뉴얼을 한 장에 모았습니다.
+  <strong>여기서는 바꾸지 않습니다.</strong> 각 줄의 <em>고치기</em> 를 눌러
+  해당 프로그램 화면에서 바꾸세요. 어느 프로그램을 건드리는지 알고 바꾸시라고 이렇게 두었습니다.
+</p>
+<p class="muted">
+  토큰·키·접속 코드는 <strong>설정됨 / 비어 있음</strong> 만 보여 줍니다.
+  이 화면은 터널로 열 수 있고, 어깨너머로도 보입니다.
+</p>
+
+<h2>환경변수 (<code>.env</code>)</h2>
+<div class="card">
+  <table>
+    <tr><th>키</th><th>상태</th><th>무엇에 쓰나</th></tr>
+    {% for env in envs %}
+    <tr>
+      <td><code>{{ env.key }}</code></td>
+      <td>{% if env.present %}<span class="badge ready">설정됨</span>
+          {% else %}<span class="badge">비어 있음</span>{% endif %}</td>
+      <td class="muted">{{ env.note }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="help">값은 저장소 맨 위 폴더의 <code>.env</code> 에서 바꾸고 대시보드를 다시 시작하세요.
+    <code>.env</code> 는 절대 커밋하지 않습니다.</p>
+</div>
+
+<h2>공통 설정</h2>
+<div class="card">
+  <table>
+    <tr><th>항목</th><th>지금 값</th><th>설명</th></tr>
+    {% for spec in globals_specs %}
+    <tr>
+      <td>{{ spec.label }}<br><code class="muted">{{ spec.key }}</code></td>
+      <td>{{ globals_values[spec.key] or '비어 있음' }}</td>
+      <td class="muted">{{ spec.help }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p><a class="btn" href="/settings">공통 설정 고치기</a></p>
+</div>
+
+<h2>프로그램별</h2>
+{% for cfg in configs %}
+<div class="card cfg">
+  <h3>
+    <span class="num">{{ cfg.number }}</span>
+    <a href="/programs/{{ cfg.id }}">{{ cfg.name }}</a>
+    <span class="badge {% if cfg.status_label == '운영 중' %}ready{% endif %}">{{ cfg.status_label }}</span>
+    <span class="muted">v{{ cfg.version }}</span>
+  </h3>
+  <p class="muted">
+    이용 순서 {{ cfg.steps }}단계 · FAQ {{ cfg.faq }}개 · 산출물 {{ cfg.outputs }}종 ·
+    {% if cfg.dry_runnable %}모의 실행 가능{% elif cfg.runnable %}실행만 가능{% else %}실행 설정 없음{% endif %}
+    {% if cfg.changed_count %}· <strong>기본값에서 바뀐 설정 {{ cfg.changed_count }}개</strong>{% endif %}
+  </p>
+
+  {% if cfg.missing %}
+  <div class="note bad">
+    <strong>파일을 찾지 못했습니다.</strong>
+    {% for path in cfg.missing %}<code>{{ path }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
+    — program.yaml 의 경로가 실제 파일과 다릅니다.
+  </div>
+  {% endif %}
+
+  {% if cfg.settings %}
+  <table>
+    <tr><th>설정</th><th>지금 값</th><th>기본값</th><th></th></tr>
+    {% for row in cfg.settings %}
+    <tr>
+      <td>{{ row.label }}<br><code class="muted">{{ row.key }}</code>
+        {% if row.secret %}<span class="badge">비밀</span>{% endif %}</td>
+      <td>{% if row.changed %}<strong>{{ row.shown }}</strong>{% else %}{{ row.shown }}{% endif %}</td>
+      <td class="muted">{{ row.default_shown }}</td>
+      <td class="muted">{{ row.help }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">설정 항목이 없습니다.</p>
+  {% endif %}
+
+  <div class="cfg-cols">
+    <div>
+      <h4>고칠 수 있는 파일</h4>
+      <ul class="plain">
+        {% for f in cfg.files %}
+        <li>
+          <a href="/programs/{{ cfg.id }}/file?path={{ f.path|urlencode }}">{{ f.label }}</a>
+          <span class="muted">{{ f.path }} · {{ f.size_label }}</span>
+          {% if not f.exists %}<span class="badge failed">없음</span>{% endif %}
+        </li>
+        {% else %}
+        <li class="muted">없습니다.</li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div>
+      <h4>매뉴얼</h4>
+      <ul class="plain">
+        {% for m in cfg.manuals %}
+        <li>
+          {% if m.exists %}
+          <a href="/programs/{{ cfg.id }}/manual/{{ m.audience }}">{{ m.label }}</a>
+          <span class="muted">{{ m.chars|int }}자</span>
+          {% else %}
+          {{ m.label }} <span class="badge failed">파일 없음</span>
+          {% endif %}
+        </li>
+        {% else %}
+        <li class="muted">없습니다.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <p>
+    <a class="btn" href="/programs/{{ cfg.id }}/edit">고치기</a>
+    <a class="btn" href="/programs/{{ cfg.id }}/test">테스트</a>
+    <a class="btn" href="/programs/{{ cfg.id }}">열람</a>
+  </p>
+</div>
+{% endfor %}
+
+<h2>기록</h2>
+<div class="card">
+  <p class="muted">고객·라이선스·실행 이력은 <code>{{ db_path }}</code> 에 있습니다.
+    이 파일을 복사해두면 백업이 됩니다.</p>
+</div>
+{% endblock %}

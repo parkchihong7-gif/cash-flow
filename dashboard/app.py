@@ -40,6 +40,7 @@ from core.db import Database, DEFAULT_DB_PATH
 from core.health import checklist
 from core.search import search as search_index
 from core.manifest import ProgramManifest
+from core.overview import collect as collect_config, env_rows
 from core.registry import Registry
 from core.runner import RunError, run_program
 from dashboard.charts import monthly_chart, program_chart
@@ -551,6 +552,25 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
             elif item["key"] in form:
                 db().set_setting(item["key"], str(form[item["key"]]))
         return RedirectResponse("/settings?saved=1", status_code=303)
+
+    # ---------------------------------------------------- 설정 한눈에
+    @app.get("/config", response_class=HTMLResponse)
+    def config_overview(request: Request):
+        """프로그램마다 흩어진 설정·파일·매뉴얼을 한 장에 모아 보여 준다.
+
+        여기서는 **읽기만** 한다. 고치는 곳은 각 프로그램의 '수정' 탭이다.
+        """
+        configs = collect_config(registry(), db())
+        return page(
+            request, "config.html",
+            title="설정 한눈에",
+            configs=configs,
+            envs=env_rows(),
+            globals_specs=GLOBAL_SETTINGS,
+            globals_values={**{item["key"]: item["default"] for item in GLOBAL_SETTINGS},
+                            **db().all_settings()},
+            db_path=str(db().path),
+        )
 
     # -------------------------------------------------------------- 매뉴얼
     @app.get("/manual", response_class=HTMLResponse)

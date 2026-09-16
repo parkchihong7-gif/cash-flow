@@ -20,6 +20,7 @@ from fastapi.testclient import TestClient
 from core import auth
 from core.db import Database
 from core.health import EXPIRY_WINDOW_DAYS, Task, checklist
+from core.overview import collect as collect_config, env_rows
 from core.registry import Registry
 from core.search import GROUPS, MAX_PER_GROUP, search
 from dashboard.app import create_app
@@ -377,3 +378,67 @@ def test_new_pages_need_the_access_code(tmp_path):
     guest = TestClient(create_app(tmp_path / "guest.db"), follow_redirects=False)
     for path in ("/runs", "/search?q=크몽"):
         assert guest.get(path).status_code == 303
+
+
+# ------------------------------------------------------- 설정 한눈에 (/config)
+# 프로그램이 아홉 개가 되니 "그 값을 어디서 바꿨더라" 가 잦아졌다.
+# 한 장에 모아 보여 주되, **비밀값은 있다/없다만** 보여 주는 것이 규칙이다.
+def test_config_collects_every_program(registry, db):
+    configs = collect_config(registry, db)
+    assert len(configs) == len(registry.programs)
+    assert [c.number for c in configs] == sorted(c.number for c in configs)
+    # 매니페스트가 가리키는 파일이 실제로 있어야 한다
+    for cfg in configs:
+        assert cfg.missing == [], f"{cfg.id}: {cfg.missing}"
+
+
+def test_config_hides_secret_values(registry, db):
+    program = next(c for c in collect_config(registry, db) if c.id == "notion-template-kit")
+    token = next(row for row in program.settings if row.key == "NOTION_TOKEN")
+    assert token.secret and token.shown == "비어 있음"
+
+    db.set_program_setting("notion-template-kit", "NOTION_TOKEN", "secret_실제값123")
+    program = next(c for c in collect_config(registry, db) if c.id == "notion-template-kit")
+    token = next(row for row in program.settings if row.key == "NOTION_TOKEN")
+    assert token.shown == "설정됨", "토큰은 화면에 그대로 싣지 않는다"
+    assert "실제값" not in token.shown
+
+
+def test_config_marks_values_changed_from_default(registry, db):
+    db.set_program_setting("notion-template-kit", "SAMPLE_ROWS", "9")
+    program = next(c for c in collect_config(registry, db) if c.id == "notion-template-kit")
+    rows = {row.key: row for row in program.settings}
+    assert rows["SAMPLE_ROWS"].changed and rows["SAMPLE_ROWS"].shown == "9"
+    assert not rows["AI_LABEL"].changed
+    assert program.changed_count == 1
+
+
+def test_config_shows_booleans_in_korean(registry, db):
+    program = next(c for c in collect_config(registry, db) if c.id == "notion-template-kit")
+    label = next(row for row in program.settings if row.key == "AI_LABEL")
+    assert label.shown == "켬", "True 라고 적어 두면 무슨 뜻인지 모른다"
+
+
+def test_env_rows_never_carry_the_value():
+    rows = env_rows({"ANTHROPIC_API_KEY": "sk-ant-비밀", "NOTION_TOKEN": "  "})
+    by_key = {row.key: row for row in rows}
+    assert by_key["ANTHROPIC_API_KEY"].present
+    assert not by_key["NOTION_TOKEN"].present, "공백만 있으면 없는 것으로 본다"
+    assert all("sk-ant" not in str(row.__dict__) for row in rows)
+
+
+def test_config_page_lists_manuals_and_files(client):
+    text = client.get("/config").text
+    assert "설정 한눈에" in text
+    assert "/programs/notion-template-kit/manual/client" in text
+    assert "/programs/notion-template-kit/file?path=request.yaml" in text
+    assert "NOTION_TOKEN" in text
+
+
+def test_config_page_is_behind_the_access_code(tmp_path):
+    stranger = TestClient(create_app(tmp_path / "gate.db"), follow_redirects=False)
+    assert stranger.get("/config").status_code == 303
+
+
+def test_config_is_in_the_sidebar(client):
+    assert 'href="/config"' in client.get("/").text
