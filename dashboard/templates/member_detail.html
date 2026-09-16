@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block body %}
+<p class="muted"><a href="/members">← 회원관리</a></p>
+<h1>{{ member.name }}</h1>
+<p class="muted">{{ member.email }}{% if member.phone %} · {{ member.phone }}{% endif %}
+  · 등록 {{ member.created_at[:10] }}</p>
+
+<h2>보유 라이선스</h2>
+{% if licenses %}
+<table>
+  <tr><th>프로그램</th><th>플랜</th><th class="num">가격</th><th class="num">월 유지</th>
+      <th>상태</th><th>구매일</th><th>만료</th><th></th></tr>
+  {% for l in licenses %}
+  <tr>
+    <td>{{ l.program_id }}</td>
+    <td>{{ l.plan or '—' }}</td>
+    <td class="num">{{ l.price|won }}</td>
+    <td class="num">{{ l.retainer|won if l.retainer else '—' }}</td>
+    <td><span class="badge {{ l.status }}">{{ l.status }}</span></td>
+    <td class="muted">{{ l.purchased_at[:10] }}</td>
+    <td class="muted">{{ l.expires_at[:10] if l.expires_at else '무기한' }}</td>
+    <td>
+      <form method="post" action="/licenses/{{ l.id }}/status" class="actions">
+        <input type="hidden" name="member_id" value="{{ member.id }}">
+        <select name="status" style="width:auto">
+          {% for s in ['active', 'expired', 'refunded'] %}
+          <option value="{{ s }}" {% if l.status == s %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit">변경</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="muted">아직 발급된 라이선스가 없습니다.</p>
+{% endif %}
+
+<h3>라이선스 발급</h3>
+<form method="post" action="/members/{{ member.id }}/licenses" class="card">
+  <div class="row">
+    <div class="field"><label for="program_id">프로그램</label>
+      <select id="program_id" name="program_id" required>
+        {% for p in programs %}
+        <option value="{{ p.id }}">{{ p.number }}. {{ p.name }}</option>
+        {% endfor %}
+      </select></div>
+    <div class="field"><label for="plan">플랜</label>
+      <input type="text" id="plan" name="plan" placeholder="템플릿 / 세팅 대행"></div>
+    <div class="field"><label for="price">결제액 (원)</label>
+      <input type="number" id="price" name="price" value="0" min="0"></div>
+    <div class="field"><label for="retainer">월 유지비 (원)</label>
+      <input type="number" id="retainer" name="retainer" value="0" min="0"></div>
+    <div class="field"><label for="expires_at">만료일</label>
+      <input type="date" id="expires_at" name="expires_at"></div>
+  </div>
+  <div class="field"><label for="lmemo">메모</label>
+    <input type="text" id="lmemo" name="memo"></div>
+  <button class="primary" type="submit">발급</button>
+</form>
+
+<h2>응대 기록</h2>
+<form method="post" action="/members/{{ member.id }}/notes" class="card">
+  <div class="field"><label for="body">문의·응대 내용</label>
+    <textarea id="body" name="body" required placeholder="언제 무엇을 물어봤고 어떻게 답했는지"></textarea></div>
+  <button type="submit">기록 추가</button>
+</form>
+{% for n in notes %}
+<div class="card">
+  <p class="muted">{{ n.created_at[:16].replace('T', ' ') }}</p>
+  <p style="margin:0; white-space:pre-wrap">{{ n.body }}</p>
+</div>
+{% else %}
+<p class="muted">기록이 없습니다.</p>
+{% endfor %}
+
+{% if runs %}
+<h2>이 고객을 위한 실행</h2>
+<table>
+  <tr><th>#</th><th>프로그램</th><th>결과</th><th>시각</th></tr>
+  {% for r in runs %}
+  <tr><td><a href="/runs/{{ r.id }}">{{ r.id }}</a></td><td>{{ r.program_id }}</td>
+      <td><span class="badge {{ r.status }}">{{ r.status }}</span></td>
+      <td class="muted">{{ r.started_at[:19].replace('T', ' ') }}</td></tr>
+  {% endfor %}
+</table>
+{% endif %}
+
+<h2>정보 수정</h2>
+<form method="post" action="/members/{{ member.id }}" class="card">
+  <div class="row">
+    <div class="field"><label for="name">이름</label>
+      <input type="text" id="name" name="name" value="{{ member.name }}" required></div>
+    <div class="field"><label for="email">이메일</label>
+      <input type="email" id="email" name="email" value="{{ member.email }}" required></div>
+    <div class="field"><label for="phone">연락처</label>
+      <input type="text" id="phone" name="phone" value="{{ member.phone }}"></div>
+    <div class="field"><label for="source">유입 경로</label>
+      <input type="text" id="source" name="source" value="{{ member.source }}"></div>
+  </div>
+  <div class="field"><label for="memo">메모</label>
+    <textarea id="memo" name="memo">{{ member.memo }}</textarea></div>
+  <button class="primary" type="submit">저장</button>
+</form>
+
+<form method="post" action="/members/{{ member.id }}/delete"
+      onsubmit="return confirm('{{ member.name }} 님을 삭제합니다. 라이선스와 응대 기록도 함께 지워집니다. 계속할까요?')">
+  <button class="danger" type="submit">고객 삭제</button>
+</form>
+{% endblock %}

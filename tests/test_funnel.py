@@ -15,7 +15,7 @@ import yaml
 from pydantic import ValidationError
 
 import generator as gen
-from fake_funnel_llm import always_dirty_ask, dirty_then_clean_ask, fake_ask
+from sample_content import always_dirty_ask, dirty_then_clean_ask, fake_ask
 from schema import FunnelInput, load_input
 from shared import banned_phrases
 

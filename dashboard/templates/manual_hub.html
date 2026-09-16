@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>매뉴얼</h1>
+<p class="muted">처음이라면 관리자 매뉴얼의 1장부터 순서대로 읽으세요.</p>
+
+<div class="grid">
+  <div class="card">
+    <h3>📘 관리자 매뉴얼</h3>
+    <p class="muted">대시보드를 운영하는 사람을 위한 문서입니다. 설치, 화면별 사용법,
+      새 프로그램 추가 방법, 문제 해결까지 다룹니다.</p>
+    <a class="btn primary" href="/manual/admin">열기</a>
+  </div>
+  <div class="card">
+    <h3>📗 클라이언트 매뉴얼</h3>
+    <p class="muted">프로그램을 구매한 고객에게 그대로 전달하는 문서입니다.
+      복사해서 납품 자료에 넣으세요.</p>
+    <a class="btn primary" href="/manual/client">열기</a>
+  </div>
+</div>
+
+<h2>프로그램별 매뉴얼</h2>
+<table>
+  <tr><th>프로그램</th><th>관리자용</th><th>클라이언트용</th></tr>
+  {% for p in programs %}
+  <tr>
+    <td><span class="num">{{ p.number }}</span> {{ p.name }}</td>
+    <td>{% if p.manuals.admin %}<a href="/programs/{{ p.id }}/manual/admin">열기</a>
+        {% else %}<span class="muted">없음</span>{% endif %}</td>
+    <td>{% if p.manuals.client %}<a href="/programs/{{ p.id }}/manual/client">열기</a>
+        {% else %}<span class="muted">없음</span>{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

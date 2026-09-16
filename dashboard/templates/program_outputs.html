@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block body %}
+{% include "_tabs.html" %}
+
+<h2>산출물</h2>
+{% if record %}
+<p class="muted">실행 #{{ record.id }} · {{ '모의' if record.mode == 'dry' else '실제' }} ·
+  <code>{{ record.output_dir }}</code></p>
+{% if record.mode == 'dry' %}
+<div class="note warn">모의 실행 결과입니다. 본문은 예시 콘텐츠이므로 실제 판매에 쓰지 마세요.</div>
+{% endif %}
+{% endif %}
+
+{% if files %}
+<table>
+  <tr><th>파일</th><th class="num">크기</th><th></th></tr>
+  {% for f in files %}
+  <tr>
+    <td><code>{{ f.name }}</code></td>
+    <td class="num muted">{{ '{:,}'.format(f.size) }} B</td>
+    <td><a href="/preview?path={{ f.full|urlencode }}" target="_blank">열기</a></td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="muted">산출물 파일을 찾지 못했습니다.</p>
+{% endif %}
+
+<p style="margin-top:16px"><a class="btn" href="/programs/{{ program.id }}/test">테스트로 돌아가기</a></p>
+{% endblock %}

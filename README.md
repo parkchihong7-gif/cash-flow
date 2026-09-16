@@ -1,55 +1,67 @@
 # cash-flow
 
-부업 프로그램 제작·판매 프로젝트. 작업 지침과 조사 결과 전문은 [`CLAUDE.md`](./CLAUDE.md)에 있다.
+부업 프로그램을 만들고 파는 프로젝트. 작업 지침 전문은 [`CLAUDE.md`](./CLAUDE.md)에 있습니다.
+
+프로그램은 **통합 관리자 대시보드**에서 관리합니다. 터미널을 몰라도 브라우저에서
+열람·수정·테스트·회원관리를 할 수 있습니다.
+
+## 빠른 시작
+
+```bash
+pip install -r requirements.txt
+cp .env.example .env          # ANTHROPIC_API_KEY 를 채웁니다
+python -m dashboard           # http://127.0.0.1:8000
+```
+
+처음이라면 대시보드의 **매뉴얼 → 관리자 매뉴얼** 을 1장부터 읽으세요.
+([docs/admin-manual.md](./docs/admin-manual.md))
 
 ## 구조
 
 ```
 CLAUDE.md          작업 브리프 (조사 결과 · 금지 사항 · 우선순위)
-shared/            모든 상품이 함께 쓰는 공통 기반
-  config.py        .env 로드, 경로 상수
-  llm.py           Claude API 호출 래퍼 (ask)
-  ai_label.py      AI 생성물 표시 (인공지능기본법 제31조)
-  banned_phrases.py 판매용 텍스트 금지 문구 검사
+dashboard/         통합 관리자 대시보드 (FastAPI)
+core/              프로그램 관리 공통 레이어
+  manifest.py        program.yaml 규격
+  registry.py        products/ 스캔
+  db.py              고객·라이선스·실행 이력 (SQLite)
+  runner.py          프로그램 실행과 이력 기록
+shared/            상품이 함께 쓰는 유틸
+  llm.py             Claude API 래퍼
+  ai_label.py        AI 생성물 표시 (인공지능기본법 제31조)
+  banned_phrases.py  판매용 텍스트 금지 문구 검사
+  config.py          .env 로드, 경로 상수
 products/          상품별 폴더 (상품 1개 = 폴더 1개)
-tests/             단위 테스트
+docs/              통합 매뉴얼 (관리자용 / 클라이언트용)
+tests/             테스트
 ```
 
-## 설치
+## 새 프로그램을 추가하려면
 
-```bash
-pip install -r requirements.txt
-cp .env.example .env     # ANTHROPIC_API_KEY 를 채운다
-```
+`products/<이름>/program.yaml` 하나만 만들면 대시보드에 자동 등록됩니다.
+**대시보드 코드는 고치지 않습니다.**
+
+규격은 [`core/manifest.py`](./core/manifest.py), 작성 예시는
+[관리자 매뉴얼 5장](./docs/admin-manual.md)에 있습니다.
+
+## 등록된 프로그램
+
+| 번호 | 폴더 | 상품 | 상태 |
+|---|---|---|---|
+| 1 | `agency-kit/` | 자동화 대행 납품 키트 | 미착수 |
+| 2 | [`funnel-builder/`](./products/funnel-builder) | 퍼널 빌더 | 운영 중 |
+| 3 | `niche-research/` | 저가 유튜브 니치 리서치 | 미착수 |
 
 ## 확인
 
 ```bash
 pytest tests/
-python -c "from shared.llm import ask; print(ask('한 줄로 답해','안녕'))"
-```
-
-## shared 사용법
-
-```python
-from shared.llm import ask
-from shared.ai_label import add_text_label, add_metadata
-from shared.banned_phrases import assert_clean
-
-# Claude 호출 — json_mode 는 ```json 펜스를 벗기고 파싱, 실패 시 1회 재시도
-plan = ask("너는 기획자다", "3가지 항목을 JSON 배열로", json_mode=True)
-
-# 판매용 텍스트는 파일로 쓰기 전에 반드시 검사
-copy = assert_clean(ask("너는 카피라이터다", "상세페이지 도입부"))
-
-# AI 생성물 표시 (기본 on)
-copy = add_text_label(copy)          # 텍스트 끝에 고지 한 줄
-add_metadata("outputs/보고서.docx")   # docx/pptx/xlsx 메타데이터
 ```
 
 ## 규칙
 
-- Claude 호출은 anthropic SDK 를 직접 쓰지 말고 `shared.llm.ask()` 를 쓴다.
-- 판매용 텍스트는 `shared.banned_phrases.check()` 를 통과해야 한다. (CLAUDE.md §3-2, §7)
-- 모든 AI 산출물에 표시를 기본 on 으로 붙인다. (CLAUDE.md §3-5)
-- 비밀키는 `.env` 에 두고 커밋하지 않는다.
+- Claude 호출은 anthropic SDK 를 직접 쓰지 말고 `shared.llm.ask()` 를 씁니다.
+- 판매용 텍스트는 `shared.banned_phrases.check()` 를 통과해야 합니다. (CLAUDE.md §3-2, §7)
+- 모든 AI 산출물에 표시를 기본 on 으로 붙입니다. (CLAUDE.md §3-5)
+- 비밀키는 `.env` 에, 고객 데이터는 `dashboard.db` 에 있고 둘 다 커밋하지 않습니다.
+  **`dashboard.db` 는 직접 백업해야 합니다.**

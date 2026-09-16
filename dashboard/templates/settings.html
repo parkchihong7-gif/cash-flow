@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>기타 설정</h1>
+{% if saved %}<div class="note ok">저장했습니다.</div>{% endif %}
+
+<h2>Claude API</h2>
+<div class="card">
+  <p>API 키: {% if api_key_set %}<span class="badge ready">설정됨</span>
+    {% else %}<span class="badge failed">없음</span>{% endif %}</p>
+  <p class="muted">키는 보안을 위해 이 화면에서 바꾸지 않습니다. 저장소 맨 위 폴더의
+    <code>.env</code> 파일에서 <code>ANTHROPIC_API_KEY</code> 를 수정한 뒤 대시보드를 다시 시작하세요.
+    자세한 절차는 <a href="/manual/admin">관리자 매뉴얼</a>에 있습니다.</p>
+</div>
+
+<h2>공통 설정</h2>
+<form method="post" action="/settings" class="card">
+  {% for spec in specs %}
+  <div class="field">
+    {% if spec.type == 'boolean' %}
+      <div class="check">
+        <input type="checkbox" id="{{ spec.key }}" name="{{ spec.key }}"
+               {% if values[spec.key] in ['1', 'true', 'True', true] %}checked{% endif %}>
+        <label for="{{ spec.key }}">{{ spec.label }}</label>
+      </div>
+    {% else %}
+      <label for="{{ spec.key }}">{{ spec.label }}</label>
+      {% if spec.type == 'select' %}
+        <select id="{{ spec.key }}" name="{{ spec.key }}">
+          {% for opt in spec.options %}
+          <option value="{{ opt }}" {% if values[spec.key] == opt %}selected{% endif %}>{{ opt }}</option>
+          {% endfor %}
+        </select>
+      {% elif spec.type == 'textarea' %}
+        <textarea id="{{ spec.key }}" name="{{ spec.key }}">{{ values[spec.key] or '' }}</textarea>
+      {% else %}
+        <input type="text" id="{{ spec.key }}" name="{{ spec.key }}" value="{{ values[spec.key] or '' }}">
+      {% endif %}
+    {% endif %}
+    {% if spec.help %}<p class="help">{{ spec.help }}</p>{% endif %}
+  </div>
+  {% endfor %}
+  <button class="primary" type="submit">저장</button>
+</form>
+
+<h2>금지 문구 목록</h2>
+<div class="card">
+  <p class="muted">모든 프로그램이 판매용 텍스트를 만든 뒤 이 {{ banned|length }}개 표현을 검사합니다.
+    걸리면 해당 부분을 다시 만들고, 그래도 남으면 경고로 알립니다.
+    목록을 바꾸려면 <code>shared/banned_phrases.py</code> 를 수정하세요.</p>
+  <p>{% for phrase in banned %}<code>{{ phrase }}</code>{% if not loop.last %} {% endif %}{% endfor %}</p>
+</div>
+
+<h2>데이터</h2>
+<div class="card">
+  <p class="muted">고객·라이선스·실행 이력은 <code>{{ db_path }}</code> 에 저장됩니다.
+    이 파일을 복사해두면 백업이 됩니다. 지우면 기록이 모두 사라집니다.</p>
+</div>
+{% endblock %}

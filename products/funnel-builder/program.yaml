@@ -1,0 +1,156 @@
+# 프로그램 매니페스트 — 통합 대시보드가 이 파일만 읽고 등록한다.
+# 규격 설명: core/manifest.py
+
+id: funnel-builder
+number: 2
+name: 퍼널 빌더
+tagline: 입력 한 장으로 랜딩 페이지와 이메일 5통 초안을 만듭니다
+status: ready
+version: "1.0.0"
+owner: 관리자
+
+summary: |
+  강의·전자책 판매자가 상품 정보 9개를 YAML 한 장에 적으면,
+  랜딩 페이지 HTML·이메일 5통·리드매그넷 목차·A/B 카피·빌드 리포트를 초안으로 만듭니다.
+
+  카피를 백지에서 쓰는 시간을 줄이는 도구입니다. 산출물은 초안이며
+  발행 전 사람이 읽고 고치는 것을 전제로 설계했습니다.
+
+steps:
+  - title: 입력 파일 준비
+    body: |
+      `funnel_input.yaml` 을 열어 9개 항목을 채웁니다.
+      실적·후기가 없으면 `proof` 를 빈 리스트로 두세요. 비어 있으면 증거 섹션이 아예 빠집니다.
+      없는 후기를 지어내는 것이 가장 큰 사고이기 때문입니다.
+    estimate: 10분
+  - title: 모의 실행으로 형태 확인
+    body: |
+      '테스트' 탭에서 **모의 실행**을 먼저 누르세요. Claude 를 부르지 않아 비용이 들지 않고,
+      산출물이 어떤 모양으로 나오는지 확인할 수 있습니다. 본문은 예시 콘텐츠입니다.
+    estimate: 1분
+  - title: 실제 생성
+    body: |
+      입력이 마음에 들면 **실제 실행**을 누릅니다. 섹션을 나눠 5~6번 호출하므로
+      2~4분 걸리고 1회에 수백 원 수준의 API 비용이 발생합니다.
+    estimate: 3분
+  - title: 빌드 리포트 확인
+    body: |
+      `build_report.md` 를 먼저 엽니다. 금지 문구 검사 결과와 어떤 후킹 규칙을 썼는지 나옵니다.
+      경고가 있으면 해당 부분을 직접 고쳐야 합니다.
+    estimate: 3분
+  - title: 사람이 읽고 고치기
+    body: |
+      랜딩 푸터의 **환불 정책과 사업자 정보**를 채웁니다. 전자상거래법상 필수 표기입니다.
+      이메일 5통을 처음부터 끝까지 읽고 어색한 문장을 고칩니다.
+    estimate: 30분
+  - title: 발행
+    body: |
+      `landing.html` 을 호스팅에 올리고, 이메일은 쓰시는 발송 도구에 붙여넣습니다.
+      `send_day` 값(0·1·3·5·7)이 신청일 기준 발송일입니다.
+    estimate: 20분
+
+faq:
+  - q: 실제 실행 1회에 비용이 얼마나 드나요?
+    a: |
+      섹션을 5~6번 나눠 호출하므로 모델과 입력 길이에 따라 다르지만 보통 수백 원 수준입니다.
+      정확한 금액은 Anthropic 콘솔의 사용량에서 확인하세요.
+    audience: admin
+  - q: 모의 실행과 실제 실행은 뭐가 다른가요?
+    a: |
+      모의 실행은 Claude 를 부르지 않고 미리 준비된 예시 콘텐츠로 산출물을 만듭니다.
+      비용이 없고 즉시 끝나지만 본문은 예시입니다. 형태 확인용으로만 쓰세요.
+    audience: both
+  - q: 산출물을 그대로 올려도 되나요?
+    a: |
+      안 됩니다. 초안입니다. 환불 정책·사업자 정보가 비어 있고, 문장도 사람이 다듬어야 합니다.
+      "초안 생성 → 사람 승인 → 발행" 3단계를 지키세요.
+    audience: both
+  - q: 후기나 실적이 없으면 어떻게 하나요?
+    a: |
+      `proof` 를 빈 리스트로 두세요. 증거 섹션 자체가 만들어지지 않습니다.
+      없는 후기를 만들어 넣으면 표시광고법 위반이 되고 상품이 내려갈 수 있습니다.
+    audience: both
+  - q: 카피 품질이 마음에 들지 않으면요?
+    a: |
+      '수정' 탭에서 `prompts/hooks.md` 를 고치세요. 이 파일이 카피 품질을 거의 결정합니다.
+      코드를 고치는 것보다 여기를 고치는 것이 효과가 큽니다.
+    audience: admin
+  - q: 랜딩 디자인을 바꾸고 싶습니다.
+    a: |
+      '수정' 탭의 `templates/landing.html.j2` 가 랜딩 템플릿입니다. CSS 가 파일 안에 들어 있어
+      색·글꼴·여백을 여기서 바꾸면 모든 산출물에 반영됩니다.
+    audience: admin
+  - q: 금지 문구 경고가 떴습니다.
+    a: |
+      해당 섹션을 2번 다시 만들었는데도 표현이 남았다는 뜻입니다.
+      `build_report.md` 에 어떤 문구인지 적혀 있으니 산출물에서 직접 찾아 고치세요.
+    audience: admin
+
+settings:
+  - key: CLAUDE_MODEL
+    label: 사용할 Claude 모델
+    type: select
+    default: claude-sonnet-4-6
+    options:
+      - claude-sonnet-4-6
+      - claude-sonnet-5
+      - claude-opus-5
+      - claude-haiku-4-5
+    help: 아래로 갈수록 품질이 높고 비쌉니다. 초안 용도면 sonnet 계열로 충분합니다.
+  - key: AI_LABEL
+    label: AI 생성물 표시
+    type: boolean
+    default: true
+    help: |
+      인공지능기본법 제31조에 따른 표시입니다. 프로그램을 판매하는 쪽이 의무 대상이므로
+      켜두는 것을 권합니다. 끄려면 표시 의무를 직접 처리해야 합니다.
+
+editable_files:
+  - path: prompts/hooks.md
+    label: 후킹 규칙 (카피 품질의 핵심)
+    kind: markdown
+    help: 모든 카피 생성 호출의 시스템 프롬프트로 들어갑니다. 여기를 고치면 결과가 가장 크게 바뀝니다.
+  - path: templates/landing.html.j2
+    label: 랜딩 페이지 템플릿
+    kind: html
+    help: CSS 가 안에 들어 있는 단일 파일 템플릿입니다. 색·여백·섹션 구조를 바꿉니다.
+  - path: funnel_input.yaml
+    label: 입력 파일
+    kind: yaml
+    help: 상품 정보 9개. 실행 전에 여기를 먼저 채웁니다.
+
+outputs:
+  - path: landing.html
+    label: 랜딩 페이지
+    description: CSS 인라인 단일 파일. 그대로 호스팅에 올릴 수 있고 모바일에 대응합니다.
+  - path: emails/01~05.md
+    label: 이메일 시퀀스 5통
+    description: 상단 프론트매터에 제목과 발송일(D+0·1·3·5·7)이 있습니다.
+  - path: lead_magnet_outline.md
+    label: 리드매그넷 목차
+    description: 무료 자료의 목차 7~10항목과 각 항목 2줄 요약입니다.
+  - path: copy_variants.json
+    label: A/B 테스트용 카피
+    description: 헤드라인 10개와 CTA 5개. 헤드라인마다 어떤 심리 요인을 썼는지 태그가 붙습니다.
+  - path: build_report.md
+    label: 빌드 리포트
+    description: 금지 문구 검사 결과, 사용된 후킹 규칙, 발행 전 체크리스트.
+
+pricing:
+  - plan: 템플릿
+    price: 150000
+    description: 프로그램 파일 일체와 설치 가이드
+  - plan: 세팅 대행
+    price: 300000
+    description: 템플릿 + 첫 퍼널 1건 대신 세팅
+
+manuals:
+  admin: docs/admin.md
+  client: docs/client.md
+
+run:
+  input_file: funnel_input.yaml
+  command: ["python", "cli.py", "build", "{input}"]
+  dry_run_command: ["python", "cli.py", "build", "{input}", "--dry-run"]
+  output_dir: outputs
+  timeout_seconds: 900

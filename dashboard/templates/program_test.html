@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block body %}
+{% include "_tabs.html" %}
+
+{% if not program.runnable %}
+<div class="note warn">이 프로그램에는 실행 정의(<code>run</code>)가 없어 테스트할 수 없습니다.</div>
+{% else %}
+
+{% if outcome %}
+  {% if outcome.status == 'success' %}
+    <div class="note ok"><strong>성공</strong> — 산출물이 만들어졌고 금지 문구도 없습니다.</div>
+  {% elif outcome.status == 'warning' %}
+    <div class="note warn"><strong>경고</strong> — 만들어졌지만 금지 문구가 남았습니다.
+      아래 로그와 <code>build_report.md</code> 를 보고 직접 고치세요.</div>
+  {% else %}
+    <div class="note bad"><strong>실패</strong> — 산출물이 만들어지지 않았습니다. 아래 로그를 확인하세요.</div>
+  {% endif %}
+  <div class="card">
+    <div class="actions" style="margin-bottom:10px">
+      {% if outcome.output_dir %}
+      <a class="btn primary" href="/programs/{{ program.id }}/outputs?run={{ outcome.id }}">산출물 보기</a>
+      {% endif %}
+      <a class="btn" href="/runs/{{ outcome.id }}">실행 상세</a>
+      <span class="muted">{{ '모의' if outcome.mode == 'dry' else '실제' }} 실행 ·
+        종료 코드 {{ outcome.exit_code }}</span>
+    </div>
+    <pre>{{ outcome.log }}</pre>
+  </div>
+{% endif %}
+
+<h2>실행하기</h2>
+<div class="card">
+  <p class="muted">입력 파일: <code>{{ program.run.input_file }}</code>
+    (<a href="/programs/{{ program.id }}/file?path={{ program.run.input_file }}">편집</a>)</p>
+
+  <form method="post" action="/programs/{{ program.id }}/test">
+    <div class="field" style="max-width:320px">
+      <label for="member_id">어떤 고객을 위한 실행인가요? (선택)</label>
+      <select id="member_id" name="member_id">
+        <option value="">— 지정 안 함 —</option>
+        {% for m in members %}<option value="{{ m.id }}">{{ m.name }} ({{ m.email }})</option>{% endfor %}
+      </select>
+      <p class="help">지정하면 실행 이력에 남아 나중에 누구 것인지 알 수 있습니다.</p>
+    </div>
+    <div class="actions">
+      {% if program.run.dry_run_command %}
+      <button type="submit" name="mode" value="dry">모의 실행 (비용 없음)</button>
+      {% endif %}
+      <button class="primary" type="submit" name="mode" value="real"
+        {% if not api_key_set %}disabled title="API 키가 없어 실제 실행을 할 수 없습니다"{% endif %}>
+        실제 실행
+      </button>
+    </div>
+    {% if not api_key_set %}
+    <p class="help">실제 실행을 하려면 <code>.env</code> 에 <code>ANTHROPIC_API_KEY</code> 가 필요합니다.</p>
+    {% else %}
+    <p class="help">실제 실행은 Claude API 를 호출하므로 사용료가 발생하고 몇 분 걸립니다.
+      처음이라면 모의 실행부터 해보세요.</p>
+    {% endif %}
+  </form>
+</div>
+
+<h2>실행 이력</h2>
+{% if runs %}
+<table>
+  <tr><th>#</th><th>방식</th><th>결과</th><th>시각</th><th></th></tr>
+  {% for r in runs %}
+  <tr>
+    <td>{{ r.id }}</td>
+    <td>{{ '모의' if r.mode == 'dry' else '실제' }}</td>
+    <td><span class="badge {{ r.status }}">{{ r.status }}</span></td>
+    <td class="muted">{{ r.started_at[:19].replace('T', ' ') }}</td>
+    <td><a href="/runs/{{ r.id }}">상세</a>
+      {% if r.output_dir %} · <a href="/programs/{{ program.id }}/outputs?run={{ r.id }}">산출물</a>{% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="muted">아직 실행한 적이 없습니다.</p>
+{% endif %}
+{% endif %}
+{% endblock %}

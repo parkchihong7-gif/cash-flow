@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block body %}
+{% if program is defined and program %}{% include "_tabs.html" %}{% endif %}
+<p class="muted"><a href="/manual">← 매뉴얼 목록</a></p>
+<article class="prose">{{ body|markdown|safe }}</article>
+{% endblock %}

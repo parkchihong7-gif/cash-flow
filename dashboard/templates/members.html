@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>회원관리</h1>
+<p class="muted">내 프로그램을 구매한 고객 명단입니다. 누가 무엇을 샀고, 언제까지 쓸 수 있고,
+  어떤 문의를 했는지 한곳에서 봅니다.</p>
+
+<form method="get" action="/members" class="actions" style="margin-bottom:16px">
+  <input type="text" name="q" value="{{ q }}" placeholder="이름·이메일·메모로 검색" style="max-width:280px">
+  <button type="submit">검색</button>
+  {% if q %}<a class="btn" href="/members">전체</a>{% endif %}
+</form>
+
+{% if members %}
+<table>
+  <tr><th>이름</th><th>이메일</th><th>유입</th><th class="num">보유</th><th class="num">결제액</th>
+      <th>등록일</th></tr>
+  {% for m in members %}
+  <tr>
+    <td><a href="/members/{{ m.id }}"><strong>{{ m.name }}</strong></a></td>
+    <td class="muted">{{ m.email }}</td>
+    <td class="muted">{{ m.source or '—' }}</td>
+    <td class="num">{{ m.license_count }}</td>
+    <td class="num">{{ m.paid|won }}</td>
+    <td class="muted">{{ m.created_at[:10] }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="muted">{% if q %}검색 결과가 없습니다.{% else %}아직 등록된 고객이 없습니다.{% endif %}</p>
+{% endif %}
+
+<h2>고객 추가</h2>
+<form method="post" action="/members" class="card">
+  <div class="row">
+    <div class="field"><label for="name">이름 *</label>
+      <input type="text" id="name" name="name" required></div>
+    <div class="field"><label for="email">이메일 *</label>
+      <input type="email" id="email" name="email" required></div>
+    <div class="field"><label for="phone">연락처</label>
+      <input type="text" id="phone" name="phone"></div>
+    <div class="field"><label for="source">유입 경로</label>
+      <input type="text" id="source" name="source" placeholder="크몽 / 인스타 / 소개"></div>
+  </div>
+  <div class="field"><label for="memo">메모</label>
+    <textarea id="memo" name="memo" placeholder="상담 내용, 요청 사항 등"></textarea></div>
+  <button class="primary" type="submit">추가</button>
+</form>
+{% endblock %}

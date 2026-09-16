@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block body %}
+{% if program %}{% include "_tabs.html" %}{% endif %}
+<h2>실행 #{{ record.id if record else '?' }}</h2>
+{% if record %}
+<div class="card">
+  <p><span class="badge {{ record.status }}">{{ record.status }}</span>
+    {{ '모의' if record.mode == 'dry' else '실제' }} 실행 · 종료 코드 {{ record.exit_code }}</p>
+  <p class="muted">시작 {{ record.started_at[:19].replace('T', ' ') }}
+    {% if record.finished_at %}· 종료 {{ record.finished_at[:19].replace('T', ' ') }}{% endif %}</p>
+  {% if record.output_dir and program %}
+  <p><a class="btn" href="/programs/{{ program.id }}/outputs?run={{ record.id }}">산출물 보기</a></p>
+  {% endif %}
+  <pre>{{ record.log }}</pre>
+</div>
+{% else %}
+<p class="muted">해당 실행 기록이 없습니다.</p>
+{% endif %}
+{% endblock %}

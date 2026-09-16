@@ -23,11 +23,14 @@ dist/
 build/
 .next/
 
-# DB · 로컬 데이터
+# DB · 로컬 데이터 — dashboard.db 에 고객 명단이 있다. 직접 백업할 것 (docs/admin-manual.md 8장)
 *.sqlite
 *.sqlite3
 *.db
 data/
+
+# 대시보드 파일 편집기가 남기는 백업
+*.bak
 
 # 산출물 (생성물은 저장소에 담지 않는다)
 outputs/

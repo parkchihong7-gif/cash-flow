@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block body %}
+{% include "_tabs.html" %}
+
+<div class="card">{{ program.summary|markdown|safe }}</div>
+
+<h2>이용 순서</h2>
+<ol class="steps">
+  {% for step in program.steps %}
+  <li>
+    <h3>{{ step.title }} {% if step.estimate %}<span class="muted">· {{ step.estimate }}</span>{% endif %}</h3>
+    <div class="muted">{{ step.body|markdown|safe }}</div>
+  </li>
+  {% endfor %}
+</ol>
+
+<h2>산출물</h2>
+<table>
+  <tr><th>파일</th><th>내용</th></tr>
+  {% for out in program.outputs %}
+  <tr><td><code>{{ out.path }}</code><br><strong>{{ out.label }}</strong></td>
+      <td>{{ out.description }}</td></tr>
+  {% endfor %}
+</table>
+
+<h2>자주 묻는 질문</h2>
+{% for item in program.faq %}
+<details class="qa">
+  <summary>{{ item.q }}
+    <span class="muted">{{ {'admin':'관리자','client':'구매자','both':'공통'}[item.audience] }}</span>
+  </summary>
+  <div>{{ item.a|markdown|safe }}</div>
+</details>
+{% endfor %}
+
+<h2>판매 플랜</h2>
+<table>
+  <tr><th>플랜</th><th class="num">가격</th><th>구성</th></tr>
+  {% for plan in program.pricing %}
+  <tr><td><strong>{{ plan.plan }}</strong></td><td class="num">{{ plan.price|won }}</td>
+      <td>{{ plan.description }}</td></tr>
+  {% endfor %}
+</table>
+
+<h2>매뉴얼</h2>
+<div class="actions">
+  <a class="btn" href="/programs/{{ program.id }}/manual/admin">관리자용</a>
+  <a class="btn" href="/programs/{{ program.id }}/manual/client">클라이언트용 (구매자 배포용)</a>
+</div>
+
+<h2>현황</h2>
+<p class="muted">이 프로그램을 산 고객 {{ licenses|length }}명 · 최근 실행 {{ runs|length }}건
+  · <a href="/programs/{{ program.id }}/members">회원관리</a>
+  · <a href="/programs/{{ program.id }}/test">테스트</a></p>
+{% endblock %}

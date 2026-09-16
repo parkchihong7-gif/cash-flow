@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ title }} · 통합 관리자 대시보드</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="side">
+    <div class="brand">통합 관리자 대시보드<small>cash-flow</small></div>
+    <nav>
+      <a class="item {% if request.url.path == '/' %}on{% endif %}" href="/">🏠 홈</a>
+
+      <div class="group">프로그램</div>
+      {% for p in programs %}
+      <a class="item {% if program is defined and program and program.id == p.id %}on{% endif %}"
+         href="/programs/{{ p.id }}">
+        <span class="num">{{ p.number }}</span>{{ p.name }}
+      </a>
+      {% else %}
+      <p class="muted" style="padding:0 10px">등록된 프로그램이 없습니다.</p>
+      {% endfor %}
+
+      <div class="group">관리</div>
+      <a class="item {% if request.url.path.startswith('/members') %}on{% endif %}" href="/members">👥 회원관리</a>
+      <a class="item {% if request.url.path.startswith('/settings') %}on{% endif %}" href="/settings">⚙️ 기타 설정</a>
+      <a class="item {% if request.url.path.startswith('/manual') %}on{% endif %}" href="/manual">📖 매뉴얼</a>
+
+      <div class="group">도구</div>
+      <form method="post" action="/reload" style="padding:0 10px">
+        <button type="submit" style="width:100%">프로그램 새로고침</button>
+      </form>
+    </nav>
+  </aside>
+
+  <main class="main">
+    {% if not api_key_set %}
+    <div class="note warn">
+      <strong>Claude API 키가 설정되지 않았습니다.</strong>
+      실제 실행은 되지 않고 모의 실행만 가능합니다.
+      저장소 맨 위 폴더의 <code>.env</code> 에 <code>ANTHROPIC_API_KEY</code> 를 넣으세요.
+      (<a href="/manual/admin">관리자 매뉴얼 1장</a>)
+    </div>
+    {% endif %}
+    {% for err in load_errors %}
+    <div class="note bad">
+      <strong>{{ err.name }}</strong> 의 program.yaml 을 읽지 못했습니다: {{ err.message }}
+    </div>
+    {% endfor %}
+    {% block body %}{% endblock %}
+  </main>
+</div>
+</body>
+</html>

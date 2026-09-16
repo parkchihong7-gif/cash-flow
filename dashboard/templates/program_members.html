@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block body %}
+{% include "_tabs.html" %}
+
+<h2>이 프로그램을 산 고객</h2>
+{% if licenses %}
+<table>
+  <tr><th>고객</th><th>플랜</th><th class="num">결제액</th><th class="num">월 유지</th>
+      <th>상태</th><th>구매일</th></tr>
+  {% for l in licenses %}
+  <tr>
+    <td><a href="/members/{{ l.member_id }}"><strong>{{ l.member_name }}</strong></a>
+      <br><span class="muted">{{ l.member_email }}</span></td>
+    <td>{{ l.plan or '—' }}</td>
+    <td class="num">{{ l.price|won }}</td>
+    <td class="num">{{ l.retainer|won if l.retainer else '—' }}</td>
+    <td><span class="badge {{ l.status }}">{{ l.status }}</span></td>
+    <td class="muted">{{ l.purchased_at[:10] }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="muted">아직 이 프로그램을 산 고객이 없습니다.
+  <a href="/members">회원관리</a>에서 고객을 추가한 뒤 라이선스를 발급하세요.</p>
+{% endif %}
+
+<h2>판매 플랜</h2>
+<table>
+  <tr><th>플랜</th><th class="num">가격</th><th>구성</th></tr>
+  {% for plan in program.pricing %}
+  <tr><td><strong>{{ plan.plan }}</strong></td><td class="num">{{ plan.price|won }}</td>
+      <td>{{ plan.description }}</td></tr>
+  {% endfor %}
+</table>
+<p class="muted">라이선스 발급은 <a href="/members">회원관리</a> → 고객 상세에서 합니다.</p>
+{% endblock %}

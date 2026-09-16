@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block body %}
+{% include "_tabs.html" %}
+
+{% if saved %}<div class="note ok">저장했습니다. 직전 내용은 <code>{{ spec.path }}.bak</code> 에 있습니다.</div>{% endif %}
+
+<h2>{{ spec.label }}</h2>
+<p class="muted"><code>{{ spec.path }}</code> · {{ spec.help }}</p>
+
+{% if spec.path.endswith('hooks.md') %}
+<div class="note info">
+  이 파일이 카피 품질을 가장 크게 좌우합니다. 바꾼 뒤에는 <strong>모의 실행이 아니라 실제 실행</strong>으로
+  확인하세요. 모의 실행은 프롬프트를 쓰지 않습니다.
+</div>
+{% endif %}
+
+<form method="post" action="/programs/{{ program.id }}/file">
+  <input type="hidden" name="path" value="{{ spec.path }}">
+  <textarea class="code" name="content" spellcheck="false">{{ content }}</textarea>
+  <div class="actions" style="margin-top:12px">
+    <button class="primary" type="submit">저장</button>
+    <a class="btn" href="/programs/{{ program.id }}/edit">취소</a>
+  </div>
+</form>
+{% endblock %}

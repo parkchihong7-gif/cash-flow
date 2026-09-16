@@ -43,6 +43,11 @@ def build_parser() -> argparse.ArgumentParser:
     build.add_argument(
         "--out", default=str(DEFAULT_OUT), help=f"산출물 상위 폴더 (기본: {DEFAULT_OUT})"
     )
+    build.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Claude 를 부르지 않고 예시 콘텐츠로 산출물 형태만 만든다 (API 비용 없음)",
+    )
     return parser
 
 
@@ -52,8 +57,16 @@ def cmd_build(args: argparse.Namespace) -> int:
     if not data.proof:
         print("      proof 가 비어 있어 랜딩의 증거 섹션은 생성하지 않습니다.")
 
-    print(f"[2/3] 섹션 생성 중 (모델 {args.model}) — 헤드라인 → 본문 → FAQ → 목차 → 이메일")
-    generator = FunnelGenerator(data, model=args.model, ai_label=not args.no_ai_label)
+    if args.dry_run:
+        from sample_content import fake_ask
+
+        print("[2/3] 모의 실행 — Claude 를 부르지 않고 예시 콘텐츠로 만듭니다 (비용 없음)")
+        generator = FunnelGenerator(
+            data, model="dry-run", ask_fn=fake_ask, ai_label=not args.no_ai_label
+        )
+    else:
+        print(f"[2/3] 섹션 생성 중 (모델 {args.model}) — 헤드라인 → 본문 → FAQ → 목차 → 이메일")
+        generator = FunnelGenerator(data, model=args.model, ai_label=not args.no_ai_label)
     result = generator.build()
 
     out_dir = write_outputs(result, Path(args.out))
@@ -69,6 +82,8 @@ def cmd_build(args: argparse.Namespace) -> int:
         return 2
 
     print("\n금지 문구 검사를 모두 통과했습니다. 발행 전 사람이 한 번 읽어보세요.")
+    if args.dry_run:
+        print("※ 모의 실행 결과입니다. 본문은 예시 콘텐츠이므로 그대로 쓰지 마세요.")
     return 0
 
 
