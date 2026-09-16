@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ d.product_name }}</title>
+<meta name="description" content="{{ d.core_promise }}">
+<style>
+  :root {
+    --ink: #16181d;
+    --ink-soft: #4a5160;
+    --ink-faint: #838b9a;
+    --line: #e3e6ec;
+    --bg: #ffffff;
+    --bg-soft: #f6f7f9;
+    --accent: #1f5eff;
+    --accent-ink: #ffffff;
+    --radius: 12px;
+    --gutter: 20px;
+    --maxw: 720px;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard",
+                 "Malgun Gothic", "Noto Sans KR", sans-serif;
+    font-size: 16px;
+    line-height: 1.7;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 var(--gutter); }
+  section { padding: 48px 0; border-bottom: 1px solid var(--line); }
+  section:last-of-type { border-bottom: 0; }
+  h1, h2, h3 { line-height: 1.35; margin: 0 0 12px; letter-spacing: -0.01em; }
+  h1 { font-size: 28px; }
+  h2 { font-size: 22px; }
+  h3 { font-size: 17px; }
+  p { margin: 0 0 14px; }
+  ul { margin: 0 0 14px; padding-left: 20px; }
+  li { margin-bottom: 8px; }
+  .eyebrow {
+    font-size: 13px; font-weight: 700; letter-spacing: .06em;
+    color: var(--accent); text-transform: uppercase; margin-bottom: 10px;
+  }
+  .lead { font-size: 17px; color: var(--ink-soft); }
+  .muted { color: var(--ink-faint); font-size: 14px; }
+
+  /* 히어로 */
+  .hero { background: var(--bg-soft); border-bottom: 1px solid var(--line); }
+  .hero-inner { padding: 56px 0 48px; }
+  .hero h1 { font-size: 30px; }
+  .hero .sub { font-size: 17px; color: var(--ink-soft); margin-bottom: 26px; }
+
+  /* CTA */
+  .cta {
+    display: inline-block; width: 100%; max-width: 360px;
+    background: var(--accent); color: var(--accent-ink);
+    text-align: center; text-decoration: none; font-weight: 700; font-size: 17px;
+    padding: 16px 24px; border-radius: var(--radius);
+  }
+  .cta:hover { filter: brightness(1.08); }
+  .cta-note { margin-top: 10px; font-size: 13px; color: var(--ink-faint); }
+
+  /* 카드 */
+  .card {
+    border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 18px 20px; margin-bottom: 12px; background: var(--bg);
+  }
+  .card h3 { margin-bottom: 6px; }
+  .card p { margin: 0; color: var(--ink-soft); }
+
+  /* 목차 */
+  .toc { counter-reset: toc; list-style: none; padding: 0; margin: 0; }
+  .toc li {
+    counter-increment: toc; position: relative;
+    padding: 14px 0 14px 42px; border-bottom: 1px solid var(--line);
+  }
+  .toc li:last-child { border-bottom: 0; }
+  .toc li::before {
+    content: counter(toc, decimal-leading-zero);
+    position: absolute; left: 0; top: 14px;
+    font-variant-numeric: tabular-nums; font-weight: 700;
+    color: var(--accent); font-size: 14px;
+  }
+  .toc strong { display: block; }
+  .toc span { color: var(--ink-soft); font-size: 15px; }
+
+  /* 증거 */
+  .proof { border-left: 3px solid var(--accent); padding: 4px 0 4px 16px; margin-bottom: 16px; }
+  .proof p { margin: 0; color: var(--ink-soft); }
+
+  /* 가격 */
+  .price-box {
+    border: 2px solid var(--ink); border-radius: var(--radius);
+    padding: 24px 20px; background: var(--bg);
+  }
+  .price-num { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 4px; }
+  .includes { list-style: none; padding: 0; margin: 0 0 20px; }
+  .includes li { padding-left: 22px; position: relative; }
+  .includes li::before {
+    content: "✓"; position: absolute; left: 0; color: var(--accent); font-weight: 700;
+  }
+
+  /* FAQ */
+  details {
+    border-bottom: 1px solid var(--line); padding: 14px 0;
+  }
+  details:last-of-type { border-bottom: 0; }
+  summary {
+    cursor: pointer; font-weight: 700; font-size: 16px; list-style: none;
+    padding-right: 24px; position: relative;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after {
+    content: "+"; position: absolute; right: 0; top: 0;
+    color: var(--accent); font-weight: 700;
+  }
+  details[open] summary::after { content: "−"; }
+  details p { margin: 10px 0 0; color: var(--ink-soft); }
+
+  /* 최종 CTA */
+  .final { background: var(--bg-soft); text-align: center; }
+  .final .cta { max-width: 420px; }
+
+  /* 푸터 */
+  footer { padding: 32px 0 48px; color: var(--ink-faint); font-size: 13px; }
+  footer p { margin: 0 0 8px; }
+  .ai-label { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+
+  @media (min-width: 768px) {
+    :root { --gutter: 32px; }
+    body { font-size: 17px; }
+    h1 { font-size: 40px; }
+    .hero h1 { font-size: 44px; }
+    .hero-inner { padding: 88px 0 72px; }
+    h2 { font-size: 28px; }
+    section { padding: 72px 0; }
+    .price-num { font-size: 38px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 1. 히어로 -->
+<header class="hero">
+  <div class="wrap hero-inner">
+    <h1>{{ headline }}</h1>
+    <p class="sub">{{ landing.hero_sub }}</p>
+    <a class="cta" href="{{ d.cta_url }}">{{ cta_text }}</a>
+    <p class="cta-note">{{ d.price_text }} · 결제 페이지로 이동합니다</p>
+  </div>
+</header>
+
+<main>
+  <!-- 2. 문제 공감 -->
+  <section class="wrap">
+    <p class="eyebrow">이런 상황인가요</p>
+    <h2>{{ landing.problem.title }}</h2>
+    {% if landing.problem.lead %}<p class="lead">{{ landing.problem.lead }}</p>{% endif %}
+    {% for item in landing.problem["items"] %}
+    <div class="card">
+      <h3>{{ item.title }}</h3>
+      <p>{{ item.body }}</p>
+    </div>
+    {% endfor %}
+  </section>
+
+  <!-- 3. 해결 약속 -->
+  <section class="wrap">
+    <p class="eyebrow">무엇이 달라지나</p>
+    <h2>{{ landing.promise.title }}</h2>
+    <p class="lead">{{ landing.promise.body }}</p>
+    <ul>
+      {% for bullet in landing.promise.bullets %}<li>{{ bullet }}</li>{% endfor %}
+    </ul>
+  </section>
+
+  <!-- 4. 커리큘럼 -->
+  <section class="wrap">
+    <p class="eyebrow">커리큘럼</p>
+    <h2>{{ landing.curriculum.title }}</h2>
+    <ol class="toc">
+      {% for item in landing.curriculum["items"] %}
+      <li><strong>{{ item.title }}</strong><span>{{ item.summary }}</span></li>
+      {% endfor %}
+    </ol>
+  </section>
+
+  <!-- 5. 증거 — proof 가 있을 때만 -->
+  {% if d.proof %}
+  <section class="wrap">
+    <p class="eyebrow">근거</p>
+    <h2>지금까지의 기록</h2>
+    {% for item in d.proof %}
+    <blockquote class="proof"><p>{{ item }}</p></blockquote>
+    {% endfor %}
+    <p class="muted">위 내용은 판매자가 제공한 자료입니다. 같은 결과를 보장하지 않으며 개인차가 있습니다.</p>
+  </section>
+  {% endif %}
+
+  <!-- 6. 가격·구성 -->
+  <section class="wrap">
+    <p class="eyebrow">구성과 가격</p>
+    <h2>{{ landing.pricing.title }}</h2>
+    <div class="price-box">
+      <p class="price-num">{{ d.price_text }}</p>
+      <p class="muted">{{ landing.pricing.note }}</p>
+      <ul class="includes">
+        {% for item in landing.pricing.includes %}<li>{{ item }}</li>{% endfor %}
+      </ul>
+      <a class="cta" href="{{ d.cta_url }}">{{ cta_text }}</a>
+    </div>
+  </section>
+
+  <!-- 7. FAQ -->
+  <section class="wrap">
+    <p class="eyebrow">자주 묻는 질문</p>
+    <h2>결정 전에 확인하세요</h2>
+    {% for item in faq %}
+    <details{% if loop.first %} open{% endif %}>
+      <summary>{{ item.q }}</summary>
+      <p>{{ item.a }}</p>
+    </details>
+    {% endfor %}
+  </section>
+
+  <!-- 8. 최종 CTA -->
+  <section class="final">
+    <div class="wrap">
+      <h2>{{ landing.final_cta.title }}</h2>
+      <p class="lead">{{ landing.final_cta.body }}</p>
+      <a class="cta" href="{{ d.cta_url }}">{{ landing.final_cta.button or cta_text }}</a>
+    </div>
+  </section>
+</main>
+
+<!-- 9. 푸터 -->
+<footer class="wrap">
+  <p><strong>{{ d.sender_name }}</strong></p>
+  <p>환불 정책: (판매 전 반드시 채우세요 — 전자상거래법상 청약철회 기간·조건·연락처를 명시해야 합니다.)</p>
+  <p>사업자 정보 / 문의처: (판매 전 채우세요)</p>
+  {% if ai_label %}
+  <p class="ai-label">{{ ai_label_text }}</p>
+  {% endif %}
+</footer>
+
+</body>
+</html>
