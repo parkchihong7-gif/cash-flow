@@ -39,7 +39,7 @@ python -m dashboard           # http://127.0.0.1:8000
 ### 서버 없이 화면만 보기
 
 ```bash
-python -m dashboard.snapshot --demo        # dashboard-snapshot/index.html
+python -m dashboard.snapshot --demo --single   # 폴더 + 파일 하나(약 2.5MB)
 ```
 
 화면을 통째로 떠서 **HTML 파일 묶음**으로 만듭니다. 파이썬이 없는 사람에게

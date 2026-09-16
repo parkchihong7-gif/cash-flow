@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 
 import pytest
@@ -125,3 +126,50 @@ def test_a_demo_run_fills_the_history(tmp_path):
     assert all(row["mode"] == "dry" for row in runs)
     history = (out / PAGE_DIR / snapshot.pages["/runs"]).read_text(encoding="utf-8")
     assert "모의" in history
+
+
+# ------------------------------------------------- 한 파일로 묶은 판 (--single)
+# 폴더째 주고받기는 번거롭다. 메일에 붙이거나 카톡으로 보내려면 파일 하나여야 한다.
+@pytest.fixture(scope="module")
+def single(tmp_path_factory):
+    out = tmp_path_factory.mktemp("single")
+    return build(out, stamp="테스트", single=str(out / "대시보드.html"))
+
+
+def test_one_file_holds_every_screen(single):
+    text = single.single.read_text(encoding="utf-8")
+    assert single.single.stat().st_size > 500_000, "화면이 들어 있지 않습니다"
+    assert 'id="pages"' in text
+    payload = text[text.index('id="pages"'):]
+    for name in single.pages.values():
+        assert json.dumps(name, ensure_ascii=False)[1:-1] in payload, name
+
+
+def test_one_file_needs_nothing_beside_it(single):
+    """옆 파일을 부르면 안 된다. 파일 하나만 보내도 열려야 한다."""
+    text = single.single.read_text(encoding="utf-8")
+    body = text[:text.index('id="pages"')]
+    # 스크립트 안의 글자는 주소가 아니다. 화면을 바꿔 끼울 때 쓰는 본보기다.
+    body = re.sub(r"<script\b.*?</script>", "", body, flags=re.S)
+    for attr, url in re.findall(r'\s(href|src)="([^"]+)"', body):
+        if url.startswith(("#", "http", "about:", "data:")):
+            continue
+        assert False, f"바깥 파일을 부릅니다: {attr}={url}"
+
+
+def test_the_stylesheet_rides_along(single):
+    text = single.single.read_text(encoding="utf-8")
+    assert "__css__" in text, "화면 꾸밈이 빠지면 글자만 남는다"
+
+
+def test_links_inside_become_page_names(single):
+    text = single.single.read_text(encoding="utf-8")
+    assert "data-page=" in text
+    assert 'href=\\"/programs/' not in text, "서버 주소가 남아 있습니다"
+
+
+def test_the_payload_cannot_break_out_of_the_script_tag(single):
+    """화면 안의 </script> 가 그대로 들어가면 쪽지가 거기서 끊긴다."""
+    payload = single.single.read_text(encoding="utf-8")
+    payload = payload[payload.index('id="pages"'):]
+    assert "</script>" not in payload[:-20], "쪽지 안에 닫는 표가 남아 있습니다"

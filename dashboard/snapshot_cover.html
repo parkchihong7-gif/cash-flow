@@ -208,27 +208,54 @@
 </nav>
 
 <main class="stage">
-  <p class="fallback" id="fallback">
-    화면이 안 보이면 <a href="{{HOME}}">여기를 눌러 직접 여세요</a>.
-  </p>
-  <iframe id="stage" src="{{HOME}}" title="대시보드 화면"></iframe>
+  <p class="fallback" id="fallback">{{FALLBACK}}</p>
+  <iframe id="stage" src="{{HOME_SRC}}" data-home="{{HOME}}" title="대시보드 화면"></iframe>
 </main>
 
 <script>
-  (function () {
+  // 화면 쪽지는 이 글보다 아래에 붙는다. 그래서 문서가 다 그려진 뒤에 시작한다.
+  document.addEventListener("DOMContentLoaded", function () {
     var frame = document.getElementById("stage");
     var chips = Array.prototype.slice.call(document.querySelectorAll(".chip"));
 
-    chips.forEach(function (chip) {
-      chip.addEventListener("click", function () {
-        chips.forEach(function (other) { other.removeAttribute("aria-current"); });
-        chip.setAttribute("aria-current", "true");
-        frame.src = chip.dataset.src;
+    // 한 파일로 묶은 판에서는 화면들이 아래 쪽지에 들어 있다.
+    // 여러 파일로 흩어 놓은 판에서는 쪽지가 없고 액자가 옆 파일을 연다.
+    var payload = document.getElementById("pages");
+    var PAGES = payload ? JSON.parse(payload.textContent) : null;
+
+    function mark(name) {
+      chips.forEach(function (chip) {
+        if (chip.dataset.src === name) { chip.setAttribute("aria-current", "true"); }
+        else { chip.removeAttribute("aria-current"); }
       });
+    }
+
+    function show(name) {
+      if (PAGES) {
+        var body = PAGES[name];
+        if (body === undefined) { return; }
+        frame.srcdoc = body.replace(
+          '<link rel="stylesheet" href="style.css">',
+          "<style>" + PAGES["__css__"] + "</style>");
+      } else {
+        frame.src = name;
+      }
+      mark(name);
+    }
+
+    chips.forEach(function (chip) {
+      chip.addEventListener("click", function () { show(chip.dataset.src); });
     });
 
-    // 액자 안에서 다른 화면으로 넘어가면 위쪽 칩의 표시를 맞춰 준다
+    // 액자 안에서 링크를 누르면 안쪽 화면이 부모에게 알려 준다.
+    // 한 파일로 묶은 판은 주소가 없어서 이 길밖에 없다.
+    window.addEventListener("message", function (event) {
+      if (event.data && event.data.snapshotPage) { show(event.data.snapshotPage); }
+    });
+
+    // 여러 파일 판에서 액자가 스스로 옮겨 갔을 때 위쪽 칩을 맞춰 준다
     frame.addEventListener("load", function () {
+      if (PAGES) { return; }
       var here;
       try { here = frame.contentWindow.location.pathname; } catch (e) { return; }
       chips.forEach(function (chip) {
@@ -237,5 +264,7 @@
         else { chip.removeAttribute("aria-current"); }
       });
     });
-  })();
+
+    if (PAGES) { show(frame.dataset.home); }
+  });
 </script>

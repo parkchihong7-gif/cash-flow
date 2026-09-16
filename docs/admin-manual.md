@@ -139,8 +139,13 @@
 ```bash
 python -m dashboard.snapshot                    # dashboard-snapshot/ 에 만듭니다
 python -m dashboard.snapshot --demo             # 모의 실행까지 돌려 산출물 화면도 담습니다
+python -m dashboard.snapshot --single           # 화면 전부를 담은 HTML 파일 하나도
 python -m dashboard.snapshot --out /경로 --zip  # 압축까지
 ```
+
+`--single` 을 주면 `통합-관리자-대시보드.html` **파일 하나**가 같이 나옵니다(약 2.5MB).
+폴더째 주고받기는 번거로우니, 메일에 붙이거나 메신저로 보낼 때는 이쪽을 쓰세요.
+파일 하나만 있으면 열립니다.
 
 대시보드 화면을 **통째로 떠서 HTML 파일 묶음**으로 만듭니다.
 만들어진 `index.html` 을 브라우저로 열면 화면을 그대로 돌아다닐 수 있습니다.

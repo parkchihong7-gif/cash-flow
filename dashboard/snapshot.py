@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import re
 import shutil
 import sys
@@ -88,10 +89,22 @@ document.addEventListener("submit", function (event) {
   alert("정적 스냅샷입니다. 저장·실행·검색은 서버를 띄워야 됩니다.\\n\\n  python -m dashboard");
 });
 document.addEventListener("DOMContentLoaded", function () {
+  // 표지 안에서 볼 때는 위쪽 머리말이 이미 같은 말을 하고 있다. 두 번 하지 않는다.
+  if (window.parent !== window) {
+    var bar = document.querySelector(".snapshot-bar");
+    if (bar) { bar.remove(); }
+  }
   document.querySelectorAll("form button, form input[type=submit]").forEach(function (el) {
     el.classList.add("snapshot-dead");
     el.title = "정적 스냅샷에서는 눌러도 아무 일도 일어나지 않습니다";
   });
+});
+// 한 파일로 묶은 판에는 주소가 없다. 어느 화면으로 가고 싶은지 표지에 알려 준다.
+document.addEventListener("click", function (event) {
+  var link = event.target.closest ? event.target.closest("a[data-page]") : null;
+  if (!link) { return; }
+  event.preventDefault();
+  parent.postMessage({ snapshotPage: link.dataset.page }, "*");
 });
 </script>"""
 
@@ -132,6 +145,7 @@ class Snapshot:
     pages: dict[str, str] = field(default_factory=dict)   # url -> 파일명
     failures: list[tuple[str, int]] = field(default_factory=list)
     dangling: set[str] = field(default_factory=set)
+    single: Path | None = None          # 한 파일로 묶은 판 (만들었을 때만)
 
     @property
     def index(self) -> Path:
@@ -160,8 +174,13 @@ def _seeds(registry: Registry) -> list[str]:
     return urls
 
 
-def _rewrite(body: str, pages: dict[str, str], dangling: set[str]) -> str:
-    """페이지 안의 주소를 옆에 있는 파일 이름으로 바꾼다."""
+def _rewrite(body: str, pages: dict[str, str], dangling: set[str],
+             single: bool = False) -> str:
+    """페이지 안의 주소를 옆에 있는 파일 이름으로 바꾼다.
+
+    한 파일로 묶는 판(`single`)에서는 열 파일이 없다. 주소 대신 화면 이름만
+    붙여 두고, 누르면 표지가 대신 바꿔 끼운다.
+    """
 
     def swap(match: re.Match) -> str:
         attr, url = match.group(1), match.group(2)
@@ -172,6 +191,8 @@ def _rewrite(body: str, pages: dict[str, str], dangling: set[str]) -> str:
         if not should_follow(url):
             return match.group(0)
         if url in pages:
+            if single and attr == "href":
+                return f'href="#" data-page="{pages[url]}"'
             return f'{attr}="{pages[url]}"'
         # 못 떠 온 화면이다. 눌러도 파일이 없으니 제자리에 둔다.
         dangling.add(url)
@@ -180,15 +201,18 @@ def _rewrite(body: str, pages: dict[str, str], dangling: set[str]) -> str:
     return LINK.sub(swap, body)
 
 
-def _cover(snapshot: Snapshot, registry: Registry, stamp: str) -> str:
+def _cover(snapshot: Snapshot, registry: Registry, stamp: str,
+           payload: str = "") -> str:
     """표지. 프로그램 목록에서 칩을 만들어 새 상품이 저절로 들어오게 한다."""
     def chip(url: str, label: str, num: str = "", current: bool = False) -> str:
         name = snapshot.pages.get(url)
         if not name:
             return ""
+        if not payload:
+            name = f"{PAGE_DIR}/{name}"
         inner = (f'<span class="n">{num}</span>' if num else "") + label
         mark = ' aria-current="true"' if current else ""
-        return f'    <button class="chip" data-src="{PAGE_DIR}/{name}"{mark}>{inner}</button>\n'
+        return f'    <button class="chip" data-src="{name}"{mark}>{inner}</button>\n'
 
     chips = '    <span class="group-label">시작</span>\n'
     chips += chip("/login", "접속 화면")
@@ -208,12 +232,27 @@ def _cover(snapshot: Snapshot, registry: Registry, stamp: str) -> str:
     chips += chip("/manual/admin", "관리자 매뉴얼")
     chips += chip("/manual/client", "고객 매뉴얼")
 
+    home = snapshot.pages.get("/", "index.html")
     template = (BASE_DIR / "snapshot_cover.html").read_text(encoding="utf-8")
-    return (template
+    page = (template
             .replace("{{CHIPS}}", chips.rstrip())
             .replace("{{COUNT}}", str(snapshot.count))
-            .replace("{{STAMP}}", stamp)
-            .replace("{{HOME}}", f"{PAGE_DIR}/{snapshot.pages.get('/', 'index.html')}"))
+            .replace("{{STAMP}}", stamp))
+    if payload:
+        page = (page
+                .replace("{{HOME_SRC}}", "about:blank")
+                .replace("{{HOME}}", home)
+                .replace("{{FALLBACK}}",
+                         "화면이 안 보이면 브라우저를 최신 것으로 열어 보세요."))
+        # 표지에는 </body> 가 없다. 쪽지는 맨 끝에 붙인다.
+        page = page.rstrip() + "\n\n" + payload + "\n"
+    else:
+        page = (page
+                .replace("{{HOME_SRC}}", f"{PAGE_DIR}/{home}")
+                .replace("{{HOME}}", f"{PAGE_DIR}/{home}")
+                .replace("{{FALLBACK}}",
+                         f'화면이 안 보이면 <a href="{PAGE_DIR}/{home}">여기를 눌러 직접 여세요</a>.'))
+    return page
 
 
 def demo_runs(app) -> list[str]:
@@ -236,9 +275,24 @@ def demo_runs(app) -> list[str]:
     return done
 
 
+def _payload(raw: dict[str, str], pages: dict[str, str], dangling: set[str],
+             banner: str, css: str) -> str:
+    """화면 전부를 표지 안에 넣을 쪽지 하나로 만든다."""
+    bundle = {}
+    for url, body in raw.items():
+        body = _rewrite(body, pages, dangling, single=True)
+        body = body.replace("<body>", "<body>\n" + banner, 1)
+        body = body.replace("</body>", FREEZE + "\n</body>", 1)
+        bundle[pages[url]] = body
+    bundle["__css__"] = css
+    # </script> 가 글자 그대로 들어가면 쪽지가 거기서 끊긴다.
+    text = json.dumps(bundle, ensure_ascii=False).replace("</", "<\\/")
+    return f'<script type="application/json" id="pages">{text}</script>'
+
+
 def build(out_dir: str | Path, db_path: str | Path | None = None,
           products_dir: Path | None = None, stamp: str = "",
-          demo: bool = False) -> Snapshot:
+          demo: bool = False, single: str = "") -> Snapshot:
     """화면을 떠서 `out_dir` 아래에 static HTML 묶음을 만든다.
 
     Args:
@@ -248,6 +302,8 @@ def build(out_dir: str | Path, db_path: str | Path | None = None,
         stamp: 표지에 적을 날짜 문자열.
         demo: True 면 프로그램마다 모의 실행을 한 번씩 돌려 실행 이력과
             산출물 화면까지 채운다. 몇 분 걸린다.
+        single: 비어 있지 않으면 **화면 전부를 담은 HTML 파일 하나**를
+            그 이름으로도 만든다. 메일로 보내거나 카톡으로 넘기기 좋다.
     """
     out_dir = Path(out_dir)
     page_dir = out_dir / PAGE_DIR
@@ -309,8 +365,16 @@ def build(out_dir: str | Path, db_path: str | Path | None = None,
             body = body.replace("</body>", FREEZE + "\n</body>", 1)
             (page_dir / snapshot.pages[url]).write_text(body, encoding="utf-8")
 
+        css = (BASE_DIR / "static" / "style.css").read_text(encoding="utf-8")
         shutil.copy(BASE_DIR / "static" / "style.css", page_dir / "style.css")
         snapshot.index.write_text(_cover(snapshot, registry, stamp), encoding="utf-8")
+
+        if single:
+            payload = _payload(raw, snapshot.pages, snapshot.dangling, banner, css)
+            snapshot.single = Path(single)
+            snapshot.single.parent.mkdir(parents=True, exist_ok=True)
+            snapshot.single.write_text(
+                _cover(snapshot, registry, stamp, payload=payload), encoding="utf-8")
         return snapshot
     finally:
         if temp_dir is not None:
@@ -327,15 +391,23 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--stamp", default="", help="표지에 적을 날짜")
     parser.add_argument("--demo", action="store_true",
                         help="모의 실행을 한 번씩 돌려 실행 이력·산출물 화면까지 담습니다")
+    parser.add_argument("--single", nargs="?", const="auto", default="",
+                        help="화면 전부를 담은 HTML 파일 하나도 만듭니다")
     parser.add_argument("--zip", action="store_true", help="폴더를 zip 으로도 묶습니다")
     args = parser.parse_args(argv)
 
     if args.db:
         print("⚠ 실제 DB 로 뜹니다. 고객 이름·연락처가 화면에 그대로 찍힙니다.")
 
+    single = args.single
+    if single == "auto":
+        single = str(Path(args.out) / "통합-관리자-대시보드.html")
     snapshot = build(args.out, Path(args.db) if args.db else None,
-                     stamp=args.stamp, demo=args.demo)
+                     stamp=args.stamp, demo=args.demo, single=single)
     print(f"화면 {snapshot.count}개 → {snapshot.index}")
+    if snapshot.single:
+        size = snapshot.single.stat().st_size / 1_000_000
+        print(f"한 파일로 묶은 판 → {snapshot.single} ({size:.1f}MB)")
     for url, status in snapshot.failures:
         print(f"  ! {url} 를 뜨지 못했습니다 (HTTP {status})")
     if snapshot.dangling:
