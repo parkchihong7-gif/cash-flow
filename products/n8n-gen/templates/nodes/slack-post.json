@@ -1,0 +1,40 @@
+{
+  "id": "slack-post",
+  "label": "슬랙 메시지",
+  "category": "notify",
+  "description": "슬랙 채널에 글을 올립니다.",
+  "n8n_type": "n8n-nodes-base.slack",
+  "type_version": 2.2,
+  "is_trigger": false,
+  "credential": "slackApi",
+  "params": [
+    {
+      "key": "channel",
+      "label": "채널 (# 없이)",
+      "type": "string",
+      "default": "general"
+    },
+    {
+      "key": "text",
+      "label": "보낼 내용",
+      "type": "string",
+      "default": "={{ $json.summary }}"
+    }
+  ],
+  "parameters": {
+    "resource": "message",
+    "operation": "post",
+    "select": "channel",
+    "channelId": {
+      "__rl": true,
+      "value": "{{channel}}",
+      "mode": "name"
+    },
+    "text": "{{text}}",
+    "otherOptions": {}
+  },
+  "outputs": [
+    "main"
+  ],
+  "inputs": 1
+}

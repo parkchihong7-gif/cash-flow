@@ -1,0 +1,41 @@
+{
+  "id": "gmail-send",
+  "label": "Gmail 보내기",
+  "category": "notify",
+  "description": "Gmail 로 메일을 보냅니다.",
+  "n8n_type": "n8n-nodes-base.gmail",
+  "type_version": 2.1,
+  "is_trigger": false,
+  "credential": "gmailOAuth2",
+  "params": [
+    {
+      "key": "to",
+      "label": "받는 사람",
+      "type": "string",
+      "default": "[받는 주소]"
+    },
+    {
+      "key": "subject",
+      "label": "제목",
+      "type": "string",
+      "default": "자동 보고서"
+    },
+    {
+      "key": "body",
+      "label": "본문",
+      "type": "string",
+      "default": "={{ $json.summary }}"
+    }
+  ],
+  "parameters": {
+    "sendTo": "{{to}}",
+    "subject": "{{subject}}",
+    "emailType": "text",
+    "message": "{{body}}",
+    "options": {}
+  },
+  "outputs": [
+    "main"
+  ],
+  "inputs": 1
+}

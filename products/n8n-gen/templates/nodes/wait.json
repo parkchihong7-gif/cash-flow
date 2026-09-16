@@ -1,0 +1,33 @@
+{
+  "id": "wait",
+  "label": "대기",
+  "category": "logic",
+  "description": "지정한 시간만큼 멈춥니다. API 호출 간격을 둘 때 씁니다.",
+  "n8n_type": "n8n-nodes-base.wait",
+  "type_version": 1.1,
+  "is_trigger": false,
+  "credential": null,
+  "params": [
+    {
+      "key": "amount",
+      "label": "대기 시간",
+      "type": "number",
+      "default": 5
+    },
+    {
+      "key": "unit",
+      "label": "단위 (seconds/minutes/hours)",
+      "type": "string",
+      "default": "seconds"
+    }
+  ],
+  "parameters": {
+    "resume": "timeInterval",
+    "amount": "{{amount}}",
+    "unit": "{{unit}}"
+  },
+  "outputs": [
+    "main"
+  ],
+  "inputs": 1
+}

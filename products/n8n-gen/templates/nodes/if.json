@@ -1,0 +1,57 @@
+{
+  "id": "if",
+  "label": "조건 분기 (IF)",
+  "category": "logic",
+  "description": "조건에 따라 참/거짓 두 갈래로 나눕니다.",
+  "n8n_type": "n8n-nodes-base.if",
+  "type_version": 2.2,
+  "is_trigger": false,
+  "credential": null,
+  "params": [
+    {
+      "key": "left",
+      "label": "비교할 값",
+      "type": "string",
+      "default": "={{ $json.status }}"
+    },
+    {
+      "key": "operator",
+      "label": "연산자",
+      "type": "string",
+      "default": "equals"
+    },
+    {
+      "key": "right",
+      "label": "비교 대상",
+      "type": "string",
+      "default": "ok"
+    }
+  ],
+  "parameters": {
+    "conditions": {
+      "options": {
+        "caseSensitive": true,
+        "leftValue": "",
+        "typeValidation": "loose"
+      },
+      "conditions": [
+        {
+          "id": "cond-1",
+          "leftValue": "{{left}}",
+          "rightValue": "{{right}}",
+          "operator": {
+            "type": "string",
+            "operation": "{{operator}}"
+          }
+        }
+      ],
+      "combinator": "and"
+    },
+    "options": {}
+  },
+  "outputs": [
+    "true",
+    "false"
+  ],
+  "inputs": 1
+}

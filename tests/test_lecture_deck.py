@@ -16,7 +16,7 @@ from pptx import Presentation
 from pptx.util import Emu, Inches
 from pydantic import ValidationError
 
-import cli as deck_cli
+from conftest import load_product_cli
 from lecture_deck import docx_builder, pptx_builder
 from lecture_deck.generator import (
     BASE_DIR, DeckGenerator, Slide, assemble_deck, pad_note,
@@ -27,6 +27,8 @@ from lecture_deck.schema import (
     NOTE_MAX_CHARS, NOTE_MIN_CHARS, STYLES, fit_body, load_input, wrap_line,
 )
 from shared import banned_phrases
+
+deck_cli = load_product_cli("lecture-deck")
 
 DECK_DIR = Path(BASE_DIR)
 EXAMPLE_YAML = DECK_DIR / "deck_input.yaml"

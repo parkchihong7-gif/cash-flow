@@ -1,0 +1,46 @@
+{
+  "id": "google-sheets-append",
+  "label": "구글시트 추가",
+  "category": "data",
+  "description": "시트 맨 아래에 행을 덧붙입니다.",
+  "n8n_type": "n8n-nodes-base.googleSheets",
+  "type_version": 4.5,
+  "is_trigger": false,
+  "credential": "googleSheetsOAuth2Api",
+  "params": [
+    {
+      "key": "document_id",
+      "label": "스프레드시트 ID",
+      "type": "string",
+      "default": "[스프레드시트 ID를 넣으세요]"
+    },
+    {
+      "key": "sheet_name",
+      "label": "시트(탭) 이름",
+      "type": "string",
+      "default": "시트1"
+    }
+  ],
+  "parameters": {
+    "operation": "append",
+    "documentId": {
+      "__rl": true,
+      "value": "{{document_id}}",
+      "mode": "id"
+    },
+    "sheetName": {
+      "__rl": true,
+      "value": "{{sheet_name}}",
+      "mode": "name"
+    },
+    "columns": {
+      "mappingMode": "autoMapInputData",
+      "value": {}
+    },
+    "options": {}
+  },
+  "outputs": [
+    "main"
+  ],
+  "inputs": 1
+}

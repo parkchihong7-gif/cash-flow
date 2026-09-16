@@ -1,0 +1,42 @@
+{
+  "id": "http-request",
+  "label": "HTTP 요청",
+  "category": "action",
+  "description": "아무 API나 호출합니다. 지원하지 않는 서비스는 이 노드로 대체합니다.",
+  "n8n_type": "n8n-nodes-base.httpRequest",
+  "type_version": 4.2,
+  "is_trigger": false,
+  "credential": null,
+  "params": [
+    {
+      "key": "method",
+      "label": "HTTP 메서드",
+      "type": "string",
+      "default": "GET"
+    },
+    {
+      "key": "url",
+      "label": "요청 URL",
+      "type": "string",
+      "default": "[호출할 주소를 넣으세요]"
+    },
+    {
+      "key": "body",
+      "label": "보낼 JSON 본문",
+      "type": "string",
+      "default": ""
+    }
+  ],
+  "parameters": {
+    "method": "{{method}}",
+    "url": "{{url}}",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "{{body}}",
+    "options": {}
+  },
+  "outputs": [
+    "main"
+  ],
+  "inputs": 1
+}

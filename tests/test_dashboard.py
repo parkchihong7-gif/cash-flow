@@ -400,12 +400,13 @@ def test_all_programs_registered_with_unique_numbers():
     ids = [p.id for p in registry]
     numbers = [p.number for p in registry]
     assert {"funnel-builder", "hook-script", "ebook-gen", "lecture-deck",
-            "kmong-copy"} <= set(ids)
+            "kmong-copy", "n8n-gen"} <= set(ids)
     assert len(numbers) == len(set(numbers)), "프로그램 번호가 겹칩니다"
     assert registry.errors == []
 
 
-@pytest.mark.parametrize("program_id", ["funnel-builder", "hook-script", "ebook-gen", "lecture-deck", "kmong-copy"])
+@pytest.mark.parametrize("program_id", ["funnel-builder", "hook-script", "ebook-gen",
+                                       "lecture-deck", "kmong-copy", "n8n-gen"])
 def test_every_program_has_full_manifest(program_id):
     """운영 중인 프로그램은 대시보드 화면을 채울 정보를 모두 갖춰야 한다."""
     program = Registry().require(program_id)
@@ -420,7 +421,8 @@ def test_every_program_has_full_manifest(program_id):
     assert program.runnable and program.run.dry_run_command
 
 
-@pytest.mark.parametrize("program_id", ["funnel-builder", "hook-script", "ebook-gen", "lecture-deck", "kmong-copy"])
+@pytest.mark.parametrize("program_id", ["funnel-builder", "hook-script", "ebook-gen",
+                                       "lecture-deck", "kmong-copy", "n8n-gen"])
 def test_every_program_manual_is_detailed_and_clean(program_id):
     program = Registry().require(program_id)
     for audience, relative in (("admin", program.manuals.admin),
@@ -432,7 +434,8 @@ def test_every_program_manual_is_detailed_and_clean(program_id):
         assert "## " in text, "장 구분이 없습니다"
 
 
-@pytest.mark.parametrize("program_id", ["funnel-builder", "hook-script", "ebook-gen", "lecture-deck", "kmong-copy"])
+@pytest.mark.parametrize("program_id", ["funnel-builder", "hook-script", "ebook-gen",
+                                       "lecture-deck", "kmong-copy", "n8n-gen"])
 def test_client_manual_covers_the_essentials(program_id):
     """구매자가 반드시 알아야 할 것이 빠지면 문의가 들어온다."""
     program = Registry().require(program_id)
@@ -442,14 +445,16 @@ def test_client_manual_covers_the_essentials(program_id):
         assert topic in text, f"{program_id} 클라이언트 매뉴얼에 '{topic}' 안내가 없습니다"
 
 
-@pytest.mark.parametrize("program_id", ["funnel-builder", "hook-script", "ebook-gen", "lecture-deck", "kmong-copy"])
+@pytest.mark.parametrize("program_id", ["funnel-builder", "hook-script", "ebook-gen",
+                                       "lecture-deck", "kmong-copy", "n8n-gen"])
 def test_every_editable_file_exists(program_id):
     program = Registry().require(program_id)
     for spec in program.editable_files:
         assert program.resolve(spec.path).is_file(), f"{program_id}: {spec.path} 가 없습니다"
 
 
-@pytest.mark.parametrize("program_id", ["funnel-builder", "hook-script", "ebook-gen", "lecture-deck", "kmong-copy"])
+@pytest.mark.parametrize("program_id", ["funnel-builder", "hook-script", "ebook-gen",
+                                       "lecture-deck", "kmong-copy", "n8n-gen"])
 def test_program_pages_render_for_each_program(client, program_id):
     for suffix in ("", "/edit", "/test", "/members", "/manual/admin", "/manual/client"):
         response = client.get(f"/programs/{program_id}{suffix}")
@@ -507,6 +512,22 @@ def test_kmong_copy_is_registered():
 def test_kmong_copy_dry_run_through_ui(client):
     response = client.post(
         "/programs/kmong-copy/test", data={"mode": "dry", "member_id": ""},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert "성공" in response.text or "경고" in response.text
+
+
+def test_n8n_gen_is_registered():
+    program = Registry().require("n8n-gen")
+    assert program.status == "ready"
+    assert program.number == 6
+    assert program.runnable and program.run.dry_run_command
+
+
+def test_n8n_gen_dry_run_through_ui(client):
+    response = client.post(
+        "/programs/n8n-gen/test", data={"mode": "dry", "member_id": ""},
         follow_redirects=True,
     )
     assert response.status_code == 200

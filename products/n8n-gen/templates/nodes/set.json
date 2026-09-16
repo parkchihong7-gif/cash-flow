@@ -1,0 +1,43 @@
+{
+  "id": "set",
+  "label": "필드 설정 (Set)",
+  "category": "logic",
+  "description": "필드를 만들거나 이름을 바꿉니다. 다음 노드가 쓸 모양으로 정리할 때.",
+  "n8n_type": "n8n-nodes-base.set",
+  "type_version": 3.4,
+  "is_trigger": false,
+  "credential": null,
+  "params": [
+    {
+      "key": "field_name",
+      "label": "필드 이름",
+      "type": "string",
+      "default": "message"
+    },
+    {
+      "key": "field_value",
+      "label": "필드 값",
+      "type": "string",
+      "default": "={{ $json.text }}"
+    }
+  ],
+  "parameters": {
+    "mode": "manual",
+    "duplicateItem": false,
+    "assignments": {
+      "assignments": [
+        {
+          "id": "set-1",
+          "name": "{{field_name}}",
+          "value": "{{field_value}}",
+          "type": "string"
+        }
+      ]
+    },
+    "options": {}
+  },
+  "outputs": [
+    "main"
+  ],
+  "inputs": 1
+}

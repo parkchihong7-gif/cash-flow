@@ -1,0 +1,26 @@
+{
+  "id": "code",
+  "label": "코드 (JavaScript)",
+  "category": "logic",
+  "description": "자바스크립트로 데이터를 가공합니다. 다른 노드로 안 되는 변환에 씁니다.",
+  "n8n_type": "n8n-nodes-base.code",
+  "type_version": 2,
+  "is_trigger": false,
+  "credential": null,
+  "params": [
+    {
+      "key": "code",
+      "label": "실행할 코드",
+      "type": "string",
+      "default": "// 들어온 항목을 그대로 넘깁니다\nreturn items;"
+    }
+  ],
+  "parameters": {
+    "mode": "runOnceForAllItems",
+    "jsCode": "{{code}}"
+  },
+  "outputs": [
+    "main"
+  ],
+  "inputs": 1
+}

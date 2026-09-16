@@ -1,0 +1,35 @@
+{
+  "id": "telegram-send",
+  "label": "텔레그램 메시지",
+  "category": "notify",
+  "description": "텔레그램으로 메시지를 보냅니다.",
+  "n8n_type": "n8n-nodes-base.telegram",
+  "type_version": 1.2,
+  "is_trigger": false,
+  "credential": "telegramApi",
+  "params": [
+    {
+      "key": "chat_id",
+      "label": "채팅 ID",
+      "type": "string",
+      "default": "[채팅 ID]"
+    },
+    {
+      "key": "text",
+      "label": "보낼 내용",
+      "type": "string",
+      "default": "={{ $json.summary }}"
+    }
+  ],
+  "parameters": {
+    "resource": "message",
+    "operation": "sendMessage",
+    "chatId": "{{chat_id}}",
+    "text": "{{text}}",
+    "additionalFields": {}
+  },
+  "outputs": [
+    "main"
+  ],
+  "inputs": 1
+}

@@ -1,0 +1,61 @@
+{
+  "id": "claude",
+  "label": "Claude 호출 (HTTP)",
+  "category": "ai",
+  "description": "Anthropic API 로 Claude 를 부릅니다. 요약·분류·문서 작성에 씁니다.",
+  "n8n_type": "n8n-nodes-base.httpRequest",
+  "type_version": 4.2,
+  "is_trigger": false,
+  "credential": "httpHeaderAuth",
+  "params": [
+    {
+      "key": "model",
+      "label": "모델",
+      "type": "string",
+      "default": "claude-sonnet-4-6"
+    },
+    {
+      "key": "max_tokens",
+      "label": "최대 토큰",
+      "type": "number",
+      "default": 2000
+    },
+    {
+      "key": "system",
+      "label": "시스템 프롬프트",
+      "type": "string",
+      "default": "너는 한국어로 간결하게 요약하는 비서다."
+    },
+    {
+      "key": "prompt",
+      "label": "사용자 프롬프트",
+      "type": "string",
+      "default": "={{ JSON.stringify($json) }}"
+    }
+  ],
+  "parameters": {
+    "method": "POST",
+    "url": "https://api.anthropic.com/v1/messages",
+    "sendHeaders": true,
+    "headerParameters": {
+      "parameters": [
+        {
+          "name": "anthropic-version",
+          "value": "2023-06-01"
+        },
+        {
+          "name": "content-type",
+          "value": "application/json"
+        }
+      ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ model: '{{model}}', max_tokens: {{max_tokens}}, system: '{{system}}', messages: [{ role: 'user', content: `{{prompt}}` }] }) }}",
+    "options": {}
+  },
+  "outputs": [
+    "main"
+  ],
+  "inputs": 1
+}

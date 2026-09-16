@@ -1,0 +1,26 @@
+{
+  "id": "merge",
+  "label": "합치기 (Merge)",
+  "category": "logic",
+  "description": "두 갈래로 나뉜 흐름을 다시 하나로 모읍니다.",
+  "n8n_type": "n8n-nodes-base.merge",
+  "type_version": 3,
+  "is_trigger": false,
+  "credential": null,
+  "params": [
+    {
+      "key": "mode",
+      "label": "합치는 방식 (append/combine)",
+      "type": "string",
+      "default": "append"
+    }
+  ],
+  "parameters": {
+    "mode": "{{mode}}",
+    "options": {}
+  },
+  "inputs": 2,
+  "outputs": [
+    "main"
+  ]
+}

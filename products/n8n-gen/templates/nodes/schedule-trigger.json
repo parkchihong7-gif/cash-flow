@@ -1,0 +1,38 @@
+{
+  "id": "schedule-trigger",
+  "label": "스케줄 트리거",
+  "category": "trigger",
+  "description": "정해진 시각마다 워크플로를 시작합니다. '매일 9시에' 같은 요구에 씁니다.",
+  "n8n_type": "n8n-nodes-base.scheduleTrigger",
+  "type_version": 1.2,
+  "is_trigger": true,
+  "credential": null,
+  "params": [
+    {
+      "key": "hour",
+      "label": "시 (0~23)",
+      "type": "number",
+      "default": 9
+    },
+    {
+      "key": "minute",
+      "label": "분 (0~59)",
+      "type": "number",
+      "default": 0
+    }
+  ],
+  "parameters": {
+    "rule": {
+      "interval": [
+        {
+          "field": "cronExpression",
+          "expression": "{{minute}} {{hour}} * * *"
+        }
+      ]
+    }
+  },
+  "outputs": [
+    "main"
+  ],
+  "inputs": 0
+}
