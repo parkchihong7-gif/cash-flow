@@ -20,6 +20,13 @@ ENV_PATH = ROOT_DIR / ".env"
 
 load_dotenv(ENV_PATH)
 
+#: 지워지면 안 되는 것(고객 DB, 세션 서명값)을 두는 곳.
+#:
+#: 기본은 저장소 폴더다. 클라우드에 올리면 배포할 때마다 파일이 초기화되므로,
+#: 거기서는 `DASHBOARD_DATA_DIR` 을 디스크가 붙은 경로로 지정해야 고객 정보가 남는다.
+DATA_DIR = Path(os.getenv("DASHBOARD_DATA_DIR") or ROOT_DIR)
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
 
 def _env_flag(name: str, default: bool) -> bool:
     raw = os.getenv(name)

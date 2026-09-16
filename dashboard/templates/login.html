@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>접속 코드 · 통합 관리자 대시보드</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="gate-body">
+  <main class="gate">
+    <div class="gate-card">
+      <h1>통합 관리자 대시보드</h1>
+      <p class="muted">접속 코드를 넣어야 열립니다.</p>
+
+      {% if locked %}
+      <div class="note bad">
+        <strong>잠시 잠겼습니다.</strong>
+        코드를 여러 번 틀려서 <strong>{{ locked_minutes }}분</strong> 동안 막아 두었습니다.
+        기다렸다가 다시 시도하세요.
+      </div>
+      {% elif error %}
+      <div class="note bad">
+        <strong>{{ error }}</strong>
+        {% if remaining is not none %}
+        <br>남은 시도 {{ remaining }}번. 모두 틀리면 {{ lockout_minutes }}분 동안 잠깁니다.
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <form method="post" action="/login" autocomplete="off">
+        <input type="hidden" name="next" value="{{ next_path }}">
+        <label for="code">접속 코드</label>
+        <input id="code" name="code" type="password" required autofocus
+               {% if locked %}disabled{% endif %}
+               placeholder="코드를 입력하세요" inputmode="text">
+        <button type="submit" class="primary" {% if locked %}disabled{% endif %}>들어가기</button>
+      </form>
+
+      <p class="gate-foot">
+        코드를 잊으셨다면 서버의 <code>.env</code> 파일에서
+        <code>DASHBOARD_ACCESS_CODE</code> 를 확인하세요.
+      </p>
+    </div>
+  </main>
+</body>
+</html>

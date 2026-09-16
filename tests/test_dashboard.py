@@ -9,6 +9,7 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 
+from core import auth
 from core.db import Database
 from core.manifest import ProgramManifest, load_manifest
 from core.registry import Registry
@@ -26,7 +27,22 @@ def db(tmp_path):
 
 @pytest.fixture
 def client(tmp_path):
-    return TestClient(create_app(tmp_path / "app.db"))
+    """접속 코드를 통과한 상태의 클라이언트.
+
+    대시보드는 접속 코드를 넣어야 열린다. 화면을 보는 테스트는
+    매번 로그인을 되풀이할 이유가 없으므로 여기서 한 번 통과시킨다.
+    코드 잠금 자체는 `test_auth.py` 가 따로 검사한다.
+    """
+    client = TestClient(create_app(tmp_path / "app.db"))
+    response = client.post("/login", data={"code": auth.access_code()})
+    assert response.status_code == 200, "테스트용 로그인이 실패했습니다"
+    return client
+
+
+@pytest.fixture
+def locked_client(tmp_path):
+    """로그인하지 않은 클라이언트. 리다이렉트를 그대로 본다."""
+    return TestClient(create_app(tmp_path / "app.db"), follow_redirects=False)
 
 
 @pytest.fixture

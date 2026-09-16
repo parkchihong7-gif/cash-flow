@@ -1,0 +1,36 @@
+# Render(render.com)에 올릴 때 쓰는 설정입니다.
+#
+# 1. github.com 에 이 저장소를 올립니다
+# 2. render.com 에 가입하고 New → Blueprint 에서 저장소를 고릅니다
+# 3. 이 파일을 알아서 읽습니다. DASHBOARD_ACCESS_CODE 만 정해 주세요
+#
+# 자세한 순서는 README 의 '항상 켜 두기' 를 보세요.
+
+services:
+  - type: web
+    name: cash-flow-dashboard
+    runtime: docker
+    plan: starter          # free 로 두면 15분 쉬면 잠들고, 다시 깨는 데 1분쯤 걸립니다
+    region: singapore      # 한국에서 가장 가까운 지역
+    healthCheckPath: /healthz
+    autoDeploy: true
+
+    envVars:
+      # 접속 코드. Render 화면에서 직접 넣으세요. 여기 적어 두면 저장소에 남습니다.
+      - key: DASHBOARD_ACCESS_CODE
+        sync: false
+      # 세션 서명용 비밀값. Render 가 알아서 만들어 줍니다.
+      # 이 값이 바뀌면 열려 있던 창이 전부 로그아웃됩니다.
+      - key: DASHBOARD_SECRET
+        generateValue: true
+      # Claude API 키. 리포트·카피 생성에 씁니다. 없으면 모의 실행만 됩니다.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: DASHBOARD_SESSION_HOURS
+        value: "12"
+
+    disk:
+      # 이걸 붙여야 다시 배포해도 고객 정보와 산출물이 남습니다.
+      name: data
+      mountPath: /app/data
+      sizeGB: 1

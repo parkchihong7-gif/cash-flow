@@ -19,11 +19,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
-from shared.config import ROOT_DIR
+from shared.config import DATA_DIR
 
 __all__ = ["Database", "DEFAULT_DB_PATH", "now_iso"]
 
-DEFAULT_DB_PATH = ROOT_DIR / "dashboard.db"
+DEFAULT_DB_PATH = DATA_DIR / "dashboard.db"
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS members (

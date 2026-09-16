@@ -160,3 +160,70 @@ ol.steps ul { list-style: disc; }
   .main { padding: 20px 16px 48px; }
   .prose { padding: 20px 18px; }
 }
+
+/* ------------------------------------------------ 접속 코드 화면 */
+.gate-body { background: #eef1f5; }
+.gate {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+.gate-card {
+  width: 100%;
+  max-width: 380px;
+  background: #fff;
+  border: 1px solid #dfe3e8;
+  border-radius: 12px;
+  padding: 32px 28px;
+  box-shadow: 0 6px 24px rgba(31, 45, 61, .08);
+}
+.gate-card h1 { margin: 0 0 4px; font-size: 20px; color: #2f4f6f; }
+.gate-card > .muted { margin: 0 0 20px; }
+.gate-card label {
+  display: block;
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.gate-card input[type=password] {
+  width: 100%;
+  padding: 11px 12px;
+  font-size: 16px;            /* 16px 아래면 휴대폰에서 화면이 확대된다 */
+  border: 1px solid #c8cdd4;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+.gate-card input[type=password]:focus {
+  outline: 2px solid #2f4f6f;
+  outline-offset: 1px;
+}
+.gate-card button {
+  width: 100%;
+  margin-top: 14px;
+  padding: 11px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.gate-card button[disabled] { opacity: .5; cursor: not-allowed; }
+.gate-card .note { margin-bottom: 16px; }
+.gate-foot {
+  margin: 18px 0 0;
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.6;
+}
+.side .signout {
+  padding: 0 10px;
+  margin-top: 6px;
+}
+.side .signout button {
+  width: 100%;
+  font-size: 12px;
+  background: transparent;
+  border: 1px solid #55617040;
+  color: inherit;
+}

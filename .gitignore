@@ -43,3 +43,6 @@ renders/
 Thumbs.db
 .idea/
 .vscode/
+
+# 대시보드 세션 서명용 비밀값. 절대 커밋하지 않는다.
+.dashboard_secret

@@ -32,10 +32,21 @@
       <form method="post" action="/reload" style="padding:0 10px">
         <button type="submit" style="width:100%">프로그램 새로고침</button>
       </form>
+      <form method="post" action="/logout" class="signout">
+        <button type="submit">나가기</button>
+      </form>
     </nav>
   </aside>
 
   <main class="main">
+    {% if default_code %}
+    <div class="note warn">
+      <strong>접속 코드가 기본값 그대로입니다.</strong>
+      인터넷에 열어 두셨다면 <code>.env</code> 의 <code>DASHBOARD_ACCESS_CODE</code> 를
+      다른 값으로 바꾸세요. 이 화면에는 고객 이름·연락처가 들어 있습니다.
+      (<a href="/manual/admin">관리자 매뉴얼</a>)
+    </div>
+    {% endif %}
     {% if not api_key_set %}
     <div class="note warn">
       <strong>Claude API 키가 설정되지 않았습니다.</strong>

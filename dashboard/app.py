@@ -11,9 +11,14 @@
     /members              전체 고객
     /settings             기타 설정 — API 키 상태, 기본 모델, 금지 문구
     /manual               매뉴얼 — 관리자용 / 클라이언트용
+    /login                접속 코드 입력
 
 프로그램을 새로 만들면 `products/<이름>/program.yaml` 만 넣으면 된다.
 이 파일은 고치지 않는다.
+
+접속 코드
+    `/static` 과 `/healthz` 를 뺀 모든 화면은 접속 코드를 넣어야 열린다.
+    코드는 `.env` 의 `DASHBOARD_ACCESS_CODE` 로 바꾼다. 자세한 것은 `core/auth.py`.
 """
 
 from __future__ import annotations
@@ -21,14 +26,16 @@ from __future__ import annotations
 import html
 import json
 from pathlib import Path
+from urllib.parse import quote, urlparse
 from typing import Any
 
 import markdown as md
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from core import auth
 from core.db import Database, DEFAULT_DB_PATH
 from core.manifest import ProgramManifest
 from core.registry import Registry
@@ -38,6 +45,26 @@ from shared.config import ANTHROPIC_API_KEY, DEFAULT_MODEL, ROOT_DIR
 
 BASE_DIR = Path(__file__).resolve().parent
 DOCS_DIR = ROOT_DIR / "docs"
+
+def safe_next(target: str) -> str:
+    """로그인 뒤 돌아갈 주소를 고른다.
+
+    주소를 그대로 믿으면 안 된다. `?next=https://남의사이트` 를 붙인 링크를
+    보내 놓고 로그인 직후 그쪽으로 튕겨 보내는 수법이 있다.
+    그래서 `/` 로 시작하는 우리 쪽 경로만 받는다.
+    """
+    if not target or not target.startswith("/") or target.startswith("//"):
+        return "/"
+    if urlparse(target).scheme or urlparse(target).netloc:
+        return "/"
+    return target
+
+
+#: 접속 코드 없이 열리는 경로. 로그인 화면 자체와 정적 파일, 상태 확인용 주소뿐이다.
+#: 상태 확인용 주소를 열어 두는 이유는 클라우드 호스팅이 "살아 있나" 를
+#: 물어볼 때 로그인 화면을 주면 죽은 것으로 보기 때문이다.
+OPEN_PATHS = ("/login", "/healthz", "/favicon.ico")
+OPEN_PREFIXES = ("/static/",)
 
 #: 전역 설정 항목 정의. 대시보드가 이걸로 폼을 그린다.
 GLOBAL_SETTINGS = [
@@ -91,6 +118,7 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
     app = FastAPI(title="통합 관리자 대시보드", docs_url=None, redoc_url=None)
     app.state.db = Database(db_path)
     app.state.registry = Registry(products_dir) if products_dir else Registry()
+    app.state.gatekeeper = auth.Gatekeeper()
 
     templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
     templates.env.filters["markdown"] = render_markdown
@@ -108,7 +136,101 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
         context.setdefault("programs", registry().programs)
         context.setdefault("load_errors", registry().errors)
         context.setdefault("api_key_set", bool(ANTHROPIC_API_KEY))
+        context.setdefault("default_code", auth.is_default_code())
         return templates.TemplateResponse(request, template, context)
+
+    # ------------------------------------------------------------ 접속 코드
+    def is_open(path: str) -> bool:
+        return path in OPEN_PATHS or path.startswith(OPEN_PREFIXES)
+
+    def caller(request: Request) -> str:
+        """누가 시도했는지 구분할 값.
+
+        클라우드나 터널 뒤에 두면 접속하는 쪽이 전부 프록시 주소로 보인다.
+        그래서 프록시가 붙여 주는 `X-Forwarded-For` 의 맨 앞을 먼저 본다.
+        """
+        forwarded = request.headers.get("x-forwarded-for", "")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+        return request.client.host if request.client else "unknown"
+
+    def over_https(request: Request) -> bool:
+        """HTTPS 로 들어왔는가. 프록시 뒤에서는 헤더를 봐야 안다."""
+        if request.headers.get("x-forwarded-proto", "").split(",")[0].strip() == "https":
+            return True
+        return request.url.scheme == "https"
+
+    @app.middleware("http")
+    async def require_access_code(request: Request, call_next):
+        if is_open(request.url.path) or auth.verify_token(
+                request.cookies.get(auth.COOKIE_NAME)):
+            return await call_next(request)
+
+        wanted = request.url.path
+        if request.url.query:
+            wanted = f"{wanted}?{request.url.query}"
+        target = "/login" if wanted in ("/", "") else f"/login?next={quote(wanted, safe='')}"
+        return RedirectResponse(target, status_code=303)
+
+    def login_page(request: Request, error: str = "", remaining: int | None = None,
+                   next_path: str = "", status: int = 200) -> HTMLResponse:
+        locked = app.state.gatekeeper.locked_for(caller(request))
+        return templates.TemplateResponse(
+            request, "login.html",
+            {
+                "error": error,
+                "remaining": remaining,
+                "locked": bool(locked),
+                "locked_minutes": max(1, round(locked / 60)),
+                "lockout_minutes": round(auth.LOCKOUT_SECONDS / 60),
+                "next_path": safe_next(next_path),
+            },
+            status_code=status,
+        )
+
+    @app.get("/login", response_class=HTMLResponse)
+    def login_form(request: Request, next: str = ""):
+        if auth.verify_token(request.cookies.get(auth.COOKIE_NAME)):
+            return RedirectResponse(safe_next(next), status_code=303)
+        return login_page(request, next_path=next)
+
+    @app.post("/login")
+    def login_submit(request: Request, code: str = Form(""), next: str = Form("")):
+        gate = app.state.gatekeeper
+        who = caller(request)
+
+        if gate.locked_for(who):
+            return login_page(request, next_path=next, status=429)
+
+        if not auth.check_code(code):
+            remaining = gate.record_failure(who)
+            return login_page(
+                request, error="접속 코드가 맞지 않습니다.",
+                remaining=remaining or None, next_path=next, status=401,
+            )
+
+        gate.reset(who)
+        response = RedirectResponse(safe_next(next), status_code=303)
+        response.set_cookie(
+            auth.COOKIE_NAME, auth.issue_token(),
+            max_age=auth.session_hours() * 3600,
+            httponly=True,              # 자바스크립트가 쿠키를 읽지 못하게
+            samesite="lax",             # 다른 사이트에서 넘어온 요청에는 딸려가지 않게
+            secure=over_https(request),  # HTTPS 로 들어왔으면 HTTPS 에서만 보내게
+            path="/",
+        )
+        return response
+
+    @app.post("/logout")
+    def logout():
+        response = RedirectResponse("/login", status_code=303)
+        response.delete_cookie(auth.COOKIE_NAME, path="/")
+        return response
+
+    @app.get("/healthz", response_class=PlainTextResponse)
+    def healthz():
+        """호스팅이 '살아 있나' 를 물어볼 때 쓰는 주소. 안의 내용은 알려주지 않는다."""
+        return "ok"
 
     def program_or_404(program_id: str) -> ProgramManifest:
         program = registry().get(program_id)
@@ -262,12 +384,17 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
 
     @app.get("/preview", response_class=HTMLResponse)
     def preview(path: str):
-        """산출물 파일 하나를 브라우저에서 본다. 산출물 폴더 밖은 막는다."""
+        """산출물 파일 하나를 브라우저에서 본다. 산출물 폴더 밖은 막는다.
+
+        글자로 앞부분만 견주면 `outputs` 를 허용할 때 `outputs-남의폴더` 까지
+        통과한다. 경로 조각 단위로 견주는 `is_relative_to` 를 쓴다.
+        """
         target = Path(path).resolve()
-        allowed = any(
-            str(target).startswith(str((p.directory / (p.run.output_dir if p.run else "outputs")).resolve()))
-            for p in registry().programs
-        )
+        roots = [
+            (item.directory / (item.run.output_dir if item.run else "outputs")).resolve()
+            for item in registry().programs
+        ]
+        allowed = any(target.is_relative_to(root) for root in roots)
         if not allowed or not target.is_file():
             return HTMLResponse("<p>볼 수 없는 파일입니다.</p>", status_code=403)
         text = target.read_text(encoding="utf-8", errors="replace")
