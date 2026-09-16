@@ -134,13 +134,19 @@ details.qa { background: var(--bg); border: 1px solid var(--line); border-radius
 details.qa summary { cursor: pointer; font-weight: 700; }
 details.qa > div { margin-top: 8px; color: var(--ink-soft); }
 ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 0; }
-ol.steps li { counter-increment: s; position: relative; padding: 0 0 0 44px; margin-bottom: 18px; }
-ol.steps li::before {
+/* 자식만 센다. 단계 본문 안의 중첩 목록이 번호를 올리면 안 된다. */
+ol.steps > li { counter-increment: s; position: relative; padding: 0 0 0 44px; margin-bottom: 18px; }
+ol.steps > li::before {
   content: counter(s); position: absolute; left: 0; top: 0; width: 28px; height: 28px;
   background: var(--accent); color: #fff; border-radius: 8px; display: flex;
   align-items: center; justify-content: center; font-weight: 800; font-size: 13px;
 }
 ol.steps h3 { margin-bottom: 4px; }
+/* 단계 본문 안의 목록은 평범한 번호·점으로 */
+ol.steps ol, ol.steps ul { margin: 8px 0; padding-left: 20px; }
+ol.steps ol > li, ol.steps ul > li { counter-increment: none; padding: 0; margin-bottom: 4px; }
+ol.steps ol { list-style: decimal; }
+ol.steps ul { list-style: disc; }
 
 .prose table { margin-bottom: 16px; }
 .prose h2 { border-top: 1px solid var(--line); padding-top: 20px; }

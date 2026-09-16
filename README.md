@@ -52,8 +52,9 @@ tests/             테스트
 |---|---|---|---|
 | 1 | [`funnel-builder/`](./products/funnel-builder) | 퍼널 빌더 (랜딩 + 이메일 5통) | 운영 중 |
 | 2 | [`hook-script/`](./products/hook-script) | 후킹 대본 생성기 (롱폼·쇼츠·릴스) | 운영 중 |
-| 3 | `agency-kit/` | 자동화 대행 납품 키트 | 미착수 |
-| 4 | `niche-research/` | 저가 유튜브 니치 리서치 | 미착수 |
+| 3 | [`ebook-gen/`](./products/ebook-gen) | 전자책 원고 생성기 (docx) | 운영 중 |
+| 4 | `agency-kit/` | 자동화 대행 납품 키트 | 미착수 |
+| 5 | `niche-research/` | 저가 유튜브 니치 리서치 | 미착수 |
 
 ## 확인
 

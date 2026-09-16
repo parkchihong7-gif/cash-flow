@@ -19,7 +19,7 @@
   <tr><th>파일</th><th>내용</th></tr>
   {% for out in program.outputs %}
   <tr><td><code>{{ out.path }}</code><br><strong>{{ out.label }}</strong></td>
-      <td>{{ out.description }}</td></tr>
+      <td>{{ out.description|markdown|safe }}</td></tr>
   {% endfor %}
 </table>
 

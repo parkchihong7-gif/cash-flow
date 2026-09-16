@@ -1,0 +1,216 @@
+# 프로그램 매니페스트 — 통합 대시보드가 이 파일만 읽고 등록한다.
+# 규격 설명: core/manifest.py
+
+id: ebook-gen
+number: 3
+name: 전자책 원고 생성기
+tagline: 주제 하나로 목차·원고·워드 파일까지 3단계로 만듭니다
+status: ready
+version: "1.0.0"
+owner: 관리자
+
+summary: |
+  주제를 넣으면 목차를 설계하고, 그 목차로 챕터 원고를 쓰고, 워드 파일(docx)로 조립합니다.
+
+  **한 번에 다 만들지 않습니다.** 세 단계가 따로 돌아가고 단계마다 파일이 떨어져서
+  사람이 열어 고칠 수 있습니다. 통째로 받은 원고는 고칠 엄두가 안 나지만,
+  챕터 파일로 쪼개져 있으면 한 장씩 손볼 수 있습니다. 이게 이 도구의 핵심입니다.
+
+  **이 도구는 초안 생성기입니다. 발행 전 사람 검수가 필수입니다.**
+  특히 사례와 수치는 반드시 직접 확인하셔야 합니다.
+
+  대시보드 '테스트' 탭에서는 **1단계(목차)만** 실행됩니다.
+  2단계(원고)와 3단계(docx)는 사람이 파일을 고친 뒤 진행해야 해서 터미널에서 실행합니다.
+  명령어는 아래 '이용 순서'에 있습니다.
+
+steps:
+  - title: 1단계 — 목차 만들기
+    body: |
+      터미널에서 `python cli.py outline "주제" --audience "대상" --pages 40 --author "이름"`.
+
+      **`--audience` 를 좁게 쓰는 것이 책의 품질을 가장 크게 좌우합니다.**
+      "직장인"이 아니라 "혼자 일하며 파일을 직접 관리하는 3년차 프리랜서 디자이너"처럼.
+
+      1단계는 LLM 을 한 번만 부르므로 비용이 적습니다. 목차가 마음에 들 때까지 반복하세요.
+    estimate: 5분
+  - title: ✋ outline.yaml 손보기
+    body: |
+      '수정' 탭이나 편집기로 엽니다. 효과가 큰 순서대로:
+
+      1. **제목 3안 중 마음에 드는 것을 맨 앞으로** — 그게 표지 제목이 됩니다
+      2. **챕터 순서 확인** — 제목만 읽어도 흐름이 보여야 합니다
+      3. **`key_message` 다듬기** — 여기가 흐릿하면 그 장 본문도 흐릿해집니다
+
+      챕터 8~12개, 번호 연속, 소제목 3~5개, 목표 1,500~2,500자 규칙을 어기면
+      2단계에서 어디가 문제인지 알려줍니다.
+    estimate: 20분
+  - title: 2단계 — 챕터 원고 쓰기
+    body: |
+      `python cli.py write outputs/<slug>/outline.yaml`
+
+      챕터마다 따로 호출하므로 10~12장이면 5~10분 걸립니다.
+      한 장이 실패해도 나머지는 무사하고, `--only 5` 로 그 장만 다시 쓰면 됩니다.
+      앞 챕터 요약이 다음 챕터로 넘어가 같은 사례가 두 번 나오는 것을 막습니다.
+    estimate: 10분
+  - title: ✋ chapters/*.md 손보기 (가장 중요)
+    body: |
+      **이 단계가 이 도구를 제대로 쓰는 지점입니다.**
+
+      1. `[저자가 채울 곳: ...]` 표시를 실제 내용으로 — 그대로 두면 안 됩니다
+      2. **도입 사례를 본인 경험으로 바꾸기** — 이것 하나로 책이 달라집니다
+      3. 숫자·출처 확인 (참고 자료를 안 넣었다면 숫자가 없어야 정상)
+      4. 체크리스트를 확인 가능한 행동으로
+
+      ⚠️ `## 도입 사례` 같은 제목 구조는 3단계가 읽는 표지판입니다. 바꾸지 마세요.
+    estimate: 2시간
+  - title: 3단계 — docx 조립
+    body: |
+      `python cli.py build outputs/<slug>/`
+
+      `ebook.docx`, `sales_copy.md`, `cover_brief.md` 가 만들어집니다.
+      원고를 고치고 3단계를 다시 돌리면 반영됩니다. 몇 번을 돌려도 됩니다.
+    estimate: 2분
+  - title: 워드에서 목차 갱신
+    body: |
+      `ebook.docx` 를 열고 **전체 선택(Ctrl+A) 후 F9**.
+      목차와 쪽 번호가 채워집니다. Word 필드는 문서를 열 때 계산되는 방식이라
+      프로그램이 미리 넣을 수 없습니다. 이 안내가 목차 페이지에도 적혀 있습니다.
+    estimate: 1분
+  - title: 표지 만들고 발행
+    body: |
+      `cover_brief.md` 의 영문 프롬프트를 이미지 생성 도구에 넣어 배경을 만들고
+      글자는 따로 얹습니다. `sales_copy.md` 의 소개글과 가격 3안으로 판매 페이지를 씁니다.
+    estimate: 1시간
+
+faq:
+  - q: 왜 한 번에 안 만들고 3단계로 나눴나요?
+    a: |
+      한 번에 다 나오면 고치기가 어렵기 때문입니다. 60쪽짜리 워드 파일을 받으면
+      어디를 손대야 할지 막막합니다. 목차 파일과 챕터 파일로 나뉘어 있으면
+      목차만 먼저 보고, 마음에 들 때 글을 쓰고, 한 장씩 고칠 수 있습니다.
+    audience: both
+  - q: 비용이 얼마나 드나요?
+    a: |
+      **한 권에 수천 원**으로 다른 프로그램보다 비쌉니다.
+      1단계 1회 + 2단계 챕터 수만큼(10~12회) + 3단계 2회 = 13~15회 호출이고,
+      각 챕터가 2,000자 넘는 글을 만들기 때문입니다.
+      1단계는 1회 호출이라 싸니, 목차를 확정한 뒤 2단계로 넘어가세요.
+    audience: both
+  - q: 한 장만 다시 쓸 수 있나요?
+    a: |
+      됩니다. `python cli.py write outputs/<slug>/outline.yaml --only 3 7`
+      처럼 번호를 나열하세요. 전체를 다시 쓰려면 `--overwrite` 입니다.
+    audience: both
+  - q: 원고를 고쳤는데 docx 에 반영이 안 됩니다.
+    a: |
+      3단계(`build`)를 다시 실행하세요. 3단계는 chapters/ 폴더를 매번 새로 읽습니다.
+      제목 구조(`## 도입 사례` 등)를 바꾸셨다면 어느 줄이 문제인지 알려주며 멈춥니다.
+    audience: both
+  - q: 워드에서 목차가 비어 있습니다.
+    a: |
+      전체 선택(Ctrl+A) 후 F9 를 누르세요. Word 필드는 문서를 열었을 때 계산되는
+      방식이라 프로그램이 미리 채울 수 없습니다. Pages 나 한글에서는 안 될 수 있으니
+      Word 나 LibreOffice 에서 여세요.
+    audience: both
+  - q: 쪽수를 60쪽으로 하고 싶습니다.
+    a: |
+      챕터 8~12개, 챕터당 1,500~2,500자 제약이 있어 만들 수 있는 범위는 약 16~40쪽입니다.
+      범위를 벗어나면 만들 수 있는 분량을 알려드리고 그대로 진행합니다.
+      더 긴 책이 필요하면 주제를 나눠 두 권으로 만드는 편이 낫습니다.
+    audience: both
+  - q: 분량이 목표에서 벗어났다고 나옵니다.
+    a: |
+      완성 원고는 목차 예상 분량의 ±20% 안에 들어야 합니다.
+      챕터별로는 ±25% 를 벗어나면 자동으로 한 번 다시 씁니다.
+      계속 모자라면 `target_chars` 에 비해 소제목이 적은 것이니 소제목을 늘려보세요.
+    audience: admin
+  - q: 품질을 올리려면 어디부터 고쳐야 하나요?
+    a: |
+      순서대로입니다. ① `--audience` 를 좁게 ② `outline.yaml` 의 `key_message` 다듬기
+      ③ '수정' 탭에서 `prompts/chapter.md` 고치기 ④ 챕터 원고 직접 손보기
+      ⑤ 모델 올리기. 모델 변경은 마지막입니다.
+    audience: admin
+  - q: 참고 자료를 넣지 않으면 어떻게 되나요?
+    a: |
+      책에 수치·출처를 만들어 넣지 않습니다. 지어낸 통계 하나가 책 전체의 신뢰를
+      무너뜨리기 때문에 이렇게 설계했습니다. 넣으려면 1단계에
+      `--evidence "자료1" "자료2"` 로 주세요.
+    audience: both
+
+settings:
+  - key: CLAUDE_MODEL
+    label: 사용할 Claude 모델
+    type: select
+    default: claude-sonnet-4-6
+    options:
+      - claude-sonnet-4-6
+      - claude-sonnet-5
+      - claude-opus-5
+      - claude-haiku-4-5
+    help: |
+      전자책은 호출 수가 많아 모델 비용이 그대로 늘어납니다.
+      모델을 올리기 전에 audience 와 프롬프트부터 고쳐보세요.
+  - key: AI_LABEL
+    label: AI 생성물 표시
+    type: boolean
+    default: true
+    help: |
+      인공지능기본법 제31조 대응. 켜두는 것을 권합니다.
+      끄더라도 docx 의 'AI 활용 고지' 페이지와 문서 메타데이터는 항상 들어갑니다.
+
+editable_files:
+  - path: ebook_input.yaml
+    label: 1단계 입력 (주제·대상·쪽수)
+    kind: yaml
+    help: 대시보드 '테스트' 탭에서 1단계를 돌릴 때 이 파일을 읽습니다. audience 를 좁게 쓰세요.
+  - path: prompts/outline.md
+    label: 목차 설계 규칙 (1단계)
+    kind: markdown
+    help: 챕터 흐름, 제목 3안의 각도, 소제목 쓰는 법을 정의합니다.
+  - path: prompts/chapter.md
+    label: 챕터 집필 규칙 (2단계)
+    kind: markdown
+    help: 네 부분(도입 사례·핵심 설명·체크리스트·요약) 구성과 문체를 정의합니다. 여기가 원고 품질을 좌우합니다.
+
+outputs:
+  - path: outline.yaml
+    label: 목차 (1단계)
+    description: 제목 3안, 부제, 서문 요지, 챕터 8~12개. **사람이 손으로 고치는 파일입니다.**
+  - path: chapters/ch01.md …
+    label: 챕터 원고 (2단계)
+    description: |
+      각 1,500~2,500자. 도입 사례 / 핵심 설명 / 실행 체크리스트 / 요약 3줄 구조.
+      **사람이 손으로 고치는 파일입니다.** 제목 구조는 그대로 두세요.
+  - path: ebook.docx
+    label: 완성본
+    description: |
+      표지·목차(필드)·서문·챕터(Heading1/2)·체크리스트 표·AI 활용 고지.
+      맑은 고딕 10.5pt, 줄간격 1.5, 여백 2.5cm, 푸터 쪽 번호.
+      core properties 에 AI 메타데이터가 기록됩니다.
+  - path: sales_copy.md
+    label: 판매용 소개글
+    description: 크몽·인스타용 소개글 500자, 목차 요약, 추천 대상과 맞지 않는 대상, 가격 제안 3안.
+  - path: cover_brief.md
+    label: 표지 디자인 지시서
+    description: 컨셉·분위기·색·타이포·배치와 이미지 생성 도구에 그대로 넣을 영문 프롬프트.
+
+pricing:
+  - plan: 단품
+    price: 180000
+    description: 프로그램 파일 일체와 설치 가이드
+  - plan: 퍼널 빌더 묶음
+    price: 300000
+    description: 전자책 원고 생성기 + 퍼널 빌더 (책을 만들고 그 책을 파는 페이지까지)
+
+manuals:
+  admin: docs/admin.md
+  client: docs/client.md
+
+# 대시보드 '테스트' 탭은 **1단계(목차)만** 실행합니다.
+# 2·3단계는 사람이 파일을 고친 뒤 진행해야 하므로 터미널에서 실행합니다.
+run:
+  input_file: ebook_input.yaml
+  command: ["python", "cli.py", "outline", "--input", "{input}"]
+  dry_run_command: ["python", "cli.py", "outline", "--input", "{input}", "--dry-run"]
+  output_dir: outputs
+  timeout_seconds: 900
