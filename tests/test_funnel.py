@@ -14,9 +14,9 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-import generator as gen
-from sample_content import always_dirty_ask, dirty_then_clean_ask, fake_ask
-from schema import FunnelInput, load_input
+from funnel_builder import generator as gen
+from funnel_builder.sample_content import always_dirty_ask, dirty_then_clean_ask, fake_ask
+from funnel_builder.schema import FunnelInput, load_input
 from shared import banned_phrases
 
 FUNNEL_DIR = Path(gen.BASE_DIR)

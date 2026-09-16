@@ -32,6 +32,8 @@ shared/            상품이 함께 쓰는 유틸
   banned_phrases.py  판매용 텍스트 금지 문구 검사
   config.py          .env 로드, 경로 상수
 products/          상품별 폴더 (상품 1개 = 폴더 1개)
+  <상품>/program.yaml  대시보드 등록용 매니페스트
+  <상품>/<고유패키지>/  내부 모듈 (이름 충돌 방지용 고유 패키지)
 docs/              통합 매뉴얼 (관리자용 / 클라이언트용)
 tests/             테스트
 ```
@@ -48,9 +50,10 @@ tests/             테스트
 
 | 번호 | 폴더 | 상품 | 상태 |
 |---|---|---|---|
-| 1 | `agency-kit/` | 자동화 대행 납품 키트 | 미착수 |
-| 2 | [`funnel-builder/`](./products/funnel-builder) | 퍼널 빌더 | 운영 중 |
-| 3 | `niche-research/` | 저가 유튜브 니치 리서치 | 미착수 |
+| 1 | [`funnel-builder/`](./products/funnel-builder) | 퍼널 빌더 (랜딩 + 이메일 5통) | 운영 중 |
+| 2 | [`hook-script/`](./products/hook-script) | 후킹 대본 생성기 (롱폼·쇼츠·릴스) | 운영 중 |
+| 3 | `agency-kit/` | 자동화 대행 납품 키트 | 미착수 |
+| 4 | `niche-research/` | 저가 유튜브 니치 리서치 | 미착수 |
 
 ## 확인
 

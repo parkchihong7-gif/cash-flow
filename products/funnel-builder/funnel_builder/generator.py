@@ -19,9 +19,9 @@ from typing import Any, Callable
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from schema import FunnelInput  # noqa: E402
+from funnel_builder.schema import FunnelInput  # noqa: E402
 from shared import banned_phrases  # noqa: E402
 from shared.ai_label import add_text_label, label_text_for  # noqa: E402
 from shared.config import DEFAULT_MODEL  # noqa: E402
@@ -35,7 +35,8 @@ __all__ = [
     "write_outputs",
 ]
 
-BASE_DIR = Path(__file__).resolve().parent
+#: 상품 폴더 (이 패키지의 부모).
+BASE_DIR = Path(__file__).resolve().parents[1]
 HOOKS_PATH = BASE_DIR / "prompts" / "hooks.md"
 TEMPLATES_DIR = BASE_DIR / "templates"
 

@@ -1,0 +1,6 @@
+# 한 줄에 주제 하나. # 로 시작하는 줄은 무시한다.
+# 실행: python cli.py build --batch topics.txt --format shorts --duration 30 --audience "사무직 3년차"
+
+같은 도구를 쓰는데 작업 속도가 두 배 차이 나는 이유
+단축키를 스무 개 외우는 것보다 세 개만 쓰는 게 나은 이유
+템플릿을 만들어야 하는 신호 세 가지

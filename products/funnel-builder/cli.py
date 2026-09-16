@@ -11,10 +11,11 @@ import argparse
 import sys
 from pathlib import Path
 
-from generator import FunnelGenerator, write_outputs
-from schema import load_input
-
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from funnel_builder.generator import FunnelGenerator, write_outputs  # noqa: E402
+from funnel_builder.schema import load_input  # noqa: E402
 
 from shared.config import DEFAULT_MODEL  # noqa: E402
 from shared.llm import LLMError  # noqa: E402
@@ -58,7 +59,7 @@ def cmd_build(args: argparse.Namespace) -> int:
         print("      proof 가 비어 있어 랜딩의 증거 섹션은 생성하지 않습니다.")
 
     if args.dry_run:
-        from sample_content import fake_ask
+        from funnel_builder.sample_content import fake_ask
 
         print("[2/3] 모의 실행 — Claude 를 부르지 않고 예시 콘텐츠로 만듭니다 (비용 없음)")
         generator = FunnelGenerator(
