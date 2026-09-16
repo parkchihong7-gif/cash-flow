@@ -1,0 +1,96 @@
+# 4. 쿠팡파트너스
+#
+# [기본값 근거]
+# 수수료 3% = CLAUDE.md §2-1 "쿠팡파트너스: 기본 3%(카테고리 1~3%), 24시간 쿠키,
+#   다다음달 15일 정산 → 사용자 수익성 낮음. 설치 서비스 판매자만 수익".
+#   조사가 내린 결론이 '수익성 낮음' 이라는 점을 그대로 둔다. 이 모델은
+#   돈이 되는지 보여 주기보다, 왜 안 되는지를 숫자로 보여 주는 쪽에 가깝다.
+# 객단가 30,000원·전환율 2% = 사용자가 지정한 기준값.
+
+number: 4
+name: 쿠팡파트너스
+tagline: 조사 결론은 "수익성 낮음" 이었다
+summary: |
+  CLAUDE.md §2-1 의 조사 결론은 **쿠팡파트너스로 돈을 번 쪽은 설치 서비스를
+  판 사람들이지, 링크를 단 사람들이 아니었다**는 것입니다.
+  수수료가 1~3%로 낮고, 쿠키가 24시간뿐이며, 정산이 다다음달 15일입니다.
+
+  이 모델은 그 결론을 숫자로 확인하는 용도입니다. 시간당 수익을 꼭 보세요.
+
+params:
+  - key: monthly_clicks
+    label: 월 클릭 수
+    default: 3000
+    unit: 회
+    kind: count
+    minimum: 0
+    maximum: 500000
+    step: 100
+    uncertain: 0.6
+    source: 블로그·카페에 꾸준히 올리는 개인이 도달하는 구간으로 잡은 출발점입니다. 파트너스 대시보드의 실제 클릭 수로 바꾸세요.
+  - key: conversion_rate
+    label: 구매 전환율
+    default: 0.02
+    unit: 비율
+    kind: rate
+    minimum: 0
+    maximum: 0.3
+    step: 0.001
+    uncertain: 0.5
+    source: 사용자가 지정한 기준값 2%입니다. 쿠키가 24시간뿐이라 실제로는 이보다 낮게 나오는 경우가 많습니다.
+  - key: order_value
+    label: 객단가
+    default: 30000
+    unit: 원
+    kind: money
+    minimum: 0
+    maximum: 2000000
+    step: 5000
+    source: 사용자가 지정한 기준값 30,000원입니다.
+  - key: commission_rate
+    label: 수수료율
+    default: 0.03
+    unit: 비율
+    kind: rate
+    minimum: 0
+    maximum: 0.2
+    step: 0.001
+    source: CLAUDE.md §2-1 조사 — 기본 3%, 카테고리별 1~3%입니다.
+  - key: hours_per_month
+    label: 월 투입 시간
+    default: 30
+    unit: 시간
+    kind: hours
+    minimum: 0
+    maximum: 400
+    step: 1
+    source: 글 20편 기준(편당 1.5시간)입니다. 클릭 수 가정을 올리면 이 시간도 같이 올려야 합니다.
+  - key: content_cost
+    label: 월 콘텐츠 비용
+    default: 0
+    unit: 원
+    kind: money
+    minimum: 0
+    maximum: 3000000
+    step: 10000
+    source: 직접 쓰면 0 입니다. 외주를 주면 편당 단가 × 편수를 넣으세요.
+  - key: initial_cost
+    label: 초기 투자
+    default: 0
+    unit: 원
+    kind: money
+    minimum: 0
+    maximum: 5000000
+    step: 50000
+    source: 블로그·카페는 개설 비용이 없어 0 입니다.
+
+formulas:
+  revenue: monthly_clicks * conversion_rate * order_value * commission_rate
+  cost: content_cost
+  hours: hours_per_month
+
+cautions:
+  - 대가성 문구를 빠뜨리면 경고 없이 자격이 정지됩니다. 모든 글에 넣으세요.
+  - 쿠키가 24시간입니다. 오늘 클릭하고 모레 사면 수수료가 없습니다.
+  - 정산이 다다음달 15일입니다. 이번 달에 번 돈은 두 달 뒤에 들어옵니다.
+  - CLAUDE.md §4-5 는 이 분야를 포화로 봤습니다. 시간당 수익을 보고 판단하세요.

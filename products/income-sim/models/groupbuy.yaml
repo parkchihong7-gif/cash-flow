@@ -1,0 +1,105 @@
+# 5. 인스타 공동구매
+#
+# [기본값 근거]
+# 마진율 20% = CLAUDE.md §2-1 "인스타 공구: 마진 15~30%" 의 중간값.
+# 참여율 = 같은 조사의 "팔로워 3,000명 계정도 1회 공구 135~270만 원 가능" 에서 역산.
+#   마진 20%·객단가 45,000원으로 매출 135만~270만 원을 만들려면 30~60건이 필요하고,
+#   팔로워 3,000명 대비 1~2% 다. 그래서 참여율 1.5% 를 출발점으로 잡았다.
+#   역산해서 얻은 값이므로 확인된 수치가 아니다.
+
+number: 5
+name: 인스타 공동구매
+tagline: 팔로워 수보다 팔로워와의 관계가 결정한다
+summary: |
+  CLAUDE.md §2-1 은 **팔로워 3,000명 계정도 1회 공구로 135~270만 원**이
+  가능하다고 봤습니다. 팔로워가 적어도 되는 대신, 그 팔로워가 나를 믿어야 합니다.
+  그 신뢰는 §2-2 에서 **프로그램으로 만들 수 없는 10% 영역**으로 분류한 것입니다.
+
+  공구를 여러 번 돌리시면 7번 **공구 정산 엑셀 자동 생성기**가 실제 장부를 만들어 줍니다.
+
+params:
+  - key: followers
+    label: 팔로워 수
+    default: 3000
+    unit: 명
+    kind: count
+    minimum: 0
+    maximum: 1000000
+    step: 100
+    source: CLAUDE.md §2-1 이 실제 사례로 든 규모입니다. 팔로워가 적어도 공구가 된다는 근거로 인용된 숫자입니다.
+  - key: participation_rate
+    label: 회차당 참여율
+    default: 0.015
+    unit: 비율
+    kind: rate
+    minimum: 0
+    maximum: 0.3
+    step: 0.001
+    uncertain: 0.6
+    source: CLAUDE.md §2-1 의 "3,000명 계정 1회 135~270만 원" 을 마진 20%·객단가 45,000원으로 역산한 값입니다. 역산이라 확인된 수치가 아닙니다.
+    help: 계정 성격에 따라 크게 갈립니다. 육아·뷰티처럼 관계가 가까운 분야가 높습니다.
+  - key: order_value
+    label: 객단가
+    default: 45000
+    unit: 원
+    kind: money
+    minimum: 0
+    maximum: 2000000
+    step: 5000
+    source: 위 역산에 함께 쓴 값입니다. 식품·생활용품 공구의 흔한 가격대입니다.
+  - key: margin_rate
+    label: 마진율
+    default: 0.2
+    unit: 비율
+    kind: rate
+    minimum: 0
+    maximum: 0.8
+    step: 0.01
+    source: CLAUDE.md §2-1 조사 — 공구 마진 15~30% 의 중간값입니다.
+  - key: rounds_per_month
+    label: 월 공구 회차
+    default: 2
+    unit: 회
+    kind: count
+    minimum: 0
+    maximum: 10
+    step: 1
+    source: 격주 기준입니다. 너무 자주 하면 팔로워가 피로해져 참여율이 떨어집니다.
+  - key: hours_per_round
+    label: 회차당 투입 시간
+    default: 20
+    unit: 시간
+    kind: hours
+    minimum: 0
+    maximum: 200
+    step: 1
+    source: 상품 소싱·상세 촬영·주문 취합·발송·CS 를 합친 기준입니다. 주문 취합과 CS 가 대부분을 차지합니다.
+  - key: ops_cost_per_round
+    label: 회차당 운영비
+    default: 50000
+    unit: 원
+    kind: money
+    minimum: 0
+    maximum: 3000000
+    step: 10000
+    source: 택배 포장재·부자재·반품 손실 정도로 잡은 값입니다. 배송비를 고객이 내면 이 정도, 무료배송이면 크게 올려 잡으세요.
+  - key: initial_cost
+    label: 초기 투자
+    default: 0
+    unit: 원
+    kind: money
+    minimum: 0
+    maximum: 20000000
+    step: 100000
+    source: 선결제 사입 없이 주문 받고 발주하면 0 입니다. 재고를 미리 잡으면 그 금액을 넣으세요.
+
+formulas:
+  revenue: followers * participation_rate * order_value * margin_rate * rounds_per_month
+  cost: ops_cost_per_round * rounds_per_month
+  hours: hours_per_round * rounds_per_month
+
+cautions:
+  - 매출이 아니라 마진을 계산합니다. 통장에 찍히는 돈은 이보다 훨씬 큽니다.
+  - 콜드 DM·자동 팔로우로 팔로워를 늘리는 방식은 Meta 정책 위반입니다(CLAUDE.md §3).
+  - 반품·환불·미입금이 마진을 갉아먹습니다. 운영비를 넉넉히 잡으세요.
+  - 참여율은 역산으로 얻은 가정값입니다. 첫 회차 실측으로 반드시 바꾸세요.

@@ -1,0 +1,7 @@
+# 수익 시뮬레이터
+# 저장소 맨 위 requirements.txt 를 설치했다면 이미 다 들어 있습니다.
+#
+# 이 상품은 Claude 를 부르지 않습니다. API 키가 필요 없습니다.
+
+pydantic>=2.6.0
+PyYAML>=6.0

@@ -1,0 +1,119 @@
+# 8. 구독 SaaS
+#
+# [기본값 근거]
+# 월 9,900원 / 유료 전환 5% = CLAUDE.md §5 3순위 "저가 유튜브 니치 리서치 SaaS:
+#   월 9,900원 구독. 무료 베타 100명 → 유료 전환 5% 목표" 를 그대로 가져왔다.
+#   조사 수치가 아니라 **우리가 세운 목표치**라는 점을 분명히 해 둔다.
+# 이탈률 8%/월 = 확인된 수치가 아니라 가정값. 근거는 이렇다.
+#   개인이 월 1만원 이하로 쓰는 도구는 해지 문턱이 낮아, 사업자 대상
+#   리테이너(7번, 5%)보다 높게 잡는 것이 안전하다. 월 8%면 평균 이용 기간이
+#   약 12개월이라는 뜻이다.
+
+number: 8
+name: 구독 SaaS
+tagline: 쌓이는 만큼 빠진다. 이탈률이 천장을 정한다
+summary: |
+  CLAUDE.md §5 의 3순위입니다. 기본값은 조사 수치가 아니라
+  **거기 적힌 목표치**(월 9,900원, 전환 5%)를 그대로 옮긴 것입니다.
+
+  구독의 핵심은 **이탈률이 상한을 정한다**는 점입니다.
+  매달 같은 수가 들어오면 고객 수는 무한히 늘지 않고
+  `월 신규 유료 ÷ 이탈률` 에서 멈춥니다. 이탈률 8%에 월 5명이 들어오면
+  62명 근처가 천장입니다. 12개월 표에서 그 곡선이 눕는 것을 보세요.
+
+  천장을 올리는 방법은 둘뿐입니다. 유입을 늘리거나, 이탈을 줄이거나.
+
+params:
+  - key: monthly_signups
+    label: 월 무료 가입자
+    default: 100
+    unit: 명
+    kind: count
+    minimum: 0
+    maximum: 100000
+    step: 10
+    uncertain: 0.6
+    source: CLAUDE.md §5 3순위의 "무료 베타 100명" 을 그대로 썼습니다. 조사 수치가 아니라 우리가 세운 목표치입니다.
+  - key: paid_conversion_rate
+    label: 유료 전환율
+    default: 0.05
+    unit: 비율
+    kind: rate
+    minimum: 0
+    maximum: 0.5
+    step: 0.01
+    uncertain: 0.5
+    source: CLAUDE.md §5 3순위의 "유료 전환 5% 목표" 입니다. 달성한 수치가 아니라 목표라는 점을 감안하세요.
+  - key: monthly_price
+    label: 월 구독료
+    default: 9900
+    unit: 원
+    kind: money
+    minimum: 0
+    maximum: 500000
+    step: 1000
+    source: CLAUDE.md §5 3순위 가격안입니다. §4-5 는 뷰트랩 20만원·블링 $999 와의 가격 공백을 노린 가격으로 봤습니다.
+  - key: churn_rate
+    label: 월 이탈률
+    default: 0.08
+    unit: 비율
+    kind: rate
+    minimum: 0.001
+    maximum: 0.5
+    step: 0.01
+    uncertain: 0.4
+    source: 확인된 수치가 아닌 가정값입니다. 개인이 월 1만원 이하로 쓰는 도구는 해지 문턱이 낮아 사업자 리테이너(7번 5%)보다 높게 잡았습니다. 월 8%는 평균 이용 12개월에 해당합니다.
+  - key: server_cost
+    label: 월 서버비
+    default: 50000
+    unit: 원
+    kind: money
+    minimum: 0
+    maximum: 5000000
+    step: 10000
+    source: 소규모 VPS 와 DB 기준입니다. YouTube Data API 는 무료 할당량 안에서 쓴다고 보았습니다.
+  - key: marketing_cost
+    label: 월 마케팅비
+    default: 200000
+    unit: 원
+    kind: money
+    minimum: 0
+    maximum: 20000000
+    step: 50000
+    source: 무료 가입자 100명을 매달 새로 데려오는 최소 수준으로 잡은 값입니다. 콘텐츠로만 모으면 0 으로 두고 대신 투입 시간을 올리세요.
+  - key: hours_per_month
+    label: 월 투입 시간
+    default: 40
+    unit: 시간
+    kind: hours
+    minimum: 0
+    maximum: 400
+    step: 1
+    source: 기능 개선·CS·데이터 점검 기준입니다. 첫 개발 기간은 들어 있지 않습니다.
+  - key: initial_cost
+    label: 초기 투자
+    default: 2000000
+    unit: 원
+    kind: money
+    minimum: 0
+    maximum: 100000000
+    step: 100000
+    source: 첫 버전을 직접 만든다고 보고 도메인·결제 연동·초기 인프라 정도로 잡았습니다. 외주로 만들면 훨씬 커집니다.
+
+state:
+  - key: paid_users
+    label: 유료 고객 수
+    unit: 명
+    initial: monthly_signups * paid_conversion_rate
+    next: prev * (1 - churn_rate) + monthly_signups * paid_conversion_rate
+
+formulas:
+  revenue: paid_users * monthly_price
+  cost: server_cost + marketing_cost
+  hours: hours_per_month
+
+cautions:
+  - 첫 버전을 만드는 기간은 계산에 없습니다. 그동안 매출은 0 입니다.
+  - 기본값은 조사 결과가 아니라 CLAUDE.md 에 적힌 목표치입니다. 달성 전 수치입니다.
+  - 이탈률이 천장을 정합니다. 유입을 늘리기 전에 왜 나가는지부터 보세요.
+  - 구독은 결제 실패·환불 요청이 매달 생깁니다. CS 시간을 넉넉히 잡으세요.

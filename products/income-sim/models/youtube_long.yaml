@@ -1,0 +1,95 @@
+# 1. 유튜브 롱폼 광고 수익
+#
+# [기본값 근거]
+# RPM 2,500원 = CLAUDE.md §2-1 "롱폼 광고: 국내 RPM 1,000~4,500원/1,000회" 의 중간값.
+#   같은 채널도 주제·시청자 국가·계절에 따라 서너 배씩 벌어진다. 본인 채널에
+#   유튜브 스튜디오 → 수익 → RPM 이 찍혀 있으면 반드시 그 숫자로 바꿔 쓸 것.
+# 편집비 150,000원/편 = 크몽·숨고의 10분 내외 정보성 영상 편집 외주 통상 구간.
+#   직접 편집하면 0 으로 두고 대신 편집 시간을 hours_per_video 에 넣는다.
+
+number: 1
+name: 유튜브 롱폼
+tagline: 조회수 × RPM 에서 편집비를 뺀다
+summary: |
+  광고 수익만 계산합니다. CLAUDE.md §2-1 의 조사 결론은 **매출 본체가 광고가
+  아니라 강의·전자책**이라는 것입니다. 이 모델의 숫자가 작게 나오는 것이 정상이고,
+  그 작은 숫자가 롱폼을 '유입 장치' 로 봐야 하는 이유입니다.
+
+params:
+  - key: monthly_views
+    label: 월 조회수
+    default: 200000
+    unit: 회
+    kind: count
+    minimum: 0
+    maximum: 5000000
+    step: 10000
+    uncertain: 0.5
+    source: 구독자 1천~1만 채널이 주 1회 올릴 때 흔히 도달하는 구간으로 잡은 출발점입니다. 본인 채널 실제 수치로 바꾸세요.
+    help: 유튜브 스튜디오 → 분석 → 지난 28일 조회수를 넣으세요.
+  - key: rpm
+    label: RPM (1,000회당 수익)
+    default: 2500
+    unit: 원
+    kind: money
+    minimum: 0
+    maximum: 10000
+    step: 100
+    uncertain: 0.35
+    source: CLAUDE.md §2-1 조사 — 국내 롱폼 RPM 1,000~4,500원/1,000회 의 중간값입니다.
+    help: 스튜디오 → 수익 탭에 본인 RPM 이 찍혀 있습니다. 그 값이 훨씬 정확합니다.
+  - key: videos_per_month
+    label: 월 업로드 편수
+    default: 4
+    unit: 편
+    kind: count
+    minimum: 0
+    maximum: 30
+    step: 1
+    source: 주 1회 기준입니다. 롱폼을 꾸준히 올릴 수 있는 현실적인 최소 주기로 잡았습니다.
+  - key: edit_cost_per_video
+    label: 편당 편집비
+    default: 150000
+    unit: 원
+    kind: money
+    minimum: 0
+    maximum: 1000000
+    step: 10000
+    source: 크몽·숨고의 10분 내외 정보성 영상 편집 외주 통상 구간입니다. 직접 편집하면 0 으로 두세요.
+  - key: hours_per_video
+    label: 편당 내 투입 시간
+    default: 6
+    unit: 시간
+    kind: hours
+    minimum: 0
+    maximum: 60
+    step: 0.5
+    source: 기획·대본·촬영·검수 기준입니다. 편집까지 직접 하면 10~15시간으로 올려 잡으세요.
+  - key: fixed_cost
+    label: 월 고정비
+    default: 30000
+    unit: 원
+    kind: money
+    minimum: 0
+    maximum: 2000000
+    step: 10000
+    source: 자막·썸네일 도구 구독료 수준으로 잡은 값입니다. 본인 지출로 바꾸세요.
+  - key: initial_cost
+    label: 초기 투자
+    default: 800000
+    unit: 원
+    kind: money
+    minimum: 0
+    maximum: 20000000
+    step: 100000
+    source: 마이크·조명·삼각대 정도의 최소 장비 기준입니다. 있는 장비로 시작하면 0 으로 두세요.
+
+formulas:
+  revenue: monthly_views / 1000 * rpm
+  cost: videos_per_month * edit_cost_per_video + fixed_cost
+  hours: videos_per_month * hours_per_video
+
+cautions:
+  - 광고 수익만 계산합니다. 강의·전자책·협찬은 들어 있지 않습니다.
+  - 채널이 수익 창출 조건(구독자 1,000명 + 시청 4,000시간)을 넘겼다고 가정합니다.
+  - 조회수는 영상마다 수십 배 차이가 납니다. 평균 하나로 판단하지 마세요.

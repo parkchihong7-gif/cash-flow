@@ -1,0 +1,93 @@
+# 2. 유튜브 쇼츠 광고 수익
+#
+# [기본값 근거]
+# RPM 70원 = CLAUDE.md §2-1 "쇼츠 광고: 100만 조회당 5~9만 원 (RPM 50~90원)" 의 중간값.
+#   롱폼 RPM 의 3% 수준이다. 이 차이가 "쇼츠는 광고로 버는 게 아니라
+#   유입으로 쓰는 것" 이라는 결론의 근거다.
+
+number: 2
+name: 유튜브 쇼츠
+tagline: 조회수는 크지만 단가가 롱폼의 3% 수준이다
+summary: |
+  쇼츠 RPM 은 롱폼의 **3% 안팎**입니다. 100만 조회가 나와도 광고 수익은
+  5~9만 원입니다(CLAUDE.md §2-1). 이 모델을 돌려 보는 목적은 돈이 얼마나
+  되는지 보는 것보다, **광고 수익만으로는 성립하지 않는다는 것을 숫자로
+  확인하는 것**에 가깝습니다.
+
+params:
+  - key: monthly_views
+    label: 월 조회수
+    default: 1000000
+    unit: 회
+    kind: count
+    minimum: 0
+    maximum: 50000000
+    step: 100000
+    uncertain: 0.7
+    source: CLAUDE.md §2-1 의 기준 단위(100만 조회)에 맞춘 출발점입니다. 쇼츠는 편차가 커서 ±70% 로 흔듭니다.
+    help: 쇼츠는 한 편이 터지면 월 조회수가 열 배로 뜁니다. 평균을 믿지 마세요.
+  - key: rpm
+    label: RPM (1,000회당 수익)
+    default: 70
+    unit: 원
+    kind: money
+    minimum: 0
+    maximum: 500
+    step: 5
+    uncertain: 0.3
+    source: CLAUDE.md §2-1 조사 — 쇼츠 RPM 50~90원 의 중간값입니다.
+  - key: videos_per_month
+    label: 월 업로드 편수
+    default: 30
+    unit: 편
+    kind: count
+    minimum: 0
+    maximum: 200
+    step: 1
+    source: 하루 1편 기준입니다. 쇼츠는 물량으로 노출을 얻는 구조라 이보다 적으면 조회수 가정도 함께 낮춰야 합니다.
+  - key: edit_cost_per_video
+    label: 편당 편집비
+    default: 15000
+    unit: 원
+    kind: money
+    minimum: 0
+    maximum: 200000
+    step: 1000
+    source: 30~60초 자막 편집 외주 통상 구간입니다. 직접 하면 0 으로 두세요.
+  - key: hours_per_video
+    label: 편당 내 투입 시간
+    default: 0.7
+    unit: 시간
+    kind: hours
+    minimum: 0
+    maximum: 10
+    step: 0.1
+    source: 소재 찾기·촬영·자막 검수 기준입니다. 편당 40분 정도로 잡았습니다.
+  - key: fixed_cost
+    label: 월 고정비
+    default: 30000
+    unit: 원
+    kind: money
+    minimum: 0
+    maximum: 1000000
+    step: 10000
+    source: 자막·편집 도구 구독료 수준입니다.
+  - key: initial_cost
+    label: 초기 투자
+    default: 300000
+    unit: 원
+    kind: money
+    minimum: 0
+    maximum: 10000000
+    step: 100000
+    source: 휴대폰 촬영 기준의 조명·거치대 정도로 잡았습니다.
+
+formulas:
+  revenue: monthly_views / 1000 * rpm
+  cost: videos_per_month * edit_cost_per_video + fixed_cost
+  hours: videos_per_month * hours_per_video
+
+cautions:
+  - 광고 수익만 계산합니다. 쇼츠의 값어치는 대개 광고가 아니라 유입에 있습니다.
+  - 사람 검수 없이 대량으로 찍어내는 방식은 유튜브 2025.7 양산형 콘텐츠 정책 대상입니다.
+  - 월 30편을 실제로 유지할 수 있는지부터 따져 보세요. 시간당 수익이 그 답을 보여 줍니다.

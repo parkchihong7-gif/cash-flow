@@ -1,0 +1,99 @@
+# 6. 전자책·강의 판매
+#
+# [기본값 근거]
+# 크몽 수수료 20% = 사용자가 지정한 기준값. 크몽은 판매 누적액 구간에 따라
+#   수수료가 달라지는 구조라, 20% 는 신규 판매자에게 불리한 쪽(보수적)으로 잡은 값이다.
+#   실제 적용 요율은 크몽 판매자 센터에서 확인해서 바꿀 것.
+# 전환율 1.5% = 사용자가 지정한 기준값.
+# 가격 49,000원 = CLAUDE.md §2-1 "자청: 전자책 29만 원 / 강의 포함 49만 원" 은
+#   최상위 사례라 출발점으로 쓰기에 위험하다. 크몽 전자책 통상 가격대로 낮춰 잡았다.
+
+number: 6
+name: 전자책·강의 판매
+tagline: 방문자 → 구매 한 단계라 계산이 단순하다
+summary: |
+  CLAUDE.md §2-1 의 조사 결론에서 **매출 본체**로 지목된 자리입니다.
+  다만 인용된 자청의 29만/49만 원은 **이미 신뢰를 쌓은 사람의 가격**이고,
+  프드프 매출 52억은 자사 발표라 검증되지 않았습니다.
+  그래서 기본 가격은 크몽 전자책의 통상 가격대로 낮춰 잡았습니다.
+
+  1번 **퍼널 빌더**와 3번 **전자책 원고 생성기**가 이 모델의 앞단을 만들어 줍니다.
+
+params:
+  - key: monthly_visitors
+    label: 월 방문자
+    default: 3000
+    unit: 명
+    kind: count
+    minimum: 0
+    maximum: 1000000
+    step: 100
+    uncertain: 0.5
+    source: 블로그·인스타·유튜브에서 랜딩으로 넘어오는 사람 수의 출발점입니다. 실제 유입 경로가 있으면 그 수치로 바꾸세요.
+    help: 광고를 돌리면 광고비와 함께 올려 잡아야 합니다.
+  - key: conversion_rate
+    label: 구매 전환율
+    default: 0.015
+    unit: 비율
+    kind: rate
+    minimum: 0
+    maximum: 0.3
+    step: 0.001
+    uncertain: 0.5
+    source: 사용자가 지정한 기준값 1.5%입니다. 리드 확보 후 이메일로 파는 퍼널이면 이보다 높고, 바로 결제를 요구하면 낮습니다.
+  - key: price
+    label: 판매가
+    default: 49000
+    unit: 원
+    kind: money
+    minimum: 0
+    maximum: 5000000
+    step: 1000
+    source: 크몽 전자책 통상 가격대입니다. CLAUDE.md §2-1 의 자청 29만/49만 원은 최상위 사례라 출발점으로 쓰지 않았습니다.
+  - key: platform_fee_rate
+    label: 플랫폼 수수료율
+    default: 0.2
+    unit: 비율
+    kind: rate
+    minimum: 0
+    maximum: 0.5
+    step: 0.01
+    source: 사용자가 지정한 크몽 기준값 20%입니다. 크몽은 누적 판매액 구간별로 요율이 달라지니 판매자 센터에서 확인하세요. 자체 결제로 팔면 3~4% 로 낮추세요.
+  - key: ad_cost
+    label: 월 광고비
+    default: 300000
+    unit: 원
+    kind: money
+    minimum: 0
+    maximum: 20000000
+    step: 50000
+    source: 방문자 3,000명을 유료로 만들 때의 최소 수준으로 잡은 값입니다. 무료 유입만 쓰면 0 으로 두세요.
+  - key: hours_per_month
+    label: 월 투입 시간
+    default: 25
+    unit: 시간
+    kind: hours
+    minimum: 0
+    maximum: 400
+    step: 1
+    source: 원고 개정·CS·마케팅 콘텐츠 기준입니다. 첫 원고를 쓰는 달은 100시간 넘게 잡으세요.
+  - key: initial_cost
+    label: 초기 투자
+    default: 500000
+    unit: 원
+    kind: money
+    minimum: 0
+    maximum: 30000000
+    step: 100000
+    source: 표지 디자인·랜딩 제작·결제 연동 정도로 잡은 값입니다.
+
+formulas:
+  revenue: monthly_visitors * conversion_rate * price * (1 - platform_fee_rate)
+  cost: ad_cost
+  hours: hours_per_month
+
+cautions:
+  - 원고를 쓰는 기간은 계산에 없습니다. 첫 판매까지 한두 달은 매출 0 입니다.
+  - 성과를 단정하는 상세페이지는 소비자원 주의보 대상입니다(CLAUDE.md §3).
+  - 환불 요청이 들어옵니다. 전자책은 열람 전 청약철회가 원칙입니다.
+  - 수수료율은 플랫폼마다 크게 다릅니다. 본인 요율로 반드시 바꾸세요.
