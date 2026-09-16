@@ -1,0 +1,13 @@
+# 공구 정산 엑셀 자동 생성기
+# 저장소 맨 위 requirements.txt 를 설치했다면 이미 다 들어 있습니다.
+
+anthropic>=0.40.0
+python-dotenv>=1.0.0
+pydantic>=2.6.0
+PyYAML>=6.0
+openpyxl>=3.1.0
+
+# 만들어진 엑셀을 다시 계산해 검산하는 데 씁니다.
+# 없어도 장부는 만들어지지만, `verify` 와 리포트의 "엑셀 계산값" 확인이 되지 않습니다.
+# LibreOffice 가 깔려 있으면 그쪽을 먼저 씁니다.
+formulas>=1.2.0

@@ -56,8 +56,9 @@ tests/             테스트
 | 4 | [`lecture-deck/`](./products/lecture-deck) | 강의 슬라이드 생성기 (pptx) | 운영 중 |
 | 5 | [`kmong-copy/`](./products/kmong-copy) | 크몽 상세페이지 카피 생성기 | 운영 중 |
 | 6 | [`n8n-gen/`](./products/n8n-gen) | n8n 워크플로 JSON 생성기 | 운영 중 |
-| 7 | `agency-kit/` | 자동화 대행 납품 키트 | 미착수 |
-| 8 | `niche-research/` | 저가 유튜브 니치 리서치 | 미착수 |
+| 7 | [`groupbuy-ledger/`](./products/groupbuy-ledger) | 공구 정산 엑셀 자동 생성기 | 운영 중 |
+| 8 | `agency-kit/` | 자동화 대행 납품 키트 | 미착수 |
+| 9 | `niche-research/` | 저가 유튜브 니치 리서치 | 미착수 |
 
 ## 확인
 
