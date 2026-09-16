@@ -1,0 +1,10 @@
+# 노션 템플릿 기획·설명서 생성기
+# 저장소 맨 위 requirements.txt 를 설치했다면 이미 다 들어 있습니다.
+
+anthropic>=0.40.0
+python-dotenv>=1.0.0
+pydantic>=2.6.0
+PyYAML>=6.0
+
+# deploy (선택 기능) 에서 노션 API 를 부를 때만 씁니다.
+requests>=2.31.0

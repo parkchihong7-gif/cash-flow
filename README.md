@@ -32,8 +32,19 @@ python -m dashboard           # http://127.0.0.1:8000
 | **매출 추이** | 최근 12개월과 프로그램별 매출. 인터넷 없이도 그려집니다 |
 | **검색** | `/` 키를 누르면 바로. 매뉴얼 **본문까지** 찾습니다 |
 | **실행 이력** | 프로그램·결과·방식으로 거르기. 실패한 것만 모아 보기 |
+| **설정 한눈에** | 프로그램 9종의 설정값·편집 파일·매뉴얼을 한 장에. 토큰은 설정됨/비어 있음만 |
 
-자세한 사용법은 [관리자 매뉴얼 1.5~1.6장](./docs/admin-manual.md)에 있습니다.
+자세한 사용법은 [관리자 매뉴얼 1.5~1.8장](./docs/admin-manual.md)에 있습니다.
+
+### 서버 없이 화면만 보기
+
+```bash
+python -m dashboard.snapshot --demo        # dashboard-snapshot/index.html
+```
+
+화면을 통째로 떠서 **HTML 파일 묶음**으로 만듭니다. 파이썬이 없는 사람에게
+메뉴·매뉴얼·설정값을 보여 줄 때 씁니다. 저장·실행·검색은 서버가 있어야 됩니다.
+기본값은 빈 임시 DB 로 떠서 고객 정보가 찍히지 않습니다.
 
 ## 어디서나 접속하기
 
@@ -168,8 +179,9 @@ tests/             테스트
 | 6 | [`n8n-gen/`](./products/n8n-gen) | n8n 워크플로 JSON 생성기 | 운영 중 |
 | 7 | [`groupbuy-ledger/`](./products/groupbuy-ledger) | 공구 정산 엑셀 자동 생성기 | 운영 중 |
 | 8 | [`income-sim/`](./products/income-sim) | 수익 시뮬레이터 | 운영 중 |
-| 9 | `agency-kit/` | 자동화 대행 납품 키트 | 미착수 |
-| 10 | `niche-research/` | 저가 유튜브 니치 리서치 | 미착수 |
+| 9 | [`notion-template-kit/`](./products/notion-template-kit) | 노션 템플릿 기획·설명서 생성기 | 운영 중 |
+| 10 | `agency-kit/` | 자동화 대행 납품 키트 | 미착수 |
+| 11 | `niche-research/` | 저가 유튜브 니치 리서치 | 미착수 |
 
 ## 확인
 
