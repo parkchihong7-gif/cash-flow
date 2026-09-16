@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>검색</h1>
+
+<form method="get" action="/search" class="searchbar big">
+  <input type="search" name="q" value="{{ q }}" placeholder="프로그램·매뉴얼·설정·고객에서 찾기"
+         autofocus aria-label="검색어">
+  <button type="submit" class="primary">찾기</button>
+</form>
+
+{% if not q %}
+<p class="muted">프로그램 이름, 매뉴얼 본문, 설정 항목, 고객 이름에서 찾습니다.
+  두 글자 이상 넣어 주세요.</p>
+<p class="muted">예: <a href="/search?q=이탈률">이탈률</a> ·
+  <a href="/search?q=손익분기">손익분기</a> ·
+  <a href="/search?q=크몽">크몽</a> ·
+  <a href="/search?q=접속 코드">접속 코드</a></p>
+{% elif q|length < 2 %}
+<p class="muted">두 글자 이상 넣어 주세요.</p>
+{% elif total == 0 %}
+<div class="note warn"><strong>“{{ q }}” 에 맞는 것을 찾지 못했습니다.</strong>
+  낱말을 줄여 보시거나 다른 말로 찾아 보세요.</div>
+{% else %}
+<p class="muted">{{ total }}건을 찾았습니다.</p>
+{% for group, hits in results.items() %}
+<h2>{{ group }}</h2>
+<ul class="hits">
+  {% for hit in hits %}
+  <li>
+    <a href="{{ hit.href }}">{{ hit.title }}</a>
+    {% if hit.subtitle %}<span class="hit-sub">{{ hit.subtitle }}</span>{% endif %}
+    {% if hit.snippet %}<p class="muted">{{ hit.snippet }}</p>{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endfor %}
+{% endif %}
+{% endblock %}

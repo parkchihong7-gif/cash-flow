@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>실행 이력</h1>
+<p class="muted">전체 {{ total }}건. 실패한 것부터 확인하세요.</p>
+
+<form method="get" action="/runs" class="filters">
+  <label>프로그램
+    <select name="program">
+      <option value="">전체</option>
+      {% for p in programs %}
+      <option value="{{ p.id }}" {% if filters.program == p.id %}selected{% endif %}>
+        {{ p.number }}. {{ p.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>결과
+    <select name="status">
+      <option value="">전체</option>
+      {% for value, label in [('success','성공'), ('warning','경고'), ('failed','실패'), ('running','실행 중')] %}
+      <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>방식
+    <select name="mode">
+      <option value="">전체</option>
+      <option value="dry" {% if filters.mode == 'dry' %}selected{% endif %}>모의</option>
+      <option value="real" {% if filters.mode == 'real' %}selected{% endif %}>실제</option>
+    </select>
+  </label>
+  <button type="submit">거르기</button>
+  {% if filters.program or filters.status or filters.mode %}
+  <a class="btn" href="/runs">조건 지우기</a>
+  {% endif %}
+</form>
+
+{% if runs %}
+<table>
+  <tr><th>#</th><th>프로그램</th><th>방식</th><th>결과</th><th>시각</th><th>산출물</th></tr>
+  {% for r in runs %}
+  <tr>
+    <td><a href="/runs/{{ r.id }}">{{ r.id }}</a></td>
+    <td>{{ names.get(r.program_id, r.program_id) }}</td>
+    <td>{{ '모의' if r.mode == 'dry' else '실제' }}</td>
+    <td><span class="badge {{ r.status }}">{{ r.status }}</span></td>
+    <td class="muted">{{ r.started_at[:19].replace('T', ' ') }}</td>
+    <td>{% if r.output_dir %}<a href="/programs/{{ r.program_id }}/outputs?run={{ r.id }}">열기</a>{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+{% if pages > 1 %}
+<nav class="pager">
+  {% set base = '/runs?program=' ~ filters.program ~ '&status=' ~ filters.status ~ '&mode=' ~ filters.mode %}
+  {% if page_no > 1 %}<a class="btn" href="{{ base }}&page_no={{ page_no - 1 }}">← 이전</a>{% endif %}
+  <span class="muted">{{ page_no }} / {{ pages }}</span>
+  {% if page_no < pages %}<a class="btn" href="{{ base }}&page_no={{ page_no + 1 }}">다음 →</a>{% endif %}
+</nav>
+{% endif %}
+{% else %}
+<p class="muted">조건에 맞는 실행이 없습니다.</p>
+{% endif %}
+{% endblock %}

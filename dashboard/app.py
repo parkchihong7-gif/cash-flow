@@ -37,9 +37,12 @@ from fastapi.templating import Jinja2Templates
 
 from core import auth
 from core.db import Database, DEFAULT_DB_PATH
+from core.health import checklist
+from core.search import search as search_index
 from core.manifest import ProgramManifest
 from core.registry import Registry
 from core.runner import RunError, run_program
+from dashboard.charts import monthly_chart, program_chart
 from shared import banned_phrases
 from shared.config import ANTHROPIC_API_KEY, DEFAULT_MODEL, ROOT_DIR
 
@@ -241,12 +244,53 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
     # ------------------------------------------------------------------ 홈
     @app.get("/", response_class=HTMLResponse)
     def home(request: Request):
-        recent = db().list_runs(limit=8)
+        database = db()
+        names = {p.id: p.name for p in registry().programs}
         return page(
             request, "home.html",
             title="대시보드",
-            summary=db().summary(),
-            recent_runs=recent,
+            summary=database.summary(),
+            recent_runs=database.list_runs(limit=8),
+            tasks=checklist(database, registry(),
+                            api_key_set=bool(ANTHROPIC_API_KEY),
+                            default_code=auth.is_default_code()),
+            monthly=monthly_chart(database.monthly_revenue(12)),
+            by_program=program_chart(database.revenue_by_program(), names),
+            last_runs=database.last_run_per_program(),
+            hide_banners=True,
+        )
+
+    # ------------------------------------------------------------ 전체 검색
+    @app.get("/search", response_class=HTMLResponse)
+    def search_page(request: Request, q: str = ""):
+        results = search_index(q, registry(), db(), DOCS_DIR)
+        return page(
+            request, "search.html",
+            title="검색",
+            q=q,
+            results=results,
+            total=sum(len(rows) for rows in results.values()),
+        )
+
+    # ---------------------------------------------------------- 실행 이력
+    @app.get("/runs", response_class=HTMLResponse)
+    def run_list(request: Request, program: str = "", status: str = "",
+                 mode: str = "", page_no: int = 1):
+        per_page = 30
+        page_no = max(1, page_no)
+        database = db()
+        total = database.count_runs(program, status, mode)
+        rows = database.search_runs(program, status, mode,
+                                    limit=per_page, offset=(page_no - 1) * per_page)
+        return page(
+            request, "runs.html",
+            title="실행 이력",
+            runs=rows,
+            total=total,
+            page_no=page_no,
+            pages=max(1, -(-total // per_page)),
+            filters={"program": program, "status": status, "mode": mode},
+            names={p.id: p.name for p in registry().programs},
         )
 
     @app.post("/reload")

@@ -3,6 +3,26 @@
 <h1>대시보드</h1>
 <p class="muted">프로그램을 하나씩 열어 열람·수정·테스트·회원관리를 합니다.</p>
 
+{% if tasks %}
+<section class="todo">
+  <h2 class="todo-head">오늘 볼 것 <span class="count">{{ tasks|length }}</span></h2>
+  <ul>
+    {% for t in tasks %}
+    <li class="todo-item {{ t.level }}">
+      <div class="todo-body">
+        <strong>{{ t.title }}</strong>
+        <span class="muted">{{ t.detail }}</span>
+      </div>
+      {% if t.href %}<a class="btn" href="{{ t.href }}">{{ t.action or '보기' }}</a>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% else %}
+<div class="note ok"><strong>확인할 것이 없습니다.</strong>
+  실패한 실행도, 곧 끝나는 이용권도 없습니다.</div>
+{% endif %}
+
 <div class="stats">
   <div class="stat"><div class="n">{{ programs|length }}</div><div class="k">등록 프로그램</div></div>
   <div class="stat"><div class="n">{{ summary.members }}</div><div class="k">고객</div></div>
@@ -12,13 +32,70 @@
   <div class="stat"><div class="n">{{ summary.runs }}</div><div class="k">실행 이력</div></div>
 </div>
 
+<h2>매출 추이</h2>
+{% if monthly.empty %}
+<p class="muted">아직 기록된 결제가 없습니다. 고객과 이용권을 등록하면 여기에 쌓입니다.
+  (<a href="/members">회원관리</a>)</p>
+{% else %}
+<div class="chart">
+  <p class="chart-cap">최근 12개월 · 합계 {{ monthly.total|won }}
+    <span class="muted">환불한 건은 뺐습니다</span></p>
+  <svg viewBox="0 0 {{ monthly.width }} {{ monthly.height }}" class="bars"
+       role="img" aria-label="월별 매출 막대그래프">
+    <line x1="0" y1="{{ monthly.baseline }}" x2="{{ monthly.width }}"
+          y2="{{ monthly.baseline }}" class="axis"/>
+    {% for b in monthly.bars %}
+    <rect x="{{ b.x }}" y="{{ b.y }}" width="{{ b.width }}" height="{{ b.height }}"
+          rx="3" class="bar {% if b.highlight %}on{% endif %}">
+      <title>{{ b.caption }} · {{ b.value|won }}</title>
+    </rect>
+    {% if b.value %}
+    <text x="{{ b.x + b.width / 2 }}" y="{{ b.y - 5 }}" class="bar-value">
+      {{ (b.value / 10000)|round|int }}만</text>
+    {% endif %}
+    <text x="{{ b.x + b.width / 2 }}" y="{{ monthly.baseline + 16 }}" class="bar-label">
+      {{ b.label }}</text>
+    {% endfor %}
+  </svg>
+</div>
+
+{% if not by_program.empty %}
+<h2>프로그램별 매출</h2>
+<div class="chart">
+  <svg viewBox="0 0 {{ by_program.width }} {{ by_program.height }}" class="bars"
+       role="img" aria-label="프로그램별 매출 막대그래프">
+    {% for b in by_program.bars %}
+    <text x="0" y="{{ b.y + 14 }}" class="bar-label left">{{ b.label }}</text>
+    <rect x="{{ b.x }}" y="{{ b.y }}" width="{{ b.width }}" height="{{ b.height }}"
+          rx="3" class="bar {% if b.highlight %}on{% endif %}">
+      <title>{{ b.caption }}</title>
+    </rect>
+    <text x="{{ b.x + b.width + 8 }}" y="{{ b.y + 14 }}" class="bar-value left">
+      {{ b.value|won }} <tspan class="muted-svg">{{ b.caption }}</tspan></text>
+    {% endfor %}
+  </svg>
+</div>
+{% endif %}
+{% endif %}
+
 <h2>프로그램</h2>
 <div class="grid">
   {% for p in programs %}
+  {% set last = last_runs.get(p.id) %}
   <div class="card">
     <h3><span class="num">{{ p.number }}</span> <a href="/programs/{{ p.id }}">{{ p.name }}</a>
       <span class="badge {{ p.status }}">{{ p.status_label }}</span></h3>
     <p class="muted">{{ p.tagline }}</p>
+    <p class="last-run">
+      {% if last %}
+        마지막 실행 <span class="badge {{ last.status }}">{{ last.status }}</span>
+        <span class="muted">{{ last.started_at[:10] }} · {{ '모의' if last.mode == 'dry' else '실제' }}</span>
+      {% elif p.runnable %}
+        <span class="muted">아직 한 번도 안 돌렸습니다</span>
+      {% else %}
+        <span class="muted">실행할 수 없는 프로그램입니다</span>
+      {% endif %}
+    </p>
     <div class="actions">
       <a class="btn" href="/programs/{{ p.id }}">열람</a>
       <a class="btn" href="/programs/{{ p.id }}/edit">수정</a>
@@ -48,6 +125,7 @@
   </tr>
   {% endfor %}
 </table>
+<p><a href="/runs">전체 실행 이력 보기 →</a></p>
 {% else %}
 <p class="muted">아직 실행 이력이 없습니다. 프로그램의 테스트 탭에서 모의 실행을 먼저 해보세요.</p>
 {% endif %}

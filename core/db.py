@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -298,6 +298,101 @@ class Database:
         return self.query_one("SELECT * FROM runs WHERE id = ?", (run_id,))
 
     # -------------------------------------------------------------- 요약
+    def monthly_revenue(self, months: int = 12) -> list[dict]:
+        """최근 N개월 매출. 결제일(purchased_at) 기준으로 달마다 묶는다.
+
+        환불된 라이선스는 뺀다. 만료된 것은 뺀 돈이 아니므로 넣는다.
+        """
+        rows = self.query(
+            "SELECT substr(purchased_at, 1, 7) AS ym, "
+            "       SUM(price) AS amount, COUNT(*) AS deals "
+            "FROM licenses WHERE status != 'refunded' "
+            "GROUP BY ym ORDER BY ym"
+        )
+        found = {row["ym"]: row for row in rows}
+
+        # 매출이 0인 달도 자리를 만들어 준다. 빈 달이 빠지면 추이가 왜곡된다.
+        today = datetime.now().date().replace(day=1)
+        series = []
+        for offset in range(months - 1, -1, -1):
+            year, month = divmod((today.year * 12 + today.month - 1) - offset, 12)
+            key = f"{year:04d}-{month + 1:02d}"
+            row = found.get(key)
+            series.append({
+                "month": key,
+                "label": f"{month + 1}월",
+                "amount": int(row["amount"] or 0) if row else 0,
+                "deals": int(row["deals"]) if row else 0,
+            })
+        return series
+
+    def revenue_by_program(self) -> list[dict]:
+        """프로그램별 누적 매출. 많이 판 순서."""
+        rows = self.query(
+            "SELECT program_id, SUM(price) AS amount, COUNT(*) AS deals, "
+            "       SUM(retainer) AS retainer "
+            "FROM licenses WHERE status = 'active' "
+            "GROUP BY program_id ORDER BY amount DESC"
+        )
+        return [{"program_id": row["program_id"], "amount": int(row["amount"] or 0),
+                 "deals": int(row["deals"]), "retainer": int(row["retainer"] or 0)}
+                for row in rows]
+
+    def last_run_per_program(self) -> dict[str, dict]:
+        """프로그램별 마지막 실행. 한 번도 안 돌린 프로그램을 찾는 데 쓴다."""
+        rows = self.query(
+            "SELECT r.* FROM runs r "
+            "JOIN (SELECT program_id, MAX(id) AS last_id FROM runs GROUP BY program_id) m "
+            "  ON r.id = m.last_id"
+        )
+        return {row["program_id"]: dict(row) for row in rows}
+
+    def count_runs(self, program_id: str = "", status: str = "", mode: str = "") -> int:
+        clauses, params = [], []
+        if program_id:
+            clauses.append("program_id = ?")
+            params.append(program_id)
+        if status:
+            clauses.append("status = ?")
+            params.append(status)
+        if mode:
+            clauses.append("mode = ?")
+            params.append(mode)
+        where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+        row = self.query_one(f"SELECT COUNT(*) FROM runs{where}", tuple(params))
+        return int(row[0]) if row else 0
+
+    def search_runs(self, program_id: str = "", status: str = "", mode: str = "",
+                    limit: int = 30, offset: int = 0) -> list[sqlite3.Row]:
+        """실행 이력을 걸러서 본다."""
+        clauses, params = [], []
+        if program_id:
+            clauses.append("program_id = ?")
+            params.append(program_id)
+        if status:
+            clauses.append("status = ?")
+            params.append(status)
+        if mode:
+            clauses.append("mode = ?")
+            params.append(mode)
+        where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+        params.extend([limit, offset])
+        return self.query(
+            f"SELECT * FROM runs{where} ORDER BY id DESC LIMIT ? OFFSET ?", tuple(params))
+
+    def expiring_licenses(self, within_days: int = 30) -> list[sqlite3.Row]:
+        """곧 끝나거나 이미 지난 이용권. 연장 안내를 놓치지 않으려고 본다."""
+        today = date.today()
+        limit = (today + timedelta(days=within_days)).isoformat()
+        return self.query(
+            "SELECT l.*, m.name AS member_name FROM licenses l "
+            "JOIN members m ON m.id = l.member_id "
+            "WHERE l.status = 'active' AND l.expires_at != '' "
+            "  AND substr(l.expires_at, 1, 10) <= ? "
+            "ORDER BY l.expires_at",
+            (limit,),
+        )
+
     def summary(self) -> dict[str, int]:
         """홈 화면 상단 숫자."""
         def scalar(sql: str, params: tuple = ()) -> int:
