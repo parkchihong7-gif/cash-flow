@@ -1,0 +1,30 @@
+# 강의 슬라이드 생성기 입력. 복사해서 자기 강의로 바꿔 쓴다.
+# 실행: python cli.py build deck_input.yaml
+
+course_title: "혼자 일하는 사람의 파일 관리 실무"
+
+# 누가 듣는 강의인지. **좁게 쓸수록 좋은 커리큘럼이 나옵니다.**
+audience: "혼자 일하며 파일을 직접 관리하는 프리랜서"
+
+# 전체 강의 시간(분). 30~960
+total_minutes: 180
+
+# 표지와 실습지에 들어갈 이름. 비우면 자리만 만듭니다.
+instructor: ""
+
+# minimal | bold | corporate — templates/palettes.json 에서 색을 고칠 수 있습니다
+style: minimal
+
+# 모듈을 비워두면 LLM 이 5~8개를 제안합니다.
+# 직접 쓰려면 제목만 적어도 되고, 목표·개념까지 적으면 그대로 씁니다.
+modules: []
+
+# 직접 쓰는 예시:
+# modules:
+#   - title: "왜 지금 정리가 필요한가"
+#     goal: "파일이 쌓이는 진짜 원인을 말할 수 있다"
+#     concepts:
+#       - "기준 없는 저장"
+#       - "이름의 무질서"
+#       - "버리지 않는 습관"
+#   - title: "자리 정하기"

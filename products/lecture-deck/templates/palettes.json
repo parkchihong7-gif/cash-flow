@@ -1,0 +1,50 @@
+{
+  "_설명": [
+    "스타일별 색상 팔레트. 대시보드 '수정' 탭에서 고쳐 쓸 수 있습니다.",
+    "각 색은 6자리 hex 이며 # 를 붙이지 않습니다.",
+    "제목·마무리 슬라이드는 진한 배경(dark), 본문은 밝은 배경(light)을 씁니다.",
+    "장식용 색 띠나 제목 밑줄은 쓰지 않습니다. AI가 만든 티가 나는 대표적인 요소입니다."
+  ],
+  "minimal": {
+    "name": "미니멀",
+    "description": "차콜과 오프화이트. 내용에 시선이 가게 하는 기본값",
+    "dark_bg": "2B3138",
+    "light_bg": "FFFFFF",
+    "panel_bg": "F2F3F5",
+    "ink": "1A1D21",
+    "ink_on_dark": "FFFFFF",
+    "muted": "6B7280",
+    "muted_on_dark": "B9BFC7",
+    "accent": "3F6C8F",
+    "accent_soft": "E4ECF2",
+    "on_accent": "FFFFFF"
+  },
+  "bold": {
+    "name": "볼드",
+    "description": "체리 레드와 네이비. 대비가 강해 큰 강의실에서 잘 보임",
+    "dark_bg": "7A0A17",
+    "light_bg": "FFFFFF",
+    "panel_bg": "FBF1F1",
+    "ink": "1C1C1C",
+    "ink_on_dark": "FFFFFF",
+    "muted": "6E6A6A",
+    "muted_on_dark": "EBC9CC",
+    "accent": "990011",
+    "accent_soft": "F7E2E4",
+    "on_accent": "FFFFFF"
+  },
+  "corporate": {
+    "name": "코퍼릿",
+    "description": "네이비와 아이스 블루. 사내 교육·B2B 강의용",
+    "dark_bg": "1E2761",
+    "light_bg": "FFFFFF",
+    "panel_bg": "EEF2FA",
+    "ink": "10131F",
+    "ink_on_dark": "FFFFFF",
+    "muted": "5C6478",
+    "muted_on_dark": "CADCFC",
+    "accent": "2B4C9B",
+    "accent_soft": "DEE7F7",
+    "on_accent": "FFFFFF"
+  }
+}

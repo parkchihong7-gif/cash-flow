@@ -13,8 +13,9 @@
 | 1 | `funnel-builder/` | 강의·전자책 퍼널 빌더 | **운영 중** |
 | 2 | `hook-script/` | 후킹 대본 생성기 | **운영 중** |
 | 3 | `ebook-gen/` | 전자책 원고 생성기 (docx) | **운영 중** |
-| 4 | `agency-kit/` | 자동화 대행 납품 키트 3종 | 미착수 |
-| 5 | `niche-research/` | 저가 유튜브 니치 리서치 | 미착수 |
+| 4 | `lecture-deck/` | 강의 슬라이드 생성기 (pptx) | **운영 중** |
+| 5 | `agency-kit/` | 자동화 대행 납품 키트 3종 | 미착수 |
+| 6 | `niche-research/` | 저가 유튜브 니치 리서치 | 미착수 |
 
 번호는 대시보드 표시 순서이고 `program.yaml` 의 `number` 로 정합니다.
 
