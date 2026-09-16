@@ -16,7 +16,10 @@
 
 ## 공통 규칙
 
-- 판매용 텍스트에 "수익 보장 / 무조건 / 자동으로 돈이" 류 표현을 쓰지 않는다.
-- 모든 AI 산출물에 표시 옵션(`--ai-label`)을 기본 on으로 둔다. (인공지능기본법 2026.1.22 시행)
+- Claude 호출은 anthropic SDK 를 직접 쓰지 말고 `shared.llm.ask()` 를 쓴다.
+- 판매용 텍스트는 `shared.banned_phrases.check()` 를 통과해야 한다. 금지 문구 목록은 그 모듈에 있고,
+  대체 표현은 "시간 절약 / 반복 작업 자동화 / 검증 필요" 다. (CLAUDE.md §3-2, §7)
+- 모든 AI 산출물에 표시 옵션(`--ai-label`)을 기본 on으로 둔다. 텍스트는 `shared.ai_label.add_text_label()`,
+  docx/pptx/xlsx 는 `shared.ai_label.add_metadata()` 를 쓴다. (인공지능기본법 2026.1.22 시행)
 - 외부 플랫폼은 공식 API + OAuth만. 쿼터 초과 시 재시도가 아니라 대기.
 - 콘텐츠 파이프라인은 "초안 생성 → 사람 승인 → 발행" 3단계를 유지한다.
