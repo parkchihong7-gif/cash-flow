@@ -43,6 +43,7 @@ from core.search import search as search_index
 from core.manifest import ProgramManifest
 from core.overview import collect as collect_config, env_rows
 from core.registry import Registry
+from core.schedule import collect as collect_schedule, summarize as schedule_summary
 from core.runner import RunError, run_program
 from dashboard.charts import monthly_chart, program_chart
 from shared import banned_phrases
@@ -604,6 +605,24 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
             share=round(recurring * 12 / (one_time + recurring * 12) * 100, 1)
             if (one_time or recurring) else 0.0,
             expiring=db().expiring_licenses(30),
+        )
+
+    # -------------------------------------------------------- 정기 실행
+    @app.get("/schedule", response_class=HTMLResponse)
+    def schedule_view(request: Request):
+        """되풀이해 돌려야 하는 프로그램이 제때 돌고 있는지 본다.
+
+        **여기서 돌리지는 않는다.** 스케줄러는 cron 이나 n8n 이고, 대시보드는
+        꺼져 있을 수 있다. 실행을 이 화면에 두면 대시보드를 안 켠 날 일이 빈다.
+        """
+        rows = collect_schedule(registry(), db())
+        return page(
+            request, "schedule.html",
+            title="정기 실행",
+            rows=rows,
+            summary=schedule_summary(rows),
+            recurring=[row for row in rows if row.recurring],
+            manual=[row for row in rows if not row.recurring],
         )
 
     # ---------------------------------------------------------- 규정 점검

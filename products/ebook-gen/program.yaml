@@ -208,6 +208,12 @@ manuals:
 
 # 대시보드 '테스트' 탭은 **1단계(목차)만** 실행합니다.
 # 2·3단계는 사람이 파일을 고친 뒤 진행해야 하므로 터미널에서 실행합니다.
+# 정기 실행 — 되풀이해 돌 일은 아니다. 필요할 때만 돈다.
+schedule:
+  cadence: manual
+  command: "python cli.py build --input request.yaml"
+  why: "전자책 한 권에 한 번. 개정할 때 다시 돌린다."
+
 run:
   input_file: ebook_input.yaml
   command: ["python", "cli.py", "outline", "--input", "{input}"]

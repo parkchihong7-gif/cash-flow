@@ -255,6 +255,12 @@ manuals:
   admin: docs/admin.md
   client: docs/client.md
 
+# 정기 실행 — 되풀이해 돌 일은 아니다. 필요할 때만 돈다.
+schedule:
+  cadence: manual
+  command: "python cli.py run --input scenario.yaml"
+  why: "가격이나 전환율 가정을 바꿔 볼 때. 숫자를 다시 잡을 때마다."
+
 run:
   input_file: models/youtube_long.yaml
   command: ["python", "cli.py", "html"]

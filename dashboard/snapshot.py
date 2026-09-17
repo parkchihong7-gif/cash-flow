@@ -56,7 +56,7 @@ MAX_PAGES = 400
 #: 이 접두어로 시작하는 주소만 따라간다.
 FOLLOW_PREFIXES = (
     "/", "/programs/", "/manual", "/members", "/settings", "/config",
-    "/rules", "/revenue", "/runs", "/search", "/preview",
+    "/rules", "/revenue", "/schedule", "/runs", "/search", "/preview",
 )
 
 #: 따라가지 않는 주소. 스냅샷에서 뜻이 없거나 서버가 있어야만 되는 것들.
@@ -158,7 +158,8 @@ class Snapshot:
 
 def _seeds(registry: Registry) -> list[str]:
     """반드시 담을 화면. 링크를 따라가면 대부분 걸리지만 순서를 고정한다."""
-    urls = ["/", "/config", "/rules", "/revenue", "/runs", "/members", "/settings",
+    urls = ["/", "/config", "/rules", "/schedule", "/revenue", "/runs", "/members",
+            "/settings",
             "/manual",
             "/manual/admin", "/manual/client"]
     for program in registry.programs:
@@ -218,6 +219,7 @@ def _cover(snapshot: Snapshot, registry: Registry, stamp: str,
     chips = '    <span class="group-label">시작</span>\n'
     chips += chip("/login", "접속 화면")
     chips += chip("/", "홈", current=True)
+    chips += chip("/schedule", "정기 실행")
     chips += chip("/config", "설정 한눈에")
     chips += chip("/rules", "규정 점검")
 

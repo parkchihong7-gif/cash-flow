@@ -274,6 +274,12 @@ manuals:
   admin: docs/admin.md
   client: docs/client.md
 
+# 정기 실행 — 되풀이해 돌 일은 아니다. 필요할 때만 돈다.
+schedule:
+  cadence: manual
+  command: "python cli.py build --request-file request.yaml"
+  why: "템플릿 한 벌에 한 번."
+
 run:
   input_file: request.yaml
   command: ["python", "cli.py", "plan", "--request-file", "{input}"]

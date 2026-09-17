@@ -285,6 +285,16 @@ manuals:
   admin: docs/admin.md
   client: docs/client.md
 
+# 정기 실행 — 공구가 끝날 때마다 도는 것이라 달 단위로 본다.
+schedule:
+  cadence: monthly
+  at: "정산일"
+  cron: ""
+  command: "python cli.py build --input orders.csv"
+  why: "공구 한 건이 끝나면 정산표를 만든다. 보통 달에 한두 번이다."
+  skipped: "정산이 밀리면 공급처와 참여자 양쪽에서 문의가 온다."
+  warmup_days: 0
+
 run:
   input_file: samples/products.csv
   command: ["python", "cli.py", "demo", "--products", "{input}", "--verbose"]

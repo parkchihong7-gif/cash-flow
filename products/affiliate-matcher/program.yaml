@@ -290,6 +290,12 @@ manuals:
   admin: docs/admin.md
   client: docs/client.md
 
+# 정기 실행 — 되풀이해 돌 일은 아니다. 필요할 때만 돈다.
+schedule:
+  cadence: manual
+  command: "python cli.py run --input data/samples/script1.txt"
+  why: "대본이나 글이 새로 나올 때마다. 글 쓰는 주기를 따라간다."
+
 run:
   input_file: data/samples/캠핑_유튜브_대본.md
   command: ["python", "cli.py", "run", "{input}"]

@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>정기 실행</h1>
+<p class="muted">
+  되풀이해 돌려야 하는 프로그램이 <strong>제때 돌고 있는지</strong> 봅니다.
+  한 번 만들고 끝나는 프로그램은 아래쪽에 따로 모았습니다.
+</p>
+
+<div class="note">
+  <strong>이 화면은 프로그램을 돌리지 않습니다.</strong>
+  실제로 돌리는 것은 cron 이나 n8n 이고, 대시보드는 꺼져 있을 수 있습니다.
+  실행을 이 화면에 두면 대시보드를 안 켠 날이 그대로 빈 칸이 됩니다.
+  여기서는 <em>밀렸는지</em>만 봅니다.
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="n">{{ summary.recurring }}</div><div class="k">되풀이하는 프로그램</div></div>
+  <div class="stat{% if summary.late %} late{% endif %}"><div class="n">{{ summary.late }}</div><div class="k">밀린 것</div></div>
+  <div class="stat"><div class="n">{{ summary.never }}</div><div class="k">아직 한 번도</div></div>
+  <div class="stat"><div class="n">{{ summary.fresh }}</div><div class="k">제때 도는 중</div></div>
+</div>
+
+{% set late = rows | selectattr('late') | list %}
+{% if late %}
+<div class="note bad">
+  <strong>주기를 넘긴 프로그램이 있습니다.</strong>
+  {% for row in late %}<a href="/programs/{{ row.id }}">{{ row.name }}</a>({{ row.age_label }}){% if not loop.last %}, {% endif %}{% endfor %}
+  — 아래에서 명령 줄을 복사해 돌리시거나, cron 이 살아 있는지 보세요.
+</div>
+{% endif %}
+
+<h2>되풀이해 돌리는 것</h2>
+{% if not recurring %}
+<div class="card"><p class="muted">정기 실행으로 잡아 둔 프로그램이 없습니다.</p></div>
+{% endif %}
+{% for row in recurring %}
+<div class="card sched {{ row.state }}">
+  <h3>
+    <span class="idx">{{ row.number }}</span>
+    <a href="/programs/{{ row.id }}">{{ row.name }}</a>
+    <span class="badge {{ row.state }}">{{ row.state_label }}</span>
+  </h3>
+  <table class="kv">
+    <tr><th>주기</th><td><strong>{{ row.cadence_label }}</strong>{% if row.at %} · {{ row.at }}{% endif %}</td></tr>
+    <tr><th>마지막 실행</th>
+      <td>
+        {{ row.age_label }}
+        {% if row.last_run %}<span class="muted">({{ row.last_run_label }}{% if row.last_mode %} · {{ row.last_mode }}{% endif %}{% if row.last_status %} · {{ row.last_status }}{% endif %})</span>{% endif %}
+      </td></tr>
+    <tr><th>왜 이 주기</th><td>{{ row.why }}</td></tr>
+    {% if row.skipped %}<tr><th>거르면</th><td class="warnrow">{{ row.skipped }}</td></tr>{% endif %}
+    {% if row.warmup_days %}
+    <tr><th>쌓이는 기간</th>
+      <td>{{ row.warmup_days }}일치가 모여야 결과가 뜻을 가집니다. 그 전에는 화면이 비어 보여도 정상입니다.</td></tr>
+    {% endif %}
+    {% if row.command %}<tr><th>손으로 돌릴 때</th><td><code>{{ row.command }}</code></td></tr>{% endif %}
+    {% if row.cron %}<tr><th>크론 한 줄</th><td><code class="cron">{{ row.cron }}</code></td></tr>{% endif %}
+  </table>
+  <p class="help">
+    <a href="/programs/{{ row.id }}/test">테스트 탭에서 한 번 돌려 보기</a> ·
+    <a href="/runs?program={{ row.id }}">이 프로그램 실행 이력</a> ·
+    <a href="/programs/{{ row.id }}/manual/admin">관리자 매뉴얼</a>
+  </p>
+</div>
+{% endfor %}
+
+<h2>필요할 때만 돌리는 것</h2>
+<div class="card">
+  <p class="muted">
+    한 번 만들고 끝나는 프로그램입니다. 안 돌렸다고 밀린 것이 아닙니다.
+  </p>
+  <table>
+    <tr><th>번호</th><th>프로그램</th><th>언제 돌리나</th><th>마지막 실행</th></tr>
+    {% for row in manual %}
+    <tr>
+      <td>{{ row.number }}</td>
+      <td><a href="/programs/{{ row.id }}">{{ row.name }}</a></td>
+      <td>{{ row.why }}</td>
+      <td class="muted">{{ row.age_label }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<h2>cron 을 어떻게 거나</h2>
+<div class="card prose">
+  <p>리눅스·맥이면 <code>crontab -e</code> 로 열고 위의 '크론 한 줄' 을 그대로 붙입니다.</p>
+  <pre><code>crontab -e        # 편집
+crontab -l        # 지금 걸린 것 보기</code></pre>
+  <p>
+    n8n 을 쓰신다면 <strong>Schedule Trigger → Execute Command</strong> 두 노드면 됩니다.
+    6번 <a href="/programs/n8n-gen">n8n 워크플로우 생성기</a>로 뼈대를 만들 수 있습니다.
+  </p>
+  <p class="help">
+    시각은 되도록 <strong>새벽</strong>으로 두세요. 유튜브 API 쿼터는 태평양 시간
+    자정에 초기화되고, 낮에 돌리면 손으로 돌린 것과 겹쳐 쿼터를 두 번 씁니다.
+  </p>
+</div>
+{% endblock %}

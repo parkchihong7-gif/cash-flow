@@ -292,6 +292,17 @@ manuals:
   admin: docs/admin.md
   client: docs/client.md
 
+# 정기 실행 — 이 상품은 매일 돌지 않으면 뜻이 없다.
+# 유튜브 API 는 어제 값을 돌려주지 않는다. 오늘 안 찍으면 그 하루는 영영 빈다.
+schedule:
+  cadence: daily
+  at: "06:00"
+  cron: "0 6 * * *  cd /path/to/niche-research && /usr/bin/python3 collector.py run >> collect.log 2>&1"
+  command: "python collector.py run"
+  why: "유튜브 API 는 지금 값만 준다. 시계열은 매일 한 번씩 직접 찍어 쌓는 수밖에 없다."
+  skipped: "거른 날은 영영 빈 칸으로 남는다. 추이 지표가 그만큼 무뎌진다."
+  warmup_days: 3
+
 run:
   input_file: keywords.txt
   command: ["python", "analyzer.py", "run", "--demo"]

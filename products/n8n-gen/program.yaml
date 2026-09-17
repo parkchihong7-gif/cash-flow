@@ -237,6 +237,12 @@ manuals:
   admin: docs/admin.md
   client: docs/client.md
 
+# 정기 실행 — 되풀이해 돌 일은 아니다. 필요할 때만 돈다.
+schedule:
+  cadence: manual
+  command: "python cli.py build --input request.yaml"
+  why: "워크플로우를 새로 짤 때만. 만든 워크플로우는 n8n 이 알아서 돈다."
+
 run:
   input_file: request.txt
   command: ["python", "cli.py", "--request-file", "{input}"]

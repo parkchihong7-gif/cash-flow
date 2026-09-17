@@ -344,3 +344,26 @@ table.rulegrid td.ok { color: #199e70; }
 table.rulegrid td.bad { color: #d95926; font-weight: 700; }
 table.rulegrid td.unknown { color: #9a7b23; }
 table.rulegrid td.none { color: #8a97a5; }
+
+
+/* 정기 실행 */
+.stat.late { border-color: var(--warn); background: var(--warn-soft); }
+.stat.late .n, .stat.late .k { color: var(--warn); }
+.card.sched { border-left: 4px solid var(--line); }
+.card.sched.late { border-left-color: var(--warn); }
+.card.sched.never { border-left-color: var(--ink-faint); }
+.card.sched.fresh { border-left-color: var(--ok); }
+.card.sched h3 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.idx { display: inline-block; min-width: 22px; padding: 1px 6px; border-radius: 6px;
+  background: var(--bg-sunk); color: var(--ink-soft); font-size: 12px;
+  font-weight: 700; text-align: center; }
+.badge.late { background: var(--warn-soft); color: var(--warn); }
+.badge.never { background: var(--bg-sunk); color: var(--ink-soft); }
+.badge.fresh { background: var(--ok-soft); color: var(--ok); }
+table.kv { width: 100%; margin: 8px 0 10px; }
+table.kv th { width: 130px; text-align: left; vertical-align: top; color: var(--ink-soft);
+  font-weight: 600; font-size: 13px; white-space: nowrap; }
+table.kv td { vertical-align: top; }
+table.kv td.warnrow { color: var(--warn); }
+code.cron { display: block; white-space: pre-wrap; word-break: break-all;
+  background: var(--bg-sunk); padding: 8px 10px; border-radius: 6px; font-size: 12px; }

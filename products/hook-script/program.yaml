@@ -190,6 +190,12 @@ manuals:
   admin: docs/admin.md
   client: docs/client.md
 
+# 정기 실행 — 되풀이해 돌 일은 아니다. 필요할 때만 돈다.
+schedule:
+  cadence: manual
+  command: "python cli.py build --input request.yaml"
+  why: "영상 기획을 할 때 돌린다. 정해진 주기가 있는 일이 아니다."
+
 run:
   input_file: script_input.yaml
   command: ["python", "cli.py", "build", "{input}"]

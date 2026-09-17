@@ -663,3 +663,100 @@ def test_niche_research_dry_run_through_ui(client):
     )
     assert response.status_code == 200
     assert "성공" in response.text or "경고" in response.text
+
+
+# ------------------------------------------------------------ 정기 실행
+def test_schedule_page_shows_recurring_and_manual_programs(client):
+    """되풀이하는 것과 필요할 때만 도는 것이 갈려 보여야 한다."""
+    response = client.get("/schedule")
+    assert response.status_code == 200
+    body = response.text
+    assert "정기 실행" in body
+    assert "되풀이해 돌리는 것" in body
+    assert "필요할 때만 돌리는 것" in body
+    # 매일 돌아야 하는 12번은 반드시 위쪽 묶음에 있어야 한다.
+    assert "니치 리서치" in body
+    assert "0 6 * * *" in body, "크론 한 줄을 복사할 수 있어야 한다"
+
+
+def test_schedule_page_does_not_offer_to_run_anything(client):
+    """이 화면에서 프로그램을 돌리면 안 된다. 스케줄러는 cron 이다."""
+    body = client.get("/schedule").text
+    # 본문만 본다. 왼쪽 메뉴의 검색창은 모든 화면에 있다.
+    main = body.split("<h1>정기 실행</h1>", 1)[1]
+    assert "<form" not in main, "정기 실행 화면에는 실행 폼이 없어야 한다"
+    assert "이 화면은 프로그램을 돌리지 않습니다" in main or \
+           "이 화면은 프로그램을 돌리지 않습니다".replace(" ", "") in main.replace(" ", "")
+
+
+def test_recurring_programs_explain_what_breaks_if_skipped():
+    """되풀이하는 프로그램은 '거르면 무엇이 깨지는지' 를 적어 둬야 한다."""
+    for program in Registry().programs:
+        if not program.recurring:
+            continue
+        assert program.schedule.why, f"{program.id}: 왜 이 주기인지가 비었습니다"
+        assert program.schedule.skipped, f"{program.id}: 거르면 어떻게 되는지가 비었습니다"
+        assert program.schedule.command, f"{program.id}: 손으로 돌릴 명령이 비었습니다"
+
+
+def test_niche_research_must_run_daily():
+    """매일 찍지 않으면 그날은 영영 빈다. 이 상품의 전제다."""
+    program = Registry().require("niche-research")
+    assert program.schedule.cadence == "daily"
+    assert program.schedule.grace_days == 1
+    assert program.schedule.warmup_days >= 3, "3일치는 쌓여야 지표가 나온다"
+    assert program.schedule.cron.startswith("0 6 * * *")
+
+
+def test_one_shot_programs_are_never_late():
+    """퍼널·전자책은 안 돌렸다고 밀린 게 아니다."""
+    from core.schedule import collect as collect_schedule
+
+    rows = {row.id: row for row in collect_schedule(Registry(), Database(":memory:"))}
+    assert rows["funnel-builder"].state == "manual"
+    assert rows["funnel-builder"].late is False
+    assert rows["ebook-gen"].late is False
+
+
+def test_schedule_marks_a_stale_daily_program_as_late(db):
+    """어제 돌고 만 매일 프로그램은 밀린 것으로 잡혀야 한다."""
+    from datetime import date, timedelta
+
+    from core.schedule import collect as collect_schedule, summarize
+
+    run_id = db.start_run("niche-research", mode="dry")
+    db.finish_run(run_id, status="success", exit_code=0, log="ok")
+
+    later = date.today() + timedelta(days=5)
+    rows = {row.id: row for row in collect_schedule(Registry(), db, today=later)}
+    row = rows["niche-research"]
+    assert row.age_days == 5
+    assert row.late is True
+    assert row.state_label == "밀렸습니다"
+
+    # 오늘 기준이면 밀리지 않았다.
+    fresh = {r.id: r for r in collect_schedule(Registry(), db)}
+    assert fresh["niche-research"].late is False
+    assert fresh["niche-research"].state == "fresh"
+    assert summarize(list(fresh.values()))["late"] == 0
+
+
+def test_schedule_counts_never_run_programs_separately(db):
+    """한 번도 안 돈 것과 밀린 것은 다른 일이다. 손쓸 방법이 다르다."""
+    from core.schedule import collect as collect_schedule, summarize
+
+    rows = collect_schedule(Registry(), db)
+    counts = summarize(rows)
+    assert counts["recurring"] >= 3
+    assert counts["never"] == counts["recurring"], "아직 아무것도 안 돌렸다"
+    assert counts["late"] == 0, "한 번도 안 돈 것을 밀렸다고 하면 안 된다"
+
+
+def test_schedule_parses_unreadable_timestamps_without_crashing():
+    """DB 값이 깨져 있어도 화면은 떠야 한다."""
+    from core.schedule import days_since, parse_when
+
+    assert parse_when("") is None
+    assert parse_when("어제") is None
+    assert parse_when("2026-09-17T06:00:00Z") is not None
+    assert days_since(None) is None
