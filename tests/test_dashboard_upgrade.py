@@ -19,6 +19,7 @@ from fastapi.testclient import TestClient
 
 from core import auth
 from core.db import Database
+from core.compliance import RULES, audit
 from core.health import EXPIRY_WINDOW_DAYS, Task, checklist
 from core.overview import collect as collect_config, env_rows
 from core.registry import Registry
@@ -442,3 +443,74 @@ def test_config_page_is_behind_the_access_code(tmp_path):
 
 def test_config_is_in_the_sidebar(client):
     assert 'href="/config"' in client.get("/").text
+
+
+# --------------------------------------------------------- 규정 점검 (/rules)
+# CLAUDE.md §3 의 금지 사항은 하나만 어겨도 상품을 폐기해야 하는 것들이다.
+# 이 화면은 **장치가 붙어 있는지**만 본다. 잘 도는지는 테스트가 본다.
+def test_audit_covers_every_program(registry):
+    reports = audit(registry)
+    assert len(reports) == len(registry.programs)
+    assert all(len(report.findings) == len(RULES) for report in reports)
+
+
+def test_the_disclosure_rule_only_applies_where_it_should(registry):
+    reports = {report.id: report for report in audit(registry)}
+    affiliate = next(f for f in reports["affiliate-matcher"].findings
+                     if f.rule.key == "disclosure")
+    assert affiliate.status == "ok", "대가성 문구 장치를 찾지 못했습니다"
+
+    other = next(f for f in reports["funnel-builder"].findings
+                 if f.rule.key == "disclosure")
+    assert other.status == "none", "제휴 링크를 안 다루는 상품에는 해당 없음이어야 합니다"
+
+
+def test_no_product_uses_browser_macros(registry):
+    """비공식 자동화는 **없어야** 통과다 (CLAUDE.md §3-7)."""
+    for report in audit(registry):
+        macro = next(f for f in report.findings if f.rule.key == "no_macro")
+        assert macro.status == "ok", f"{report.name}: {macro.hits}"
+
+
+def test_a_macro_would_be_caught(registry, tmp_path):
+    """규칙이 실제로 잡는지 본다. 안 잡히면 초록불이 뜻이 없다."""
+    from core.compliance import _judge, RULES as ALL
+
+    rule = next(r for r in ALL if r.key == "no_macro")
+    finding = _judge(rule, "anything", "from selenium import webdriver")
+    assert finding.status == "bad" and "selenium" in finding.hits
+
+
+def test_findings_carry_their_evidence(registry):
+    report = next(r for r in audit(registry) if r.id == "affiliate-matcher")
+    labelled = next(f for f in report.findings if f.rule.key == "ai_label")
+    assert labelled.status == "ok"
+    assert labelled.evidence, "무엇을 보고 통과시켰는지 적혀야 합니다"
+
+
+def test_outputs_folder_is_not_scanned(registry, tmp_path):
+    """산출물에 우연히 든 글자로 판정이 바뀌면 안 된다."""
+    from core.compliance import _texts
+
+    product = tmp_path / "toy"
+    (product / "outputs").mkdir(parents=True)
+    (product / "outputs" / "x.md").write_text("selenium", encoding="utf-8")
+    (product / "cli.py").write_text("print('안녕')", encoding="utf-8")
+    assert "selenium" not in _texts(product)
+
+
+def test_rules_page_shows_the_grid_and_the_caveat(client):
+    text = client.get("/rules").text
+    assert "규정 점검" in text
+    assert "인공지능기본법" in text
+    assert "장치가 있는지" in text, "무엇을 보는 화면인지 밝혀야 합니다"
+    assert "여기서 볼 수 없는 것" in text
+
+
+def test_rules_page_is_behind_the_access_code(tmp_path):
+    stranger = TestClient(create_app(tmp_path / "gate2.db"), follow_redirects=False)
+    assert stranger.get("/rules").status_code == 303
+
+
+def test_rules_is_in_the_sidebar(client):
+    assert 'href="/rules"' in client.get("/").text

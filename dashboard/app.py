@@ -37,6 +37,7 @@ from fastapi.templating import Jinja2Templates
 
 from core import auth
 from core.db import Database, DEFAULT_DB_PATH
+from core.compliance import audit as compliance_audit, RULES as COMPLIANCE_RULES
 from core.health import checklist
 from core.search import search as search_index
 from core.manifest import ProgramManifest
@@ -570,6 +571,24 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
             globals_values={**{item["key"]: item["default"] for item in GLOBAL_SETTINGS},
                             **db().all_settings()},
             db_path=str(db().path),
+        )
+
+    # ---------------------------------------------------------- 규정 점검
+    @app.get("/rules", response_class=HTMLResponse)
+    def rules_view(request: Request):
+        """법·정책 장치가 프로그램마다 붙어 있는지 본다.
+
+        **장치가 있는지**를 보는 화면이지 잘 도는지를 보는 화면이 아니다.
+        그건 테스트가 한다. 그래서 무엇을 찾았는지를 같이 보여 준다.
+        """
+        reports = compliance_audit(registry())
+        return page(
+            request, "rules.html",
+            title="규정 점검",
+            reports=reports,
+            rules=COMPLIANCE_RULES,
+            trouble=[r for r in reports if r.bad],
+            unsure=[r for r in reports if r.unknown and not r.bad],
         )
 
     # -------------------------------------------------------------- 매뉴얼
