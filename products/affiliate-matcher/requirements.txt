@@ -1,0 +1,9 @@
+# 10. 제휴 상품 매칭 로직
+#
+# 루트 requirements.txt 로도 됩니다. 이 파일은 이 상품만 떼어 납품할 때 씁니다.
+# 쿠팡 API 는 표준 라이브러리(urllib + hmac)로 부릅니다. 외부 SDK 를 쓰지 않습니다.
+
+anthropic>=0.40.0
+pydantic>=2.0
+PyYAML>=6.0
+python-dotenv>=1.0

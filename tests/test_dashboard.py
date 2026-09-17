@@ -417,7 +417,7 @@ def test_all_programs_registered_with_unique_numbers():
     numbers = [p.number for p in registry]
     assert {"funnel-builder", "hook-script", "ebook-gen", "lecture-deck",
             "kmong-copy", "n8n-gen", "groupbuy-ledger", "income-sim",
-            "notion-template-kit"} <= set(ids)
+            "notion-template-kit", "affiliate-matcher"} <= set(ids)
     assert len(numbers) == len(set(numbers)), "프로그램 번호가 겹칩니다"
     assert registry.errors == []
 
@@ -425,7 +425,7 @@ def test_all_programs_registered_with_unique_numbers():
 @pytest.mark.parametrize("program_id", ["funnel-builder", "hook-script", "ebook-gen",
                                        "lecture-deck", "kmong-copy", "n8n-gen",
                                        "groupbuy-ledger", "income-sim",
-                                       "notion-template-kit"])
+                                       "notion-template-kit", "affiliate-matcher"])
 def test_every_program_has_full_manifest(program_id):
     """운영 중인 프로그램은 대시보드 화면을 채울 정보를 모두 갖춰야 한다."""
     program = Registry().require(program_id)
@@ -443,7 +443,7 @@ def test_every_program_has_full_manifest(program_id):
 @pytest.mark.parametrize("program_id", ["funnel-builder", "hook-script", "ebook-gen",
                                        "lecture-deck", "kmong-copy", "n8n-gen",
                                        "groupbuy-ledger", "income-sim",
-                                       "notion-template-kit"])
+                                       "notion-template-kit", "affiliate-matcher"])
 def test_every_program_manual_is_detailed_and_clean(program_id):
     program = Registry().require(program_id)
     for audience, relative in (("admin", program.manuals.admin),
@@ -458,7 +458,7 @@ def test_every_program_manual_is_detailed_and_clean(program_id):
 @pytest.mark.parametrize("program_id", ["funnel-builder", "hook-script", "ebook-gen",
                                        "lecture-deck", "kmong-copy", "n8n-gen",
                                        "groupbuy-ledger", "income-sim",
-                                       "notion-template-kit"])
+                                       "notion-template-kit", "affiliate-matcher"])
 def test_client_manual_covers_the_essentials(program_id):
     """구매자가 반드시 알아야 할 것이 빠지면 문의가 들어온다."""
     program = Registry().require(program_id)
@@ -471,7 +471,7 @@ def test_client_manual_covers_the_essentials(program_id):
 @pytest.mark.parametrize("program_id", ["funnel-builder", "hook-script", "ebook-gen",
                                        "lecture-deck", "kmong-copy", "n8n-gen",
                                        "groupbuy-ledger", "income-sim",
-                                       "notion-template-kit"])
+                                       "notion-template-kit", "affiliate-matcher"])
 def test_every_editable_file_exists(program_id):
     program = Registry().require(program_id)
     for spec in program.editable_files:
@@ -481,7 +481,7 @@ def test_every_editable_file_exists(program_id):
 @pytest.mark.parametrize("program_id", ["funnel-builder", "hook-script", "ebook-gen",
                                        "lecture-deck", "kmong-copy", "n8n-gen",
                                        "groupbuy-ledger", "income-sim",
-                                       "notion-template-kit"])
+                                       "notion-template-kit", "affiliate-matcher"])
 def test_program_pages_render_for_each_program(client, program_id):
     for suffix in ("", "/edit", "/test", "/members", "/manual/admin", "/manual/client"):
         response = client.get(f"/programs/{program_id}{suffix}")
@@ -603,6 +603,22 @@ def test_notion_template_kit_is_registered():
 def test_notion_template_kit_dry_run_through_ui(client):
     response = client.post(
         "/programs/notion-template-kit/test", data={"mode": "dry", "member_id": ""},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert "성공" in response.text or "경고" in response.text
+
+
+def test_affiliate_matcher_is_registered():
+    program = Registry().require("affiliate-matcher")
+    assert program.status == "ready"
+    assert program.number == 10
+    assert program.runnable and program.run.dry_run_command
+
+
+def test_affiliate_matcher_dry_run_through_ui(client):
+    response = client.post(
+        "/programs/affiliate-matcher/test", data={"mode": "dry", "member_id": ""},
         follow_redirects=True,
     )
     assert response.status_code == 200
