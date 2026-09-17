@@ -21,7 +21,7 @@
 | 9 | `notion-template-kit/` | 노션 템플릿 기획·설명서 생성기 | **운영 중** |
 | 10 | `affiliate-matcher/` | 제휴 상품 매칭 로직 | **운영 중** |
 | 11 | `agency-kit/` | 자동화 대행 납품 키트 3종 | **운영 중** |
-| 12 | `niche-research/` | 저가 유튜브 니치 리서치 | 미착수 |
+| 12 | `niche-research/` | 니치 리서치 (공급 공백 탐지) | **운영 중** |
 
 번호는 대시보드 표시 순서이고 `program.yaml` 의 `number` 로 정합니다.
 
