@@ -1,0 +1,111 @@
+{
+  "name": "주간 매출 보고서",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger-매주-월요일-아침",
+      "name": "매주 월요일 아침",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8090/run",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"period\": \"week\", \"dry_run\": false}",
+        "options": {}
+      },
+      "id": "http-request-보고서-만들기",
+      "name": "보고서 만들기",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "보고서",
+          "mode": "name"
+        },
+        "text": "={{ $json.summary }}",
+        "otherOptions": {}
+      },
+      "id": "slack-post-슬랙에-올리기",
+      "name": "슬랙에 올리기",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        800,
+        300
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "",
+          "name": "[slackApi 자격증명]"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "매주 월요일 아침": {
+      "main": [
+        [
+          {
+            "node": "보고서 만들기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "보고서 만들기": {
+      "main": [
+        [
+          {
+            "node": "슬랙에 올리기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "meta": {
+    "생성": "products/agency-kit/sheet-report/make_workflow.py",
+    "노드 틀": "products/n8n-gen/templates/nodes/",
+    "쓰는 법": [
+      "1. n8n 에서 워크플로 → 가져오기 → 이 파일을 고르세요",
+      "2. '보고서 만들기' 노드의 주소를 실제 서버 주소로 바꾸세요",
+      "3. 슬랙 자격증명을 n8n 화면에서 연결하세요 (여기에는 토큰이 없습니다)",
+      "4. 오른쪽 위 Active 를 켜면 매주 돕니다"
+    ],
+    "주의": "n8n 이 도커 안에 있으면 localhost 가 아니라 host.docker.internal 입니다"
+  }
+}

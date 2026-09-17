@@ -1,0 +1,4 @@
+# 인스타 예약 발행 (모듈 C) — 이 폴더만 떼어 낼 때
+anthropic>=0.40.0
+python-dotenv>=1.0.0
+APScheduler>=3.10.0

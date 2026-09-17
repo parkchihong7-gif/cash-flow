@@ -1,0 +1,29 @@
+# 카카오 FAQ 챗봇 — 한 줄로 띄우기
+#
+#   docker compose up -d        띄우기
+#   docker compose logs -f      무슨 일이 있는지 보기
+#   docker compose down         내리기
+#
+# .env 를 먼저 만드세요 (.env.example 을 복사).
+
+services:
+  faq-bot:
+    build: .
+    container_name: kakao-faq-bot
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8080:8080"
+    volumes:
+      # 대화 기록. 컨테이너를 지워도 남습니다.
+      - ./data:/data
+      # 구글 서비스 계정 키. **읽기 전용**으로 붙입니다.
+      - ./credentials.json:/app/credentials.json:ro
+    environment:
+      GOOGLE_CREDENTIALS_JSON: /app/credentials.json
+      LOG_DB_PATH: /data/logs.db
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=4).status==200 else 1)"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
