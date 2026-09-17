@@ -393,6 +393,19 @@ class Database:
             (limit,),
         )
 
+    def retainer_licenses(self) -> list[sqlite3.Row]:
+        """월 유지비를 내고 있는 이용권. 많이 내는 순.
+
+        대행업에서는 이 목록이 **가장 중요한 표**다. 한 번 팔고 끝나는 돈과
+        매달 들어오는 돈은 사업의 성격이 다르기 때문이다.
+        """
+        return self.query(
+            "SELECT l.*, m.name AS member_name, m.email AS member_email "
+            "FROM licenses l JOIN members m ON m.id = l.member_id "
+            "WHERE l.status = 'active' AND l.retainer > 0 "
+            "ORDER BY l.retainer DESC, l.expires_at"
+        )
+
     def summary(self) -> dict[str, int]:
         """홈 화면 상단 숫자."""
         def scalar(sql: str, params: tuple = ()) -> int:

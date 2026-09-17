@@ -573,6 +573,39 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
             db_path=str(db().path),
         )
 
+    # ---------------------------------------------------------- 수입 현황
+    @app.get("/revenue", response_class=HTMLResponse)
+    def revenue_view(request: Request):
+        """한 번 받는 돈과 **매달 들어오는 돈**을 나눠 본다.
+
+        대행업으로 넘어가면 이 구분이 사업의 성격을 정한다. 일회성만 있으면
+        매달 새 고객을 찾아야 하고, 고정 수입이 쌓이면 그럴 필요가 준다.
+        """
+        summary = db().summary()
+        retainers = db().retainer_licenses()
+        monthly = db().monthly_revenue(12)
+        by_program = db().revenue_by_program()
+        names = {program.id: program.name for program in registry().programs}
+
+        one_time = sum(row["amount"] for row in by_program)
+        recurring = summary["retainer"]
+        return page(
+            request, "revenue.html",
+            title="수입 현황",
+            summary=summary,
+            retainers=retainers,
+            monthly=monthly,
+            monthly_chart=monthly_chart(monthly),
+            by_program=by_program,
+            names=names,
+            one_time=one_time,
+            recurring=recurring,
+            yearly=recurring * 12,
+            share=round(recurring * 12 / (one_time + recurring * 12) * 100, 1)
+            if (one_time or recurring) else 0.0,
+            expiring=db().expiring_licenses(30),
+        )
+
     # ---------------------------------------------------------- 규정 점검
     @app.get("/rules", response_class=HTMLResponse)
     def rules_view(request: Request):

@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>수입 현황</h1>
+<p class="muted">
+  <strong>한 번 받는 돈</strong>과 <strong>매달 들어오는 돈</strong>을 나눠 봅니다.
+  일회성만 있으면 매달 새 고객을 찾아야 하고, 고정 수입이 쌓이면 그럴 필요가 줄어듭니다.
+</p>
+
+<div class="stats">
+  <div class="stat"><div class="n">{{ recurring|won }}</div>
+    <div class="k">월 고정 수입 · 유지비 고객 {{ retainers|length }}명</div></div>
+  <div class="stat"><div class="n">{{ yearly|won }}</div>
+    <div class="k">연 환산 (지금 상태가 12개월 이어질 때)</div></div>
+  <div class="stat"><div class="n">{{ one_time|won }}</div>
+    <div class="k">누적 일회성 · 판매 {{ summary.active_licenses }}건</div></div>
+  <div class="stat"><div class="n">{{ share }}%</div>
+    <div class="k">고정 수입 비중 (연 환산 기준)</div></div>
+</div>
+
+{% if not retainers and one_time %}
+<div class="note warn">
+  <strong>고정 수입이 없습니다.</strong>
+  판매는 있는데 월 유지비가 한 건도 없습니다. 이러면 매달 새 고객을 찾아야 합니다.
+  11번 자동화 대행 납품 키트의 <a href="/programs/agency-kit">유지보수 계약서 초안</a>을
+  보세요.
+</div>
+{% endif %}
+
+<h2>최근 12개월 (일회성 결제)</h2>
+{% if monthly_chart.empty %}
+<p class="muted">아직 기록된 결제가 없습니다. 회원관리에서 이용권을 등록하면 쌓입니다.</p>
+{% else %}
+<div class="chart">
+  <p class="chart-cap">합계 {{ monthly_chart.total|won }}
+    <span class="muted">환불한 건은 뺐습니다</span></p>
+  <svg viewBox="0 0 {{ monthly_chart.width }} {{ monthly_chart.height }}" class="bars"
+       role="img" aria-label="월별 매출 막대그래프">
+    <line x1="0" y1="{{ monthly_chart.baseline }}" x2="{{ monthly_chart.width }}"
+          y2="{{ monthly_chart.baseline }}" class="axis"/>
+    {% for b in monthly_chart.bars %}
+    <rect x="{{ b.x }}" y="{{ b.y }}" width="{{ b.width }}" height="{{ b.height }}"
+          rx="3" class="bar {% if b.highlight %}on{% endif %}">
+      <title>{{ b.caption }} · {{ b.value|won }}</title>
+    </rect>
+    <text x="{{ b.x + b.width / 2 }}" y="{{ monthly_chart.baseline + 16 }}"
+          class="bar-label">{{ b.label }}</text>
+    {% endfor %}
+  </svg>
+  <p class="help">결제일 기준입니다. <strong>월 유지비는 여기 들어 있지 않습니다</strong>
+    — 위의 '월 고정 수입' 칸에서 따로 봅니다.</p>
+</div>
+{% endif %}
+
+<h2>유지비를 내고 있는 고객</h2>
+<div class="card">
+  {% if retainers %}
+  <table>
+    <tr><th>고객</th><th>프로그램</th><th>플랜</th><th class="num">월 유지비</th><th>만료</th></tr>
+    {% for row in retainers %}
+    <tr>
+      <td><a href="/members/{{ row.member_id }}">{{ row.member_name }}</a></td>
+      <td>{{ names.get(row.program_id, row.program_id) }}</td>
+      <td class="muted">{{ row.plan or '-' }}</td>
+      <td class="num">{{ row.retainer|won }}</td>
+      <td class="muted">{{ row.expires_at[:10] if row.expires_at else '기한 없음' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">아직 없습니다. 회원관리에서 이용권을 등록할 때 <strong>월 유지비</strong>를
+    같이 적으면 여기에 나옵니다.</p>
+  {% endif %}
+</div>
+
+{% if expiring %}
+<h2>곧 끝나는 이용권</h2>
+<div class="card">
+  <table>
+    <tr><th>고객</th><th>프로그램</th><th>만료일</th><th class="num">월 유지비</th></tr>
+    {% for row in expiring %}
+    <tr>
+      <td><a href="/members/{{ row.member_id }}">{{ row.member_name }}</a></td>
+      <td>{{ names.get(row.program_id, row.program_id) }}</td>
+      <td>{{ row.expires_at[:10] }}</td>
+      <td class="num">{{ row.retainer|won }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="help">만료 30일 전부터 보입니다. 연장 안내는 만료 2주 전이 가장 잘 먹힙니다.</p>
+</div>
+{% endif %}
+
+<h2>프로그램별</h2>
+<div class="card">
+  {% if by_program %}
+  <table>
+    <tr><th>프로그램</th><th class="num">건수</th><th class="num">누적 매출</th><th class="num">월 유지비</th></tr>
+    {% for row in by_program %}
+    <tr>
+      <td>{{ names.get(row.program_id, row.program_id) }}</td>
+      <td class="num">{{ row.deals }}</td>
+      <td class="num">{{ row.amount|won }}</td>
+      <td class="num">{{ row.retainer|won }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">아직 판매 기록이 없습니다.</p>
+  {% endif %}
+</div>
+
+<div class="note">
+  <strong>이 숫자는 등록한 것만 셉니다.</strong>
+  회원관리에 넣지 않은 거래는 여기 없습니다. 세무 자료가 아니라
+  <em>지금 어디에 서 있는지</em> 보는 화면입니다.
+</div>
+{% endblock %}

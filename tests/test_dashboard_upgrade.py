@@ -514,3 +514,74 @@ def test_rules_page_is_behind_the_access_code(tmp_path):
 
 def test_rules_is_in_the_sidebar(client):
     assert 'href="/rules"' in client.get("/").text
+
+
+# ------------------------------------------------------- 수입 현황 (/revenue)
+# 11번(대행 키트)부터는 **매달 들어오는 돈**이 생긴다. 한 번 받는 돈과
+# 성격이 달라서 따로 봐야 한다.
+def _retainer_buyer(db: Database, retainer: int = 100000, expires: str = "") -> int:
+    member = db.add_member("동네빵집", "bread@example.com")
+    return db.add_license(member, "agency-kit", "STANDARD", 880000,
+                          expires_at=expires, retainer=retainer)
+
+
+def test_retainer_licenses_lists_only_paying_customers(db):
+    _retainer_buyer(db)
+    once = db.add_member("꽃집", "flower@example.com")
+    db.add_license(once, "funnel-builder", "템플릿", 150000)      # 유지비 없음
+
+    rows = db.retainer_licenses()
+    assert len(rows) == 1
+    assert rows[0]["member_name"] == "동네빵집"
+    assert rows[0]["retainer"] == 100000
+
+
+def test_a_refunded_retainer_drops_out(db):
+    license_id = _retainer_buyer(db)
+    db.set_license_status(license_id, "refunded")
+    assert db.retainer_licenses() == []
+
+
+def test_revenue_page_separates_recurring_from_one_time(client, tmp_path):
+    database = Database(tmp_path / "web.db")          # client 픽스처와 같은 DB
+    _retainer_buyer(database, retainer=100000)
+
+    text = client.get("/revenue").text
+    assert "월 고정 수입" in text
+    assert "100,000원" in text
+    assert "1,200,000원" in text, "연 환산(12개월)이 보여야 합니다"
+    assert "동네빵집" in text
+
+
+def test_revenue_page_warns_when_nothing_recurs(client, tmp_path):
+    """판매는 있는데 유지비가 없으면 매달 새 고객을 찾아야 한다."""
+    database = Database(tmp_path / "web.db")
+    member = database.add_member("꽃집", "flower@example.com")
+    database.add_license(member, "funnel-builder", "템플릿", 150000)
+
+    text = client.get("/revenue").text
+    assert "고정 수입이 없습니다" in text
+
+
+def test_revenue_page_opens_on_an_empty_database(client):
+    response = client.get("/revenue")
+    assert response.status_code == 200
+    assert "아직 없습니다" in response.text
+
+
+def test_revenue_page_shows_expiring_licenses(client, tmp_path):
+    database = Database(tmp_path / "web.db")
+    soon = (date.today() + timedelta(days=10)).isoformat()
+    _retainer_buyer(database, expires=soon)
+
+    text = client.get("/revenue").text
+    assert "곧 끝나는 이용권" in text and soon in text
+
+
+def test_revenue_page_is_behind_the_access_code(tmp_path):
+    stranger = TestClient(create_app(tmp_path / "gate3.db"), follow_redirects=False)
+    assert stranger.get("/revenue").status_code == 303
+
+
+def test_revenue_is_in_the_sidebar(client):
+    assert 'href="/revenue"' in client.get("/").text
