@@ -335,3 +335,212 @@ def test_hooks_prompt_lists_all_eight_reasons():
     hooks = (FUNNEL_DIR / "prompts" / "hooks.md").read_text(encoding="utf-8")
     for reason in ("돈", "시간", "관계", "지위", "안전", "호기심", "비교", "손실회피"):
         assert reason in hooks
+
+
+# ------------------------------------------------------------ 플랫폼별 산출물
+# 같은 퍼널이라도 어디에 올리느냐에 따라 첫 화면이 다르다.
+#   own        landing.html      내 도메인
+#   kmong      detail_page.md    크몽은 HTML 을 못 올린다
+#   instagram  reels_captions.md + dm_flow.yaml
+from funnel_builder import platforms                                # noqa: E402
+
+COMMON_FILES = ("emails", "lead_magnet_outline.md", "copy_variants.json",
+                "build_report.md")
+
+
+def _build(tmp_path, sample_input, platform: str):
+    result = gen.FunnelGenerator(sample_input, model="test", ask_fn=fake_ask,
+                                 platform=platform).build()
+    return gen.write_outputs(result, tmp_path), result
+
+
+@pytest.mark.parametrize("platform", platforms.PLATFORMS)
+def test_each_platform_writes_its_own_files(tmp_path, sample_input, platform):
+    out_dir, _ = _build(tmp_path, sample_input, platform)
+    for name in platforms.platform_files[platform]:
+        assert (out_dir / name).is_file(), f"{platform}: {name} 이 없습니다"
+    for name in COMMON_FILES:
+        assert (out_dir / name).exists(), f"{platform}: 공통 산출물 {name} 이 없습니다"
+
+
+@pytest.mark.parametrize("platform", platforms.PLATFORMS)
+def test_each_platform_leaves_out_the_others(tmp_path, sample_input, platform):
+    """크몽 폴더에 landing.html 이 섞여 들어가면 무엇을 올릴지 헷갈린다."""
+    out_dir, _ = _build(tmp_path, sample_input, platform)
+    others = {name for key, names in platforms.platform_files.items()
+              if key != platform for name in names}
+    for name in others - set(platforms.platform_files[platform]):
+        assert not (out_dir / name).exists(), f"{platform} 인데 {name} 이 있습니다"
+
+
+def test_kmong_detail_follows_the_listing_shape(tmp_path, sample_input):
+    out_dir, _ = _build(tmp_path, sample_input, "kmong")
+    text = (out_dir / "detail_page.md").read_text(encoding="utf-8")
+    for heading in ("## 이런 분께 추천합니다", "## 제공 내용", "## 진행 순서",
+                    "## 포트폴리오", "## 가격", "## 자주 묻는 질문"):
+        assert heading in text, heading
+    assert "HTML 을 못 올립니다" in text, "크몽의 제약을 알려 줘야 합니다"
+    assert banned_phrases.check(text) == []
+
+
+def test_kmong_detail_does_not_invent_proof(tmp_path, sample_input):
+    """실적이 없으면 비워 두고 판매자가 채우게 한다."""
+    sample_input.proof = []
+    out_dir, _ = _build(tmp_path, sample_input, "kmong")
+    text = (out_dir / "detail_page.md").read_text(encoding="utf-8")
+    assert "사례 준비 중" in text
+    assert "없는 실적을 지어내면" in text
+
+
+def test_instagram_pack_has_five_captions(tmp_path, sample_input):
+    out_dir, _ = _build(tmp_path, sample_input, "instagram")
+    text = (out_dir / "reels_captions.md").read_text(encoding="utf-8")
+    assert text.count("**첫 줄 (더 보기 앞에서 끝나는 자리)**") == 5
+    assert "프로필 링크 문구" in text
+    assert sample_input.cta_url in text
+
+
+def test_instagram_pack_carries_the_comment_keyword(tmp_path, sample_input):
+    out_dir, _ = _build(tmp_path, sample_input, "instagram")
+    text = (out_dir / "reels_captions.md").read_text(encoding="utf-8")
+    assert "'가이드' 댓글 남기" in text or "'가이드' 댓글 남겨" in text
+    assert "DM으로 보내드려요" in text
+
+
+def test_instagram_pack_forbids_cold_dm_and_auto_follow(tmp_path, sample_input):
+    out_dir, _ = _build(tmp_path, sample_input, "instagram")
+    text = (out_dir / "reels_captions.md").read_text(encoding="utf-8")
+    assert "콜드 DM" in text and "계정 정지" in text
+    assert "자동 팔로우" in text
+
+
+# ------------------------------------------------------------------ DM 흐름
+@pytest.fixture
+def dm_flow(tmp_path, sample_input):
+    out_dir, _ = _build(tmp_path, sample_input, "instagram")
+    path = out_dir / "dm_flow.yaml"
+    return path, yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+def test_dm_flow_starts_only_from_a_comment(dm_flow):
+    """시작점이 댓글 하나뿐이어야 콜드 DM 이 될 수 없다."""
+    _, flow = dm_flow
+    assert flow["trigger"]["type"] == "instagram_comment"
+    assert flow["trigger"]["keyword"]
+    assert "먼저 보내지 않습니다" in flow["trigger"]["note"]
+
+
+def test_dm_flow_states_the_24_hour_rule(dm_flow):
+    path, flow = dm_flow
+    assert "24시간" in flow["정책"]["24시간_규칙"]
+    assert "24시간" in path.read_text(encoding="utf-8").splitlines()[2]
+
+
+def test_dm_flow_refuses_cold_dm_in_writing(dm_flow):
+    _, flow = dm_flow
+    assert "만들지 마세요" in flow["정책"]["콜드_DM"]
+    assert "위반" in flow["정책"]["자동_팔로우_좋아요"]
+
+
+def test_dm_flow_tells_the_person_it_is_automated(dm_flow):
+    """인공지능기본법 제31조. 첫 메시지에서 밝힌다."""
+    _, flow = dm_flow
+    first = flow["steps"][0]
+    assert "자동 응답" in first["text"]
+
+
+def test_dm_flow_hands_over_to_a_human(dm_flow):
+    _, flow = dm_flow
+    assert flow["handoff"]["when"], "사람에게 넘기는 조건이 있어야 합니다"
+    assert any("가격" in item or "환불" in item for item in flow["handoff"]["when"])
+
+
+def test_dm_flow_has_an_opt_out(dm_flow):
+    """그만 받겠다는 사람에게 계속 보내면 신고된다."""
+    _, flow = dm_flow
+    assert flow["opt_out"]["keyword"] == "그만"
+    assert flow["opt_out"]["message"]
+
+
+def test_dm_flow_names_only_official_tools(dm_flow):
+    _, flow = dm_flow
+    assert "ManyChat" in flow["메타"]["넣을_도구"]
+    text = json.dumps(flow, ensure_ascii=False)
+    for macro in ("selenium", "매크로", "비밀번호"):
+        assert macro not in text, f"비공식 자동화가 들어갔습니다: {macro}"
+
+
+def test_dm_flow_is_loadable_yaml(dm_flow):
+    """도구에 그대로 넣으려면 기계가 읽을 수 있어야 한다."""
+    path, flow = dm_flow
+    assert isinstance(flow, dict)
+    assert set(flow) >= {"trigger", "steps", "handoff", "opt_out", "정책"}
+
+
+# -------------------------------------------------------------------- serve
+def test_serve_folder_only_exposes_that_folder(tmp_path, sample_input):
+    """산출물에는 고객 이름이 들어갈 수 있다. 상위 폴더가 새면 안 된다."""
+    import http.client
+    import threading
+    import urllib.request
+
+    from conftest import load_product_cli
+
+    cli = load_product_cli("funnel-builder")
+    out_dir, _ = _build(tmp_path, sample_input, "own")
+    (tmp_path / "비밀.txt").write_text("보이면 안 됩니다", encoding="utf-8")
+
+    httpd, url, first = cli.make_server(out_dir, port=8231)
+    port = httpd.server_address[1]
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    try:
+        assert first == "landing.html"
+        body = urllib.request.urlopen(url, timeout=3).read().decode("utf-8")
+        assert "<h1" in body
+
+        # urllib 은 '..' 을 보내기 전에 스스로 정리해 버린다. 실제 공격은 그러지
+        # 않으므로 경로를 손으로 적어 그대로 보낸다.
+        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=3)
+        conn.request("GET", "/../%EB%B9%84%EB%B0%80.txt")
+        response = conn.getresponse()
+        response.read()
+        conn.close()
+        assert response.status == 404, "상위 폴더가 열렸습니다"
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def test_serve_picks_the_right_first_file(tmp_path, sample_input, capsys):
+    """플랫폼마다 첫 화면이 다르다. 없는 파일을 열려고 하면 안 된다."""
+    from conftest import load_product_cli
+
+    cli = load_product_cli("funnel-builder")
+    out_dir, _ = _build(tmp_path, sample_input, "kmong")
+    url = cli.serve_folder(out_dir, port=8232, open_browser=False, forever=False)
+    assert url.endswith("detail_page.md")
+    assert "landing.html 이 없어" in capsys.readouterr().out
+
+
+def test_latest_output_finds_the_newest(tmp_path):
+    from conftest import load_product_cli
+
+    cli = load_product_cli("funnel-builder")
+    assert cli.latest_output(tmp_path / "없음") is None
+
+    first = tmp_path / "하나"
+    first.mkdir()
+    second = tmp_path / "둘"
+    second.mkdir()
+    import os
+    import time
+
+    os.utime(second, (time.time() + 10, time.time() + 10))
+    assert cli.latest_output(tmp_path) == second
+
+
+def test_build_report_records_the_platform(tmp_path, sample_input):
+    out_dir, _ = _build(tmp_path, sample_input, "instagram")
+    text = (out_dir / "build_report.md").read_text(encoding="utf-8")
+    assert "플랫폼: instagram" in text

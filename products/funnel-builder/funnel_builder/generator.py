@@ -78,6 +78,8 @@ class FunnelResult:
     model: str
     ai_label: bool
     generated_at: datetime
+    #: 어디에 올릴 것인가. own | kmong | instagram (`platforms.PLATFORMS`)
+    platform: str = "own"
 
     @property
     def warnings(self) -> list[SectionResult]:
@@ -111,11 +113,13 @@ class FunnelGenerator:
         model: str = DEFAULT_MODEL,
         ask_fn: Callable[..., Any] = default_ask,
         ai_label: bool = True,
+        platform: str = "own",
     ) -> None:
         self.data = data
         self.model = model
         self.ask_fn = ask_fn
         self.ai_label = ai_label
+        self.platform = platform
         self.hooks = HOOKS_PATH.read_text(encoding="utf-8")
         self.sections: dict[str, SectionResult] = {}
 
@@ -234,6 +238,32 @@ class FunnelGenerator:
             'JSON 형식: {"emails": [{"subject": "...", "send_day": 0, "body": "..."}]}',
         )
 
+    def _instagram(self, landing: dict[str, Any]) -> SectionResult:
+        """릴스 캡션 5개와 DM 문구. `--platform instagram` 일 때만 부른다."""
+        return self._generate(
+            "instagram",
+            f"랜딩 본문 요약: {json.dumps(landing, ensure_ascii=False)[:800]}\n\n"
+            "인스타 릴스용 캡션 5개와 DM 문구를 만드세요.\n\n"
+            "캡션 규칙\n"
+            "- angle: 다섯 개가 서로 다른 각도여야 합니다 (실패담 / 오해 바로잡기 /\n"
+            "  과정 공개 / 비교 / 질문 던지기 같은 식으로)\n"
+            "- hook: **'더 보기' 앞에서 끝나는 첫 줄.** 여기서 멈추게 못 하면 나머지는 안 읽힙니다\n"
+            "- caption: 3~5줄. 광고 문투를 쓰지 말고 직접 겪은 것처럼 씁니다\n"
+            "- cta: 댓글 키워드를 남기라는 한 줄. 예: \"'가이드' 댓글 남겨 주시면 DM으로 보내드려요\"\n"
+            "- hashtags: 8개 이내. 업종·상황 위주로\n\n"
+            "절대 쓰지 말 것\n"
+            "- '팔로우 부탁', '맞팔', '좋아요 눌러주세요' — 정책상 위험하고 도달에도 나쁩니다\n"
+            "- 성과를 단정하는 표현\n\n"
+            "keyword: 댓글로 받을 짧은 한국어 낱말 하나 (2~4글자, 치기 쉬운 말)\n"
+            "dm: 댓글을 남긴 사람에게 보낼 문구 3개\n"
+            "  greeting(첫 인사), deliver(자료 전달), followup(뒤이어 묻는 말)\n"
+            "  **먼저 말을 건 적 없는 사람에게 보내는 문구는 만들지 마세요.**\n"
+            'JSON 형식: {"captions": [{"angle": "...", "hook": "...", "caption": "...", '
+            '"cta": "...", "hashtags": ["#..."]}], "keyword": "가이드", '
+            '"bio_link": {"bio": "...", "link_text": "..."}, '
+            '"dm": {"greeting": "...", "deliver": "...", "followup": "..."}}',
+        )
+
     # ------------------------------------------------------------------ 실행
     def build(self) -> FunnelResult:
         """섹션을 순서대로 생성한다. 앞 결과가 뒤 프롬프트의 컨텍스트가 된다."""
@@ -255,12 +285,17 @@ class FunnelGenerator:
         emails = self._emails(landing.data, faq.data)
         self.sections["emails"] = emails
 
+        if self.platform == "instagram":
+            # 인스타로 올릴 때만 부른다. 다른 플랫폼에서는 호출 한 번을 아낀다.
+            self.sections["instagram"] = self._instagram(landing.data)
+
         return FunnelResult(
             data=self.data,
             sections=self.sections,
             model=self.model,
             ai_label=self.ai_label,
             generated_at=datetime.now().astimezone(),
+            platform=self.platform,
         )
 
 
@@ -367,6 +402,7 @@ def write_build_report(result: FunnelResult, out_dir: Path) -> Path:
         f"- 생성 시각: {result.generated_at.strftime('%Y-%m-%d %H:%M:%S %z')}",
         f"- 모델: {result.model}",
         f"- AI 생성물 표시: {'on' if result.ai_label else 'off'}",
+        f"- 플랫폼: {result.platform}",
         f"- 가격: {result.data.price_text}",
         "",
         "## 금지 문구 검사",
@@ -432,11 +468,28 @@ def write_build_report(result: FunnelResult, out_dir: Path) -> Path:
 
 
 def write_outputs(result: FunnelResult, out_root: Path) -> Path:
-    """산출물 5종을 `out_root/<slug>/` 에 쓰고 그 폴더 경로를 돌려준다."""
+    """산출물을 `out_root/<slug>/` 에 쓰고 그 폴더 경로를 돌려준다.
+
+    이메일·리드매그넷·카피 변형·빌드 리포트는 **어디에 올리든 같다.**
+    달라지는 것은 첫 화면뿐이라 플랫폼별로 그것만 갈아 끼운다.
+
+        own         landing.html
+        kmong       detail_page.md   (크몽은 HTML 을 못 올린다)
+        instagram   reels_captions.md + dm_flow.yaml
+    """
+    from funnel_builder import platforms                          # 순환 참조를 피한다
+
     out_dir = out_root / result.data.slug
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    write_landing(result, out_dir)
+    if result.platform == "kmong":
+        platforms.write_kmong_detail(result, out_dir)
+    elif result.platform == "instagram":
+        platforms.write_instagram_pack(result, out_dir)
+        platforms.write_dm_flow(result, out_dir)
+    else:
+        write_landing(result, out_dir)
+
     write_emails(result, out_dir)
     write_lead_magnet_outline(result, out_dir)
     write_copy_variants(result, out_dir)

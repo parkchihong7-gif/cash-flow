@@ -25,11 +25,42 @@ python cli.py build funnel_input.yaml
 
 | 옵션 | 설명 |
 |---|---|
+| `--platform own\|kmong\|instagram` | **어디에 올릴 것인가** (기본: own) |
+| `--serve` | 만든 뒤 브라우저로 바로 보기 (8000 포트) |
 | `--model MODEL` | 사용할 Claude 모델 ID (기본: `.env` 의 `CLAUDE_MODEL`) |
 | `--no-ai-label` | AI 생성물 표시를 끕니다. 표시 의무를 직접 처리할 때만 쓰세요 |
 | `--out DIR` | 산출물 상위 폴더 (기본: `outputs/`) |
 
 종료 코드는 0(정상), 2(금지 문구가 남아 사람 수정 필요), 1(오류)입니다.
+
+### 어디에 올릴 것인가 — `--platform`
+
+```bash
+python cli.py build funnel_input.yaml                        # 내 사이트 (기본)
+python cli.py build funnel_input.yaml --platform kmong       # 크몽
+python cli.py build funnel_input.yaml --platform instagram   # 인스타
+```
+
+| 플랫폼 | 첫 화면 | 왜 다른가 |
+|---|---|---|
+| `own` | `landing.html` | 내 도메인에 그대로 올립니다 |
+| `kmong` | `detail_page.md` | **크몽은 HTML 을 못 올립니다.** 글과 이미지뿐입니다 |
+| `instagram` | `reels_captions.md` + `dm_flow.yaml` | 프로필 링크 하나로 모읍니다 |
+
+**이메일 5통·리드매그넷 목차·카피 변형·빌드 리포트는 어느 쪽이든 똑같이 나옵니다.**
+달라지는 것은 첫 화면뿐입니다. 같은 입력으로 세 번 돌려 세 곳에 다 쓰셔도 됩니다.
+
+### 미리 보기 — `--serve`
+
+```bash
+python cli.py build funnel_input.yaml --serve     # 만들고 바로 열기
+python cli.py serve outputs/<폴더>                 # 이미 만든 것 열기
+python cli.py serve                               # 가장 최근 것 열기
+```
+
+8000 포트가 쓰이고 있으면 다음 포트로 옮겨 갑니다.
+**그 폴더 밖은 보이지 않습니다.** 산출물에 고객 이름이 들어갈 수 있어
+상위 폴더가 통째로 열리지 않게 막아 두었습니다.
 
 ## 입력 — `funnel_input.yaml`
 
@@ -58,6 +89,14 @@ python cli.py build funnel_input.yaml
 | `copy_variants.json` | A/B 테스트용 헤드라인 10개 + CTA 5개. 헤드라인마다 사용한 후킹 태그 |
 | `build_report.md` | 금지 문구 검사 결과, 사용된 후킹 규칙, 생성 시각, 발행 전 체크리스트 |
 
+플랫폼을 바꾸면 첫 줄만 달라집니다.
+
+| 파일 | 언제 |
+|---|---|
+| `detail_page.md` | `--platform kmong` — 크몽 상세페이지 순서 그대로 |
+| `reels_captions.md` | `--platform instagram` — 릴스 캡션 5개 + 프로필 문구 + 댓글 유도문 |
+| `dm_flow.yaml` | `--platform instagram` — 댓글 키워드 → DM 자동응답 시나리오 |
+
 랜딩 섹션 순서는 고정입니다: 히어로 → 문제 공감 → 해결 약속 → 커리큘럼 → 증거(있을 때만)
 → 가격·구성 → FAQ 5개 → 최종 CTA → 푸터.
 
@@ -76,6 +115,33 @@ python cli.py build funnel_input.yaml
 
 생성된 모든 텍스트는 `shared/banned_phrases.py`로 검사합니다. 걸리면 그 섹션만 최대 2회
 다시 만들고, 그래도 남으면 `build_report.md`에 경고로 남깁니다. 조용히 넘어가지 않습니다.
+
+## 인스타 — 댓글 키워드 DM (`dm_flow.yaml`)
+
+`--platform instagram` 은 **댓글을 남긴 사람에게만** 보내는 자동응답 시나리오를
+같이 만듭니다.
+
+```
+릴스 캡션의 "'가이드' 댓글 남겨 주시면 DM으로 보내드려요"
+        ↓ (사람이 댓글을 답니다)
+   24시간 안에 자동 응답 → 자료 전달 → 뒤이어 묻기
+        ↓ (가격·환불·불만이 나오면)
+   사람에게 넘김
+```
+
+ManyChat·포크레터·키티챗 같은 **공식 도구**에 그대로 옮겨 적을 수 있는 형식입니다.
+
+### 이 파일에 없는 것 — 일부러 없습니다
+
+- **콜드 DM** (먼저 말을 건 적 없는 사람에게 보내는 DM) — Meta 정책 위반,
+  계정 정지 사유입니다
+- 자동 팔로우 / 언팔로우 / 자동 좋아요
+- 24시간이 지난 뒤 보내는 흐름
+
+허용되는 것은 **사용자가 먼저 행동한 대화에 24시간 안에 답하는 것**뿐입니다
+(CLAUDE.md §3-4). 시작점을 댓글 하나로 못 박아 둔 이유입니다.
+
+시나리오에는 '그만' 처리와 사람에게 넘기는 조건도 들어 있습니다. 빼지 마세요.
 
 ## 발행 전에 반드시
 
