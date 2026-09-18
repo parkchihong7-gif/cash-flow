@@ -418,7 +418,7 @@ def test_all_programs_registered_with_unique_numbers():
     assert {"funnel-builder", "hook-script", "ebook-gen", "lecture-deck",
             "kmong-copy", "n8n-gen", "groupbuy-ledger", "income-sim",
             "notion-template-kit", "affiliate-matcher", "agency-kit",
-            "niche-research"} <= set(ids)
+            "niche-research", "exam-drill", "senior-video", "naver-blog", "speaker-desk"} <= set(ids)
     assert len(numbers) == len(set(numbers)), "프로그램 번호가 겹칩니다"
     assert registry.errors == []
 
@@ -427,7 +427,7 @@ def test_all_programs_registered_with_unique_numbers():
                                        "lecture-deck", "kmong-copy", "n8n-gen",
                                        "groupbuy-ledger", "income-sim",
                                        "notion-template-kit", "affiliate-matcher",
-                                       "agency-kit", "niche-research"])
+                                       "agency-kit", "niche-research", "exam-drill", "senior-video", "naver-blog", "speaker-desk"])
 def test_every_program_has_full_manifest(program_id):
     """운영 중인 프로그램은 대시보드 화면을 채울 정보를 모두 갖춰야 한다."""
     program = Registry().require(program_id)
@@ -446,7 +446,7 @@ def test_every_program_has_full_manifest(program_id):
                                        "lecture-deck", "kmong-copy", "n8n-gen",
                                        "groupbuy-ledger", "income-sim",
                                        "notion-template-kit", "affiliate-matcher",
-                                       "agency-kit", "niche-research"])
+                                       "agency-kit", "niche-research", "exam-drill", "senior-video", "naver-blog", "speaker-desk"])
 def test_every_program_manual_is_detailed_and_clean(program_id):
     program = Registry().require(program_id)
     for audience, relative in (("admin", program.manuals.admin),
@@ -462,7 +462,7 @@ def test_every_program_manual_is_detailed_and_clean(program_id):
                                        "lecture-deck", "kmong-copy", "n8n-gen",
                                        "groupbuy-ledger", "income-sim",
                                        "notion-template-kit", "affiliate-matcher",
-                                       "agency-kit", "niche-research"])
+                                       "agency-kit", "niche-research", "exam-drill", "senior-video", "naver-blog", "speaker-desk"])
 def test_client_manual_covers_the_essentials(program_id):
     """구매자가 반드시 알아야 할 것이 빠지면 문의가 들어온다."""
     program = Registry().require(program_id)
@@ -476,7 +476,7 @@ def test_client_manual_covers_the_essentials(program_id):
                                        "lecture-deck", "kmong-copy", "n8n-gen",
                                        "groupbuy-ledger", "income-sim",
                                        "notion-template-kit", "affiliate-matcher",
-                                       "agency-kit", "niche-research"])
+                                       "agency-kit", "niche-research", "exam-drill", "senior-video", "naver-blog", "speaker-desk"])
 def test_every_editable_file_exists(program_id):
     program = Registry().require(program_id)
     for spec in program.editable_files:
@@ -487,7 +487,7 @@ def test_every_editable_file_exists(program_id):
                                        "lecture-deck", "kmong-copy", "n8n-gen",
                                        "groupbuy-ledger", "income-sim",
                                        "notion-template-kit", "affiliate-matcher",
-                                       "agency-kit", "niche-research"])
+                                       "agency-kit", "niche-research", "exam-drill", "senior-video", "naver-blog", "speaker-desk"])
 def test_program_pages_render_for_each_program(client, program_id):
     for suffix in ("", "/edit", "/test", "/members", "/manual/admin", "/manual/client"):
         response = client.get(f"/programs/{program_id}{suffix}")
@@ -760,3 +760,92 @@ def test_schedule_parses_unreadable_timestamps_without_crashing():
     assert parse_when("어제") is None
     assert parse_when("2026-09-17T06:00:00Z") is not None
     assert days_since(None) is None
+
+
+# ---------------------------------------------------------- 권한·환경 점검
+def test_access_page_splits_ready_now_from_waiting(client):
+    """오늘 바로 되는 것과 심사를 기다려야 하는 것이 갈려 보여야 한다."""
+    response = client.get("/access")
+    assert response.status_code == 200
+    body = response.text
+    assert "권한·환경 점검" in body
+    assert "지금 바로" in body
+    assert "심사를 기다려야" in body
+    assert "집 컴퓨터" in body
+
+
+def test_access_page_never_prints_a_key_value(client, monkeypatch):
+    """값은 절대 화면에 싣지 않는다. 대시보드는 터널로도 열린다."""
+    monkeypatch.setenv("YOUTUBE_API_KEY", "AIzaSy-절대-보이면-안-되는-값")
+    body = client.get("/access").text
+    assert "절대-보이면-안-되는-값" not in body
+    assert "YOUTUBE_API_KEY" in body
+
+
+def test_access_marks_a_set_key(monkeypatch):
+    from core.access import collect
+
+    monkeypatch.setenv("YOUTUBE_API_KEY", "있음")
+    rows = {row.id: row for row in collect(Registry())}
+    youtube = next(item for item in rows["niche-research"].accounts
+                   if item.env_key == "YOUTUBE_API_KEY")
+    assert youtube.env_set
+    assert youtube.state_label == "넣었습니다"
+
+
+def test_programs_needing_review_are_not_called_ready_now():
+    """심사가 걸린 상품을 '오늘 바로' 라고 팔면 환불로 돌아온다."""
+    from core.access import collect
+
+    rows = {row.id: row for row in collect(Registry(), environ={})}
+    for program_id in ("agency-kit", "senior-video"):
+        assert rows[program_id].waiting, f"{program_id} 에 심사 항목이 있어야 한다"
+        assert rows[program_id].state == "wait"
+        assert not rows[program_id].ready_now
+
+
+def test_offline_programs_need_no_signup():
+    """계정도 인터넷도 없는 상품은 '지금 바로' 여야 한다."""
+    from core.access import collect
+
+    rows = {row.id: row for row in collect(Registry(), environ={})}
+    for program_id in ("speaker-desk", "exam-drill", "income-sim"):
+        assert rows[program_id].ready_now, f"{program_id} 는 바로 쓸 수 있어야 한다"
+
+
+def test_every_program_declares_what_it_needs():
+    """준비물을 상품이 스스로 들고 있어야 화면이 한 장으로 모을 수 있다."""
+    for program in Registry().programs:
+        need = program.requirements
+        assert need.cautions, f"{program.id}: 조심할 것이 비었습니다"
+        assert need.limits, f"{program.id}: 한도·쿼터가 비었습니다"
+        for account in need.accounts:
+            assert account.why, f"{program.id}/{account.name}: 왜 필요한지가 없습니다"
+            assert account.how, f"{program.id}/{account.name}: 어디서 받는지가 없습니다"
+
+
+def test_hard_to_run_at_home_must_say_why():
+    """'집에서 어렵다' 고만 적으면 화면이 아무 도움이 안 된다."""
+    from core.manifest import Requirements
+
+    with pytest.raises(Exception, match="home_pc_note"):
+        Requirements(home_pc="partial")
+    assert Requirements(home_pc="partial", home_pc_note="서버가 필요합니다")
+
+
+def test_yaml_bare_yes_is_read_as_the_string():
+    """YAML 은 따옴표 없는 yes 를 참으로 읽는다. 여기서는 그게 뜻한 값이다."""
+    from core.manifest import Requirements
+
+    assert Requirements(home_pc=True).home_pc == "yes"
+    assert Requirements(home_pc=False, home_pc_note="이유").home_pc == "no"
+
+
+def test_access_summary_counts_add_up():
+    from core.access import collect, summarize
+
+    rows = collect(Registry(), environ={})
+    counts = summarize(rows)
+    assert counts["total"] == len(rows)
+    assert counts["now"] + counts["setup"] + counts["wait"] + counts["hard"] \
+        == counts["total"]
