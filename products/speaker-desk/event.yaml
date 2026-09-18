@@ -1,0 +1,48 @@
+# 행사와 연사 명부.
+# 날짜는 YYYY-MM-DD 로 적습니다.
+
+title: 국제 AI 컨퍼런스 2026
+event_date: 2026-11-20
+venue: 서울 코엑스 그랜드볼룸
+host: 한국인공지능학회
+contact_name: 박치홍
+contact_email: chair@example.org
+
+speakers:
+  - name: Jane Doe
+    country: United States
+    affiliation: MIT CSAIL
+    email: jane@example.edu
+    session_title: Opening Keynote — Where Agents Are Headed
+
+    # 돈
+    fee_krw: 5000000
+    fee_basis: net          # gross = 이 금액에서 세금을 뗌 / net = 연사 손에 이 금액
+    # 조세조약 제한세율. 비워 두면 기본 22% 로 잡습니다.
+    # 조약을 적용하려면 지급일 전에 거주자증명서를 받아야 합니다.
+    # 적용이 확정되면 0.0(면제)이나 0.15 같은 값을 적으세요.
+    treaty_rate:
+    airfare_krw: 2400000
+    hotel_krw: 800000
+    other_krw: 300000
+
+    # 비자·일정
+    visa_waiver: true       # 사증면제·무사증 대상국인가
+    arrival: 2026-11-18
+    departure: 2026-11-22
+    utc_offset: -5          # 연사 현지 UTC 오프셋
+    needs_interpreter: true
+
+  - name: Hiroshi Tanaka
+    country: Japan
+    affiliation: 東京大学
+    session_title: Panel — Regulation and Practice
+    fee_krw: 0
+    expenses_only: true     # 사례비 없이 실비만
+    visa_waiver: true
+    arrival: 2026-11-19
+    departure: 2026-11-21
+    airfare_krw: 700000
+    hotel_krw: 400000
+    utc_offset: 9
+    needs_interpreter: false

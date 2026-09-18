@@ -1,0 +1,7 @@
+# 16. 해외 연사 초청 관리
+# 외부 API 를 부르지 않습니다. 계산과 문서 생성뿐입니다.
+pydantic>=2.7
+PyYAML>=6.0
+python-docx>=1.1       # 초청장·계약서 docx
+openpyxl>=3.1          # 예산 xlsx
+python-dotenv>=1.0
