@@ -381,3 +381,80 @@ code.cron { display: block; white-space: pre-wrap; word-break: break-all;
 .badge.wait { background: var(--warn-soft); color: var(--warn); }
 .badge.hard { background: var(--bad-soft); color: var(--bad); }
 ul.cautions li { color: var(--warn); }
+
+/* ──────────────────────────────────────────────────────────────
+   상품별 웹 화면 (/apps/<상품>/admin · /client)
+   통합 대시보드와 껍데기가 다르다. 고객에게 보여 줄 화면에
+   내 회원 목록 메뉴가 붙어 있으면 안 되기 때문이다.
+   ────────────────────────────────────────────────────────────── */
+.appbody { background: var(--bg-soft); }
+.appbody.client { background: #fbfbfd; }
+
+.appbar { background: #12151c; color: #e9ecf3; position: sticky; top: 0; z-index: 30; }
+.appbar.client { background: #1b3a5c; }
+.appbar-in { max-width: 1000px; margin: 0 auto; padding: 10px 20px;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.appbar .back { color: #e9ecf3; font-weight: 700; text-decoration: none;
+  padding: 5px 11px; border-radius: 7px; background: rgba(255,255,255,.12); }
+.appbar .back:hover { background: rgba(255,255,255,.22); text-decoration: none; }
+.appbar .sep { width: 1px; height: 18px; background: rgba(255,255,255,.22); }
+.appbar .who { display: flex; align-items: center; gap: 7px; }
+.appbar .who strong { font-weight: 700; }
+.appbar .idx { background: rgba(255,255,255,.16); color: #e9ecf3; }
+.appbar .grow { flex: 1; }
+.modeflag { font-size: 11.5px; font-weight: 700; padding: 2px 9px; border-radius: 999px;
+  background: rgba(255,255,255,.16); }
+.modeflag.client { background: #5fb0ff; color: #0b2138; }
+.modeswitch { display: flex; gap: 6px; }
+.mbtn { color: #cfd6e4; font-size: 13px; padding: 5px 11px; border-radius: 7px;
+  text-decoration: none; border: 1px solid rgba(255,255,255,.18); }
+.mbtn:hover { background: rgba(255,255,255,.1); text-decoration: none; }
+.mbtn.on { background: #fff; color: #12151c; font-weight: 700; border-color: #fff; }
+
+.testbar { background: var(--warn-soft); color: var(--warn); font-size: 13px;
+  padding: 9px 20px; text-align: center; border-bottom: 1px solid #f0e2c4; }
+.testbar a { color: var(--warn); font-weight: 700; }
+
+.appmain { max-width: 1000px; margin: 0 auto; padding: 24px 20px 40px; }
+.appmain h1 { font-size: 25px; margin-bottom: 4px; }
+.appmain .lead { color: var(--ink-soft); margin-bottom: 20px; font-size: 15px; }
+
+.appfoot { max-width: 1000px; margin: 0 auto; padding: 18px 20px 40px;
+  border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-faint); }
+.appfoot .dot { margin: 0 8px; color: var(--line); }
+
+.panel h3 { font-size: 16px; }
+.panel.warn { border-left: 4px solid var(--warn); }
+.panel.bad { border-left: 4px solid var(--bad); }
+.panel.ok { border-left: 4px solid var(--ok); }
+.req { color: var(--bad); }
+.check { display: flex; align-items: center; gap: 7px; font-weight: 400; }
+.check input { width: auto; }
+.infoval { padding: 8px 10px; background: var(--bg-sunk); border-radius: 6px;
+  font-variant-numeric: tabular-nums; }
+.runlog { max-height: 340px; overflow-y: auto; }
+.btn.small { padding: 3px 10px; font-size: 12.5px; }
+.btn.danger { background: var(--bad); color: #fff; border-color: var(--bad); }
+.btn.danger:hover { filter: brightness(1.08); }
+textarea.code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px; line-height: 1.55; }
+
+/* 통합 대시보드 상세페이지의 두 모드 버튼 */
+.modelinks { display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+  margin: 0 0 14px; padding: 12px 14px; background: var(--bg-sunk);
+  border-radius: var(--radius); }
+.modelinks .lbl { font-size: 13px; color: var(--ink-soft); font-weight: 600; }
+.modelinks .help { margin: 0; }
+
+@media (max-width: 720px) {
+  .appbar-in { gap: 7px; }
+  .appbar .who strong { font-size: 14px; }
+  .modeswitch { width: 100%; }
+  .mbtn { flex: 1; text-align: center; }
+}
+
+/* 빵부스러기와 뒤로가기 */
+.crumbs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 13px; color: var(--ink-faint); margin-bottom: 12px; }
+.crumbs .dot { color: var(--line); }
+.back-btn { font-weight: 700; }

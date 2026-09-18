@@ -30,6 +30,7 @@ from urllib.parse import quote, urlparse
 from typing import Any
 
 import markdown as md
+from markupsafe import Markup
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -47,6 +48,7 @@ from core.registry import Registry
 from core.schedule import collect as collect_schedule, summarize as schedule_summary
 from core.runner import RunError, run_program
 from dashboard.charts import monthly_chart, program_chart
+from dashboard.webapp import register as register_apps
 from shared import banned_phrases
 from shared.config import ANTHROPIC_API_KEY, DEFAULT_MODEL, ROOT_DIR
 
@@ -115,8 +117,24 @@ GLOBAL_SETTINGS = [
 
 
 def render_markdown(text: str) -> str:
-    """마크다운을 HTML 로. 표와 코드블록을 지원한다."""
-    return md.markdown(text, extensions=["tables", "fenced_code", "toc", "sane_lists"])
+    """마크다운을 HTML 로. 표와 코드블록을 지원한다.
+
+    `Markup` 으로 감싸야 Jinja 가 다시 이스케이프하지 않는다. 안 감싸면
+    화면에 `<strong>` 이 글자 그대로 보인다.
+    """
+    return Markup(md.markdown(text, extensions=["tables", "fenced_code", "toc", "sane_lists"]))
+
+
+def render_inline(text: str) -> str:
+    """한두 줄짜리 글용. **굵게** 정도만 살리고 <p> 로 감싸지 않는다.
+
+    설명 문구를 `<p class="muted">{{ x | md }}</p>` 안에 넣는데, 블록 마크다운을
+    쓰면 <p> 안에 <p> 가 들어가 화면이 어긋난다.
+    """
+    html = md.markdown(str(text or ""), extensions=["sane_lists"])
+    if html.startswith("<p>") and html.endswith("</p>") and html.count("<p>") == 1:
+        html = html[3:-4]
+    return Markup(html)
 
 
 def create_app(db_path: str | Path = DEFAULT_DB_PATH,
@@ -129,6 +147,7 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
 
     templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
     templates.env.filters["markdown"] = render_markdown
+    templates.env.filters["md"] = render_inline
     templates.env.filters["won"] = lambda value: f"{int(value or 0):,}원"
     app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
@@ -689,6 +708,9 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
             request, "manual.html",
             title=heading, heading=heading, body=body, program=program, tab="manual",
         )
+
+    # -------------------------------------- 상품별 웹 화면 (관리자/클라이언트)
+    register_apps(app, page, registry, db, program_or_404)
 
     # ------------------------------------------------------------ 오류 처리
     @app.exception_handler(KeyError)

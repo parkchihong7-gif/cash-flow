@@ -1,0 +1,80 @@
+{% extends "app_base.html" %}
+{% block body %}
+
+{% if error %}<div class="note bad"><strong>{{ error }}</strong></div>{% endif %}
+{% if saved %}<div class="note ok">저장했습니다{% if saved != '1' %} ({{ saved }}개 항목){% endif %}.</div>{% endif %}
+
+<h1>{{ program.name }}</h1>
+<p class="lead">{{ intro | md }}</p>
+
+{% if outcome %}
+<div class="note {{ 'ok' if outcome.status == 'success' else ('warn' if outcome.status == 'warning' else 'bad') }}">
+  <strong>
+    {% if outcome.status == 'success' %}만들어졌습니다{% elif outcome.status == 'warning' %}만들어졌지만 볼 것이 있습니다{% else %}실패했습니다{% endif %}
+  </strong>
+  — {{ '모의' if outcome.mode == 'dry' else '실제' }} 실행 · 종료 코드 {{ outcome.exit_code }}
+</div>
+<div class="card">
+  <div class="actions" style="margin-bottom:10px">
+    {% if outcome.output_dir %}
+    <a class="btn primary" href="/programs/{{ program.id }}/outputs?run={{ outcome.id }}">산출물 보기</a>
+    {% endif %}
+    {% if mode == 'admin' %}<a class="btn" href="/runs/{{ outcome.id }}">실행 상세</a>{% endif %}
+  </div>
+  <pre class="runlog">{{ outcome.log }}</pre>
+</div>
+{% endif %}
+
+{% for panel in panels %}
+  {% include "_panel.html" %}
+{% endfor %}
+
+{% if mode == 'admin' and program.editable_files %}
+<div class="card">
+  <h3>편집할 파일</h3>
+  <p class="muted">프롬프트·단가표처럼 <strong>결과를 좌우하는 파일</strong>입니다.</p>
+  <table>
+    <tr><th>파일</th><th>설명</th><th></th></tr>
+    {% for f in program.editable_files %}
+    <tr>
+      <td><code>{{ f.path }}</code></td>
+      <td class="muted">{{ f.label }}</td>
+      <td><a class="btn small" href="/apps/{{ program.id }}/admin/file?path={{ f.path }}">편집</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{% if mode == 'admin' and runs %}
+<div class="card">
+  <h3>최근 실행</h3>
+  <table>
+    <tr><th>시각</th><th>방식</th><th>결과</th><th></th></tr>
+    {% for r in runs %}
+    <tr>
+      <td class="muted">{{ r['started_at'][:16].replace('T', ' ') }}</td>
+      <td>{{ '모의' if r['mode'] == 'dry' else '실제' }}</td>
+      <td><span class="badge {{ r['status'] }}">{{ r['status'] }}</span></td>
+      <td><a href="/apps/{{ program.id }}/admin?run={{ r['id'] }}">보기</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{% if mode == 'client' %}
+<div class="card">
+  <h3>도움이 필요하시면</h3>
+  <p>
+    {% if program.manuals.client %}
+    <a class="btn" href="/programs/{{ program.id }}/manual/client">사용 설명서 보기</a>
+    {% endif %}
+  </p>
+  <p class="help">
+    이 화면은 <strong>테스트용</strong>입니다. 실제로 쓰실 때는 파신 분이 안내해 드립니다.
+  </p>
+</div>
+{% endif %}
+
+{% endblock %}

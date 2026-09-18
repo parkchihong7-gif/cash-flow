@@ -1,0 +1,53 @@
+{# 패널 하나를 그린다. 관리자·클라이언트 화면이 같은 조각을 쓴다. #}
+<div class="card panel {{ panel.tone }}">
+  <h3>{{ panel.title }}</h3>
+  {% if panel.intro %}<p class="muted">{{ panel.intro | md }}</p>{% endif %}
+
+  {% if panel.action %}
+  <form method="post" action="/apps/{{ program.id }}/{{ mode }}/{{ panel.action }}">
+    {% if panel.run_mode %}<input type="hidden" name="run_mode" value="{{ panel.run_mode }}">{% endif %}
+
+    {% for f in panel.fields if not (mode == 'client' and f.admin_only) %}
+      <div class="field">
+        <label for="{{ panel.key }}-{{ f.key }}">{{ f.label }}{% if f.required %} <span class="req">*</span>{% endif %}</label>
+
+        {% set current = values.get(f.key, f.default) %}
+
+        {% if f.kind == 'textarea' %}
+          <textarea id="{{ panel.key }}-{{ f.key }}" name="{{ f.key }}" rows="{{ f.rows }}"
+                    placeholder="{{ f.placeholder }}">{{ current if current is not none else '' }}</textarea>
+        {% elif f.kind == 'select' %}
+          <select id="{{ panel.key }}-{{ f.key }}" name="{{ f.key }}">
+            {% for opt in f.options %}
+            <option value="{{ opt }}" {% if current|string == opt %}selected{% endif %}>{{ opt }}</option>
+            {% endfor %}
+          </select>
+        {% elif f.kind == 'boolean' %}
+          <label class="check">
+            <input type="checkbox" name="{{ f.key }}" value="1"
+                   {% if current in [true, 'true', 'True', '1', 1] %}checked{% endif %}>
+            <span>켭니다</span>
+          </label>
+        {% elif f.kind == 'info' %}
+          <div class="infoval">{{ current if current is not none else '—' }}</div>
+        {% else %}
+          <input type="{{ f.input_type }}" id="{{ panel.key }}-{{ f.key }}" name="{{ f.key }}"
+                 value="{{ current if current is not none else '' }}"
+                 placeholder="{{ f.placeholder }}" {% if f.required %}required{% endif %}>
+        {% endif %}
+
+        {% if f.help %}<p class="help">{{ f.help | md }}</p>{% endif %}
+      </div>
+    {% endfor %}
+
+    <div class="actions">
+      <button class="btn {{ 'primary' if panel.run_mode != 'real' else 'danger' }}" type="submit">
+        {{ panel.action_label }}
+      </button>
+      {% if panel.note %}<span class="help">{{ panel.note }}</span>{% endif %}
+    </div>
+  </form>
+  {% else %}
+    {% if panel.note %}<p class="help">{{ panel.note }}</p>{% endif %}
+  {% endif %}
+</div>

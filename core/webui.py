@@ -1,0 +1,264 @@
+"""웹 화면 정의 — **[관리자모드] / [클라이언트 모드] 두 벌.**
+
+왜 따로 두는가
+--------------
+
+통합 대시보드의 '테스트' 탭은 *내가 프로그램을 돌려 보는* 자리다. 버튼 하나로
+정해진 입력을 돌린다. 그것만으로는 **팔기 전에 고칠 곳을 못 찾는다.**
+값을 바꿔 가며 눌러 봐야 어디가 불편한지 나온다.
+
+그래서 화면을 두 벌 만든다.
+
+* **관리자 모드** — 내가 본다. 설정·파일·실제 실행·로그·산출물이 다 보인다
+* **클라이언트 모드** — 산 사람이 본다. 그 사람이 할 일만 보인다
+
+둘을 한 화면에 섞으면 안 된다. 섞으면 고객이 건드리면 안 되는 값을 건드리고,
+나는 내가 필요한 걸 못 찾는다. **같은 프로그램의 다른 얼굴**로 둔다.
+
+2·3차 수정을 전제로 한 구조
+---------------------------
+
+이 파일은 **화면의 뼈대만** 정의한다. 실제 모양은 세 겹으로 정해진다.
+
+1. `default_webui(program)` — `program.yaml` 만 보고 만드는 기본 화면.
+   아무것도 안 해도 16종 전부 화면이 뜬다
+2. `products/<상품>/webui.py` 의 `build(program, ctx)` — 상품이 자기 화면을
+   직접 정의한다. 있으면 1번을 덮어쓴다
+3. 그 안에서 `default_webui()` 를 불러 일부만 바꿔도 된다
+
+2차·3차에 특정 상품만 갈아끼워도 나머지가 흔들리지 않는다.
+**껍데기(뒤로가기·모드 전환·실행 버튼)는 공용이라 한 번 고치면 전부 반영된다.**
+"""
+
+from __future__ import annotations
+
+import importlib.util
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Callable
+
+__all__ = [
+    "Field", "Panel", "WebUI", "MODES", "MODE_LABEL",
+    "default_webui", "load_webui", "field_from_setting",
+]
+
+MODES = ("admin", "client")
+
+MODE_LABEL = {"admin": "관리자 모드", "client": "클라이언트 모드"}
+
+#: 상품 폴더에서 찾는 화면 정의 파일.
+WEBUI_FILENAME = "webui.py"
+
+#: 이 종류는 `<input type=...>` 로 그대로 나간다.
+INPUT_KINDS = {"text": "text", "number": "number", "date": "date", "password": "password"}
+
+
+@dataclass
+class Field:
+    """입력 한 칸."""
+
+    key: str
+    label: str
+    kind: str = "text"          # text / textarea / number / select / boolean / date / info
+    default: Any = ""
+    options: list[str] = field(default_factory=list)
+    help: str = ""
+    placeholder: str = ""
+    required: bool = False
+    rows: int = 6
+    #: 관리자만 봐야 하는 값인가. 클라이언트 화면에서는 빠진다.
+    admin_only: bool = False
+
+    @property
+    def input_type(self) -> str:
+        return INPUT_KINDS.get(self.kind, "text")
+
+    @property
+    def shown_default(self) -> str:
+        if isinstance(self.default, bool):
+            return "1" if self.default else ""
+        return "" if self.default is None else str(self.default)
+
+
+@dataclass
+class Panel:
+    """화면의 한 덩어리. 카드 하나로 그려진다."""
+
+    key: str
+    title: str
+    intro: str = ""
+    fields: list[Field] = field(default_factory=list)
+    #: 이 패널의 버튼. 비우면 버튼 없는 설명 카드가 된다.
+    action: str = ""
+    action_label: str = "실행"
+    #: 'dry' 면 모의 실행, 'real' 이면 실제 실행, '' 면 실행이 아님.
+    run_mode: str = ""
+    note: str = ""
+    tone: str = ""              # "" / ok / warn / bad
+
+    @property
+    def runs(self) -> bool:
+        return bool(self.run_mode)
+
+
+@dataclass
+class WebUI:
+    """프로그램 한 개의 화면 두 벌."""
+
+    program_id: str
+    title: str
+    admin: list[Panel] = field(default_factory=list)
+    client: list[Panel] = field(default_factory=list)
+    #: 클라이언트 화면 맨 위에 두는 한 문단. 산 사람이 처음 보는 글이다.
+    client_intro: str = ""
+    admin_intro: str = ""
+    #: 상품이 직접 만든 화면인가 (2·3차에서 채워진다).
+    custom: bool = False
+
+    def panels(self, mode: str) -> list[Panel]:
+        return self.admin if mode == "admin" else self.client
+
+    def intro(self, mode: str) -> str:
+        return self.admin_intro if mode == "admin" else self.client_intro
+
+
+def field_from_setting(spec) -> Field:
+    """`program.yaml` 의 설정 한 줄을 입력 칸으로."""
+    kind = spec.type
+    if kind == "boolean":
+        kind = "boolean"
+    return Field(
+        key=spec.key,
+        label=spec.label,
+        kind=kind,
+        default=spec.default,
+        options=list(spec.options),
+        help=spec.help,
+    )
+
+
+def default_webui(program) -> WebUI:
+    """`program.yaml` 만 보고 만드는 기본 화면.
+
+    상품이 자기 화면을 안 만들었어도 **16종 전부 뜬다.** 모양은 수수하지만
+    실제로 돌아가고, 값도 바뀐다. 2·3차에서 상품별로 갈아끼운다.
+    """
+    run_spec = program.run
+
+    # ---- 관리자 모드 ----
+    admin: list[Panel] = []
+
+    if run_spec is not None:
+        admin.append(Panel(
+            key="run",
+            title="돌려 보기",
+            intro="입력 파일을 고르고 눌러 보세요. **모의 실행은 돈이 들지 않습니다.**",
+            fields=[Field(
+                key="input_path", label="입력 파일",
+                kind="text", default=run_spec.input_file,
+                help="프로그램 폴더 기준 상대 경로입니다. 비우면 기본값을 씁니다.",
+                placeholder=run_spec.input_file,
+            )],
+            action="run", action_label="모의 실행", run_mode="dry",
+            note="실제 실행은 아래 '실제로 돌리기' 에 있습니다. API 비용이 듭니다.",
+        ))
+        if run_spec.command:
+            admin.append(Panel(
+                key="run_real",
+                title="실제로 돌리기",
+                intro="외부 API 를 부릅니다. **비용이 듭니다.**",
+                fields=[Field(
+                    key="input_path", label="입력 파일",
+                    kind="text", default=run_spec.input_file,
+                )],
+                action="run", action_label="실제 실행", run_mode="real",
+                tone="warn",
+            ))
+
+    if program.settings:
+        admin.append(Panel(
+            key="settings",
+            title="설정",
+            intro="값을 바꾸고 저장하면 다음 실행부터 적용됩니다.",
+            fields=[field_from_setting(spec) for spec in program.settings],
+            action="settings", action_label="저장",
+        ))
+
+    # 편집할 파일 목록은 껍데기(app_shell.html)가 직접 그린다. 여기서 또
+    # 만들면 같은 카드가 두 번 나온다.
+
+    # ---- 클라이언트 모드 ----
+    client: list[Panel] = []
+    if run_spec is not None:
+        client.append(Panel(
+            key="run",
+            title="만들기",
+            intro="아래 버튼을 누르면 결과물이 만들어집니다.",
+            fields=[],
+            action="run", action_label="만들기", run_mode="dry",
+        ))
+
+    # 고객이 바꿔도 되는 설정만 골라 준다. 키·모델 같은 것은 뺀다.
+    safe = [spec for spec in program.settings
+            if not any(hint in spec.key.upper()
+                       for hint in ("KEY", "TOKEN", "SECRET", "MODEL", "PASSWORD"))]
+    if safe:
+        client.append(Panel(
+            key="settings",
+            title="내 설정",
+            intro="바꾸셔도 되는 값입니다.",
+            fields=[field_from_setting(spec) for spec in safe],
+            action="settings", action_label="저장",
+        ))
+
+    return WebUI(
+        program_id=program.id,
+        title=program.name,
+        admin=admin,
+        client=client,
+        admin_intro=(
+            f"**{program.name}** 의 관리자 화면입니다. "
+            f"팔기 전에 여기서 값을 바꿔 가며 돌려 보고 고칠 곳을 찾으세요."),
+        client_intro=program.tagline or f"{program.name} 입니다.",
+    )
+
+
+def load_webui(program, ctx: dict | None = None) -> WebUI:
+    """상품이 자기 화면을 만들어 뒀으면 그것을, 아니면 기본 화면을.
+
+    상품 쪽 규격은 이렇다.
+
+        # products/<상품>/webui.py
+        def build(program, ctx):
+            ...
+            return WebUI(...)
+
+    `ctx` 로는 DB 나 지금 설정값 같은 것을 넘긴다. 상품이 안 쓰면 그만이다.
+    """
+    path = Path(program.directory) / WEBUI_FILENAME
+    if not path.is_file():
+        return default_webui(program)
+
+    module_name = f"webui_{program.id.replace('-', '_')}"
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        return default_webui(program)
+
+    module = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(module)
+        builder: Callable = getattr(module, "build")
+        result = builder(program, ctx or {})
+    except Exception as exc:  # 상품 하나가 깨져도 나머지 화면은 떠야 한다
+        broken = default_webui(program)
+        broken.admin.insert(0, Panel(
+            key="broken", title="이 상품의 전용 화면을 불러오지 못했습니다",
+            intro=f"`{WEBUI_FILENAME}` 에서 오류가 났습니다. 기본 화면으로 대신 띄웁니다.",
+            note=str(exc), tone="bad",
+        ))
+        return broken
+
+    if not isinstance(result, WebUI):
+        return default_webui(program)
+    result.custom = True
+    return result

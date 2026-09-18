@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="appbody {{ mode }}">
+
+{# ─── 항상 붙는 껍데기. 어느 화면에서든 돌아갈 수 있어야 한다. ─── #}
+<header class="appbar {{ mode }}">
+  <div class="appbar-in">
+    <a class="back" href="/programs/{{ program.id }}" data-back>← 뒤로</a>
+    <a class="back" href="/programs/{{ program.id }}">통합 대시보드</a>
+    <span class="sep"></span>
+    <span class="who">
+      <span class="idx">{{ program.number }}</span>
+      <strong>{{ program.name }}</strong>
+    </span>
+    <span class="modeflag {{ mode }}">{{ mode_label }}</span>
+    <span class="grow"></span>
+    <nav class="modeswitch">
+      <a class="mbtn {% if mode == 'admin' %}on{% endif %}"
+         href="/apps/{{ program.id }}/admin">관리자 모드</a>
+      <a class="mbtn {% if mode == 'client' %}on{% endif %}"
+         href="/apps/{{ program.id }}/client">클라이언트 모드</a>
+    </nav>
+  </div>
+</header>
+
+{% if mode == 'admin' %}
+<div class="testbar">
+  <strong>테스트용 화면입니다.</strong>
+  값을 바꿔 가며 눌러 보시고, 불편한 곳을 찾으면 그때 고치시면 됩니다.
+  여기서 바꾼 설정은 <a href="/config">설정 한눈에</a>에도 그대로 보입니다.
+</div>
+{% endif %}
+
+<main class="appmain">
+  {% block body %}{% endblock %}
+</main>
+
+<footer class="appfoot">
+  <a href="/programs/{{ program.id }}">← 통합 대시보드로 돌아가기</a>
+  <span class="dot">·</span>
+  <a href="/apps/{{ program.id }}/{{ other_mode }}">{{ other_label }} 로 보기</a>
+  {% if program.manuals.client %}
+  <span class="dot">·</span>
+  <a href="/programs/{{ program.id }}/manual/{{ 'admin' if mode == 'admin' else 'client' }}">매뉴얼</a>
+  {% endif %}
+  <span class="dot">·</span>
+  <span class="muted">{{ program.name }} v{{ program.version }}</span>
+</footer>
+
+<script>
+document.querySelectorAll("[data-back]").forEach(function (el) {
+  el.addEventListener("click", function (event) {
+    if (window.history.length > 1) { event.preventDefault(); window.history.back(); }
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{% extends "app_base.html" %}
+{% block body %}
+{% if saved %}<div class="note ok">저장했습니다. 다음 실행부터 적용됩니다.</div>{% endif %}
+
+<h1>{{ file_path }}</h1>
+{% if file_spec %}
+<p class="lead">{{ file_spec.label }}</p>
+{% if file_spec.help %}<div class="note">{{ file_spec.help | md }}</div>{% endif %}
+{% endif %}
+
+{% if not exists %}
+<div class="note warn">아직 없는 파일입니다. 저장하면 새로 만듭니다.</div>
+{% endif %}
+
+<div class="card">
+  <form method="post" action="/apps/{{ program.id }}/admin/file?path={{ file_path }}">
+    <input type="hidden" name="path" value="{{ file_path }}">
+    <textarea name="content" class="code" rows="26" spellcheck="false">{{ content }}</textarea>
+    <div class="actions">
+      <button class="btn primary" type="submit">저장</button>
+      <a class="btn" href="/apps/{{ program.id }}/admin">← 화면으로 돌아가기</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

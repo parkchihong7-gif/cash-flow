@@ -1,6 +1,31 @@
+{# 프로그램 상세 페이지 공통 머리. 모든 탭이 이걸 쓴다.
+
+   **뒤로가기는 항상 있어야 한다.** 화면을 깊이 들어갔다가 길을 잃는 일이
+   가장 흔한 불만이다. 브라우저 뒤로가기를 쓰되, 새 창으로 열린 화면처럼
+   돌아갈 데가 없으면 홈으로 보낸다.
+#}
+<div class="crumbs">
+  <a class="btn small back-btn" href="/" data-back>← 뒤로</a>
+  <span class="dot">·</span>
+  <a href="/">홈</a>
+  <span class="dot">›</span>
+  <span class="muted">{{ program.number }}. {{ program.name }}</span>
+</div>
+
 <h1>{{ program.number }}. {{ program.name }}
   <span class="badge {{ program.status }}">{{ program.status_label }}</span></h1>
 <p class="muted">{{ program.tagline }} · v{{ program.version }} · <code>{{ program.id }}</code></p>
+
+{# 웹 화면 두 벌. 새 창에서 열어 실제로 만져 볼 수 있다. #}
+<div class="modelinks">
+  <span class="lbl">웹 화면으로 직접 테스트</span>
+  <a class="btn primary" href="/apps/{{ program.id }}/admin" target="_blank" rel="noopener">
+    관리자 모드 ↗</a>
+  <a class="btn" href="/apps/{{ program.id }}/client" target="_blank" rel="noopener">
+    클라이언트 모드 ↗</a>
+  <span class="help">새 창에서 열립니다. 값을 바꿔 가며 눌러 보세요.</span>
+</div>
+
 <nav class="tabs">
   <a href="/programs/{{ program.id }}" class="{% if tab == 'view' %}on{% endif %}">열람</a>
   <a href="/programs/{{ program.id }}/edit" class="{% if tab == 'edit' %}on{% endif %}">수정</a>
