@@ -23,7 +23,7 @@ from core.db import Database
 from core.manifest import ProgramManifest
 from core.registry import Registry
 from core.runner import RunError, run_program
-from core.webui import MODE_LABEL, MODES, load_webui
+from core.webui import MODE_LABEL, MODES, load_handler, load_webui
 
 __all__ = ["register", "APPS_PREFIX"]
 
@@ -138,6 +138,35 @@ def register(app, page, registry, db, program_or_404) -> None:
                 saved += 1
         return RedirectResponse(
             f"{APPS_PREFIX}/{program_id}/{mode}?saved={saved}", status_code=303)
+
+    # ------------------------------------------- 상품이 직접 처리하는 동작
+    @app.post(APPS_PREFIX + "/{program_id}/{mode}/do/{action}")
+    async def app_do(request: Request, program_id: str, mode: str, action: str):
+        """`do:이름` 패널의 폼을 상품의 `handle()` 로 넘긴다.
+
+        기록표 한 줄 채우기, 견적 다시 계산하기처럼 **그 상품에만 있는 일**을
+        여기서 받는다. 껍데기는 무슨 일인지 모르고, 상품만 안다.
+        """
+        program = program_or_404(program_id)
+        mode = _mode_or_404(mode)
+        handler = load_handler(program)
+        if handler is None:
+            return RedirectResponse(
+                f"{APPS_PREFIX}/{program_id}/{mode}?error=이 상품에는 그 동작이 없습니다",
+                status_code=303)
+
+        form = dict(await request.form())
+        database = db()
+        ctx = {"settings": database.get_program_settings(program.id),
+               "db": database, "mode": mode}
+        try:
+            query = handler(program, ctx, action, form) or ""
+        except Exception as exc:   # 상품 코드가 깨져도 화면은 살아 있어야 한다
+            query = f"error={exc}"
+        joiner = "&" if query else ""
+        return RedirectResponse(
+            f"{APPS_PREFIX}/{program_id}/{mode}?{query}{joiner}".rstrip("&?"),
+            status_code=303)
 
     # ------------------------------------------------------ 파일 편집(관리자만)
     @app.get(APPS_PREFIX + "/{program_id}/admin/file", response_class=HTMLResponse)

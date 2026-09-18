@@ -38,8 +38,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 __all__ = [
-    "Field", "Panel", "WebUI", "MODES", "MODE_LABEL",
-    "default_webui", "load_webui", "field_from_setting",
+    "Field", "Panel", "WebUI", "Table", "Note", "MODES", "MODE_LABEL",
+    "default_webui", "load_webui", "load_handler", "field_from_setting",
 ]
 
 MODES = ("admin", "client")
@@ -81,6 +81,43 @@ class Field:
 
 
 @dataclass
+class Table:
+    """화면에 그릴 표. **상품이 HTML 을 손으로 쓰지 않게** 하려고 둔다.
+
+    손으로 쓴 HTML 은 이스케이프를 빠뜨리기 쉽고, 나중에 껍데기 모양을 바꿀 때
+    상품마다 따로 고쳐야 한다.
+    """
+
+    headers: list[str] = field(default_factory=list)
+    rows: list[list[str]] = field(default_factory=list)
+    #: 줄마다 붙일 색. 비우거나 "" 면 기본. ok / warn / bad
+    tones: list[str] = field(default_factory=list)
+    note: str = ""
+    #: 오른쪽 정렬할 열 번호(0부터). 숫자 열에 쓴다.
+    numeric: list[int] = field(default_factory=list)
+
+    @property
+    def empty(self) -> bool:
+        return not self.rows
+
+    def tone_of(self, index: int) -> str:
+        return self.tones[index] if index < len(self.tones) else ""
+
+
+@dataclass
+class Note:
+    """짚어 줄 한 줄. 과락 경고처럼 **맨 위에 와야 하는 것**에 쓴다."""
+
+    title: str
+    body: str = ""
+    tone: str = ""          # "" / ok / warn / bad
+
+    @property
+    def mark(self) -> str:
+        return {"ok": "✓", "warn": "⚠", "bad": "✗"}.get(self.tone, "·")
+
+
+@dataclass
 class Panel:
     """화면의 한 덩어리. 카드 하나로 그려진다."""
 
@@ -96,9 +133,27 @@ class Panel:
     note: str = ""
     tone: str = ""              # "" / ok / warn / bad
 
+    #: 계산해서 보여 줄 것들. 입력 칸 아래에 그려진다.
+    notes: list[Note] = field(default_factory=list)
+    table: "Table | None" = None
+    lines: list[str] = field(default_factory=list)
+    #: 파일 내려받기 링크 (라벨, 경로).
+    downloads: list[tuple[str, str]] = field(default_factory=list)
+
     @property
     def runs(self) -> bool:
         return bool(self.run_mode)
+
+    @property
+    def custom_action(self) -> str:
+        """`do:이름` 꼴이면 그 이름. 상품이 직접 처리하는 동작이다."""
+        return self.action[3:] if self.action.startswith("do:") else ""
+
+    @property
+    def form_path(self) -> str:
+        """이 패널의 폼이 갈 주소 조각."""
+        name = self.custom_action
+        return f"do/{name}" if name else self.action
 
 
 @dataclass
@@ -223,6 +278,36 @@ def default_webui(program) -> WebUI:
     )
 
 
+def _product_module(program):
+    """상품 폴더의 `webui.py` 를 싣는다. 없거나 깨졌으면 None."""
+    path = Path(program.directory) / WEBUI_FILENAME
+    if not path.is_file():
+        return None
+    module_name = f"webui_{program.id.replace('-', '_')}"
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_handler(program):
+    """상품이 자기 동작을 처리하는 함수. 규격은 이렇다.
+
+        def handle(program, ctx, action, form) -> str
+            # 돌려주는 값은 화면으로 돌아갈 때 붙일 질의 문자열.
+            # 예: "saved=1" 또는 "error=무엇이 잘못됐는지"
+
+    없으면 None. 그러면 그 동작은 거절된다.
+    """
+    try:
+        module = _product_module(program)
+    except Exception:
+        return None
+    return getattr(module, "handle", None) if module else None
+
+
 def load_webui(program, ctx: dict | None = None) -> WebUI:
     """상품이 자기 화면을 만들어 뒀으면 그것을, 아니면 기본 화면을.
 
@@ -235,18 +320,11 @@ def load_webui(program, ctx: dict | None = None) -> WebUI:
 
     `ctx` 로는 DB 나 지금 설정값 같은 것을 넘긴다. 상품이 안 쓰면 그만이다.
     """
-    path = Path(program.directory) / WEBUI_FILENAME
-    if not path.is_file():
+    if not (Path(program.directory) / WEBUI_FILENAME).is_file():
         return default_webui(program)
 
-    module_name = f"webui_{program.id.replace('-', '_')}"
-    spec = importlib.util.spec_from_file_location(module_name, path)
-    if spec is None or spec.loader is None:
-        return default_webui(program)
-
-    module = importlib.util.module_from_spec(spec)
     try:
-        spec.loader.exec_module(module)
+        module = _product_module(program)
         builder: Callable = getattr(module, "build")
         result = builder(program, ctx or {})
     except Exception as exc:  # 상품 하나가 깨져도 나머지 화면은 떠야 한다

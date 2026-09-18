@@ -458,3 +458,18 @@ textarea.code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 13px; color: var(--ink-faint); margin-bottom: 12px; }
 .crumbs .dot { color: var(--line); }
 .back-btn { font-weight: 700; }
+
+/* 전용 화면의 표·짚어 줄 것 */
+.pnote { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;
+  padding: 9px 12px; border-radius: 8px; margin-bottom: 8px; font-size: 13.5px;
+  background: var(--bg-sunk); }
+.pnote.ok { background: var(--ok-soft); color: var(--ok); }
+.pnote.warn { background: var(--warn-soft); color: var(--warn); }
+.pnote.bad { background: var(--bad-soft); color: var(--bad); }
+.pnote strong { white-space: nowrap; }
+.plines { margin: 0 0 12px; padding-left: 20px; font-size: 13.5px; color: var(--ink-soft); }
+.plines li { margin-bottom: 4px; }
+table.ptable { margin: 4px 0 10px; font-size: 13.5px; }
+table.ptable tr.bad td { background: var(--bad-soft); }
+table.ptable tr.warn td { background: var(--warn-soft); }
+table.ptable tr.ok td { background: var(--ok-soft); }

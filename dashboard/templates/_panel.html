@@ -3,8 +3,48 @@
   <h3>{{ panel.title }}</h3>
   {% if panel.intro %}<p class="muted">{{ panel.intro | md }}</p>{% endif %}
 
+  {# 짚어 줄 것 — 과락 경고처럼 맨 위에 와야 하는 것 #}
+  {% for n in panel.notes %}
+  <div class="pnote {{ n.tone }}">
+    <strong>{{ n.mark }} {{ n.title }}</strong>
+    {% if n.body %}<span>{{ n.body | md }}</span>{% endif %}
+  </div>
+  {% endfor %}
+
+  {% if panel.lines %}
+  <ul class="plines">{% for line in panel.lines %}<li>{{ line | md }}</li>{% endfor %}</ul>
+  {% endif %}
+
+  {% if panel.table %}
+    {% if panel.table.empty %}
+      <p class="help">{{ panel.table.note or '아직 보여 드릴 것이 없습니다.' }}</p>
+    {% else %}
+    <table class="ptable">
+      <tr>{% for h in panel.table.headers %}
+        <th {% if loop.index0 in panel.table.numeric %}class="n"{% endif %}>{{ h }}</th>
+      {% endfor %}</tr>
+      {% for row in panel.table.rows %}
+      <tr class="{{ panel.table.tone_of(loop.index0) }}">
+        {% for cell in row %}
+        <td {% if loop.index0 in panel.table.numeric %}class="n"{% endif %}>{{ cell | md }}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </table>
+    {% if panel.table.note %}<p class="help">{{ panel.table.note }}</p>{% endif %}
+    {% endif %}
+  {% endif %}
+
+  {% if panel.downloads %}
+  <p class="actions">
+    {% for label, path in panel.downloads %}
+    <a class="btn small" href="/preview?path={{ path }}" target="_blank" rel="noopener">{{ label }} ↗</a>
+    {% endfor %}
+  </p>
+  {% endif %}
+
   {% if panel.action %}
-  <form method="post" action="/apps/{{ program.id }}/{{ mode }}/{{ panel.action }}">
+  <form method="post" action="/apps/{{ program.id }}/{{ mode }}/{{ panel.form_path }}">
     {% if panel.run_mode %}<input type="hidden" name="run_mode" value="{{ panel.run_mode }}">{% endif %}
 
     {% for f in panel.fields if not (mode == 'client' and f.admin_only) %}

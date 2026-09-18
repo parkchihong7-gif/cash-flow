@@ -88,16 +88,18 @@ def test_client_mode_hides_admin_tools(client):
 
 
 def test_admin_mode_shows_them(client):
-    body = client.get("/apps/exam-drill/admin").text
+    """전용 화면이 없는 상품은 기본 화면이 뜬다. 거기엔 실제 실행이 있다."""
+    body = client.get("/apps/funnel-builder/admin").text
     assert "편집할 파일" in body
     assert "실제로 돌리기" in body
 
 
 def test_client_mode_never_exposes_key_settings(client):
     """모델·키 같은 값은 고객 화면에 그리지 않는다."""
-    body = client.get("/apps/naver-blog/client").text
-    assert "CLAUDE_MODEL" not in body
-    assert "계획을 쓸 모델" not in body and "초안을 쓸 모델" not in body
+    for program_id in ("funnel-builder", "naver-blog"):
+        body = client.get(f"/apps/{program_id}/client").text
+        assert "CLAUDE_MODEL" not in body, program_id
+        assert "초안을 쓸 모델" not in body, program_id
 
 
 def test_client_mode_refuses_a_real_run_even_by_url(client):
@@ -112,12 +114,22 @@ def test_client_mode_refuses_a_real_run_even_by_url(client):
 
 def test_client_mode_cannot_save_an_admin_only_setting(client):
     """고객 화면에서 안 보이는 값은 넘어와도 버린다."""
-    client.post("/apps/naver-blog/client/settings",
-                data={"CLAUDE_MODEL": "claude-opus-5", "MIN_CHARS": "1200"},
+    client.post("/apps/funnel-builder/client/settings",
+                data={"CLAUDE_MODEL": "claude-opus-5"},
                 follow_redirects=False)
-    stored = client.app.state.db.get_program_settings("naver-blog")
+    stored = client.app.state.db.get_program_settings("funnel-builder")
     assert "CLAUDE_MODEL" not in stored, "고객이 모델을 바꿀 수 있으면 안 된다"
-    assert stored.get("MIN_CHARS") == "1200", "허용된 값은 저장돼야 한다"
+
+
+def test_a_custom_client_screen_without_settings_saves_nothing(client):
+    """전용 화면에 설정 패널이 없으면 아무것도 저장되지 않아야 한다.
+
+    닫히는 쪽으로 틀리는 것이 맞다. 패널을 안 그렸는데 값이 저장되면
+    화면에 없는 값이 조용히 바뀐다.
+    """
+    client.post("/apps/exam-drill/client/settings",
+                data={"MIN_SAMPLE": "9"}, follow_redirects=False)
+    assert client.app.state.db.get_program_settings("exam-drill") == {}
 
 
 def test_admin_can_save_any_declared_setting(client):
