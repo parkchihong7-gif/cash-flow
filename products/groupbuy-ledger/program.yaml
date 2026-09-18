@@ -285,6 +285,16 @@ manuals:
   admin: docs/admin.md
   client: docs/client.md
 
+# 권한·환경 — 쓰기 전에 무엇이 필요한가 (🔑 권한·환경 화면)
+requirements:
+  home_pc: yes
+  internet: none
+  limits:
+    - 인터넷 없이 돕니다. 한도가 없습니다
+  cautions:
+    - 정산 숫자는 입력한 주문서 그대로 계산합니다. 원본이 틀리면 결과도 틀립니다
+    - 참여자 이름·연락처가 들어가는 파일입니다. 공유할 때 조심하세요
+
 # 정기 실행 — 공구가 끝날 때마다 도는 것이라 달 단위로 본다.
 schedule:
   cadence: monthly

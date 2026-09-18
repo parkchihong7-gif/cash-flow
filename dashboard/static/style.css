@@ -367,3 +367,17 @@ table.kv td { vertical-align: top; }
 table.kv td.warnrow { color: var(--warn); }
 code.cron { display: block; white-space: pre-wrap; word-break: break-all;
   background: var(--bg-sunk); padding: 8px 10px; border-radius: 6px; font-size: 12px; }
+
+/* 권한·환경 */
+.card.acc { border-left: 4px solid var(--line); }
+.card.acc.now { border-left-color: var(--ok); }
+.card.acc.setup { border-left-color: var(--accent); }
+.card.acc.wait { border-left-color: var(--warn); }
+.card.acc.hard { border-left-color: var(--bad); }
+.card.acc h3 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.card.acc h4 { margin: 14px 0 6px; font-size: 13.5px; color: var(--ink-soft); }
+.badge.now { background: var(--ok-soft); color: var(--ok); }
+.badge.setup { background: var(--bg-sunk); color: var(--ink-soft); }
+.badge.wait { background: var(--warn-soft); color: var(--warn); }
+.badge.hard { background: var(--bad-soft); color: var(--bad); }
+ul.cautions li { color: var(--warn); }

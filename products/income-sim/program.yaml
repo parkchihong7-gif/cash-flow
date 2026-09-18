@@ -255,6 +255,16 @@ manuals:
   admin: docs/admin.md
   client: docs/client.md
 
+# 권한·환경 — 쓰기 전에 무엇이 필요한가 (🔑 권한·환경 화면)
+requirements:
+  home_pc: yes
+  internet: none
+  limits:
+    - 인터넷 없이 돕니다. 한도가 없습니다
+  cautions:
+    - 추정치입니다. 실제 수익을 보장하지 않습니다
+    - 기본값의 근거는 `python cli.py sources <모델>` 로 볼 수 있습니다
+
 # 정기 실행 — 되풀이해 돌 일은 아니다. 필요할 때만 돈다.
 schedule:
   cadence: manual

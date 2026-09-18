@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>권한·환경 점검</h1>
+<p class="muted">
+  프로그램마다 <strong>쓰기 전에 무엇이 필요한지</strong> 한 장에 모았습니다.
+  집 컴퓨터에서 되는지, 어떤 계정을 만들어야 하는지, 그리고 <em>받는 데 얼마나 걸리는지</em>.
+</p>
+
+<div class="note">
+  <strong>돈보다 자주 발목을 잡는 것은 기다리는 시간입니다.</strong>
+  카드는 바로 긁히지만 API 심사는 못 당깁니다. 유튜브 업로드 감사처럼
+  며칠에서 몇 주가 걸리는 것이 있어서, '심사 필요' 를 따로 세워 뒀습니다.
+  <strong>파실 계획이라면 상세페이지에 이걸 먼저 적으세요.</strong> 안 적으면 환불로 돌아옵니다.
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="n">{{ summary.now }}</div><div class="k">지금 바로 되는 것</div></div>
+  <div class="stat"><div class="n">{{ summary.setup }}</div><div class="k">준비 먼저</div></div>
+  <div class="stat{% if summary.wait %} late{% endif %}"><div class="n">{{ summary.wait }}</div><div class="k">심사를 기다려야</div></div>
+  <div class="stat"><div class="n">{{ summary.hard }}</div><div class="k">집 컴퓨터로는 어려움</div></div>
+</div>
+
+{% if summary.missing %}
+<div class="note warn">
+  <strong>받아 놓고 아직 <code>.env</code> 에 안 넣은 키가 {{ summary.missing }}개 있습니다.</strong>
+  아래 표에서 <em>아직 안 넣었습니다</em> 를 찾으세요. 넣는 곳은 저장소 맨 위 폴더의 <code>.env</code> 입니다.
+</div>
+{% endif %}
+
+<h2>한눈에</h2>
+<div class="card">
+  <table>
+    <tr>
+      <th>번호</th><th>프로그램</th><th>집 컴퓨터</th><th>인터넷</th>
+      <th>준비할 것</th><th>언제부터</th>
+    </tr>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.number }}</td>
+      <td><a href="#p{{ row.id }}">{{ row.name }}</a></td>
+      <td class="cell {{ 'ok' if row.home_pc == 'yes' else ('unknown' if row.home_pc == 'partial' else 'bad') }}">
+        {% if row.home_pc == 'yes' %}✓ 됩니다{% elif row.home_pc == 'partial' %}△ 준비 있음{% else %}✗ 어렵습니다{% endif %}
+      </td>
+      <td class="muted">{% if row.internet == 'needed' %}있어야 함{% elif row.internet == 'optional' %}없어도 모의 실행{% else %}없어도 됨{% endif %}</td>
+      <td>{{ row.prep_line }}</td>
+      <td><span class="badge {{ row.state }}">{{ row.state_label }}</span></td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="help">
+    '지금 바로' = 가입도 설치도 없이 내려받아 바로 돕니다 ·
+    '준비 먼저' = 계정을 만들거나 프로그램을 깔아야 합니다 ·
+    '심사를 기다려야' = 신청하고 답을 받아야 합니다
+  </p>
+</div>
+
+<h2>프로그램별로</h2>
+{% for row in rows %}
+<div class="card acc {{ row.state }}" id="p{{ row.id }}">
+  <h3>
+    <span class="idx">{{ row.number }}</span>
+    <a href="/programs/{{ row.id }}">{{ row.name }}</a>
+    <span class="badge {{ row.state }}">{{ row.state_label }}</span>
+  </h3>
+
+  <table class="kv">
+    <tr><th>집 컴퓨터</th>
+      <td>
+        <strong>{{ row.home_pc_label }}</strong>
+        {% if row.home_pc_note %}<br><span class="muted">{{ row.home_pc_note }}</span>{% endif %}
+      </td></tr>
+    <tr><th>인터넷</th><td>{{ row.internet_label }}</td></tr>
+  </table>
+
+  {% if row.accounts %}
+  <h4>만들어야 하는 계정·권한</h4>
+  <table>
+    <tr><th>무엇</th><th>왜</th><th>비용</th><th>걸리는 시간</th><th>지금 상태</th></tr>
+    {% for acc in row.accounts %}
+    <tr>
+      <td>
+        <strong>{{ acc.name }}</strong>
+        {% if not acc.blocking %}<br><span class="muted">없어도 씁니다</span>{% endif %}
+        {% if acc.how %}<br><span class="help">{{ acc.how }}</span>{% endif %}
+      </td>
+      <td>{{ acc.why }}</td>
+      <td>{{ acc.cost }}</td>
+      <td{% if acc.waiting %} class="warnrow"{% endif %}>{{ acc.lead_time }}</td>
+      <td class="cell {{ 'ok' if acc.state == 'set' else ('bad' if acc.state == 'missing' else 'unknown') }}">
+        {{ acc.state_label }}
+        {% if acc.env_key %}<br><code>{{ acc.env_key }}</code>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
+  {% if row.extra_software %}
+  <h4>따로 깔아야 하는 프로그램</h4>
+  <table>
+    <tr><th>무엇</th><th>왜</th><th>어떻게</th></tr>
+    {% for sw in row.extra_software %}
+    <tr><td><strong>{{ sw.name }}</strong></td><td>{{ sw.why }}</td><td><code>{{ sw.how }}</code></td></tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
+  {% if row.limits %}
+  <h4>한도·쿼터</h4>
+  <ul>{% for item in row.limits %}<li>{{ item }}</li>{% endfor %}</ul>
+  {% endif %}
+
+  {% if row.cautions %}
+  <h4>조심할 것</h4>
+  <ul class="cautions">{% for item in row.cautions %}<li>{{ item }}</li>{% endfor %}</ul>
+  {% endif %}
+
+  <p class="help">
+    <a href="/programs/{{ row.id }}">열람</a> ·
+    <a href="/programs/{{ row.id }}/manual/admin">관리자 매뉴얼</a> ·
+    <a href="/config">설정 한눈에</a>
+  </p>
+</div>
+{% endfor %}
+
+<h2>키를 어디에 넣나</h2>
+<div class="card prose">
+  <p>저장소 맨 위 폴더의 <code>.env</code> 파일 한 곳입니다. 없으면 만드세요.</p>
+  <pre><code>cp .env.example .env     # 처음 한 번
+# 그다음 .env 를 메모장으로 열어 값을 채웁니다</code></pre>
+  <p>
+    <strong><code>.env</code> 는 절대 남에게 보내지 마세요.</strong> 저장소에도 올라가지 않게
+    막아 뒀습니다(<code>.gitignore</code>). 값이 들어갔는지는
+    <a href="/config">설정 한눈에</a>에서 <em>설정됨 / 비어 있음</em> 으로만 확인합니다.
+    이 대시보드는 키 값을 화면에 띄우지 않습니다.
+  </p>
+</div>
+{% endblock %}

@@ -290,6 +290,34 @@ manuals:
   admin: docs/admin.md
   client: docs/client.md
 
+# 권한·환경 — 쓰기 전에 무엇이 필요한가 (🔑 권한·환경 화면)
+requirements:
+  home_pc: yes
+  internet: optional
+  accounts:
+    - name: Claude API 키
+      why: 글에서 언급할 만한 상품을 뽑습니다
+      cost: 쓴 만큼
+      lead_time: 즉시
+      how: console.anthropic.com 에서 발급
+      env_key: ANTHROPIC_API_KEY
+      blocking: false
+    - name: 쿠팡파트너스 가입
+      why: 실제 제휴 링크를 만들려면 필요합니다. 없으면 검색 URL 만 만듭니다
+      cost: 무료
+      lead_time: 하루 이틀
+      how: partners.coupang.com 에서 가입. 승인 뒤 '오픈 API' 에서 키 발급
+      env_key: COUPANG_ACCESS_KEY
+      blocking: false
+  limits:
+    - 쿠팡 오픈 API 는 분당 호출 한도가 있습니다
+    - 쿠키 유효기간 24시간. 그 안에 사면 실적이 잡힙니다
+  cautions:
+    - 대가성 문구 없이는 링크 산출물이 아예 나오지 않게 막아 뒀습니다
+    - 대가성 문구를 빼면 경고 없이 자격이 정지됩니다 (쿠팡파트너스 약관)
+    - 본인이 본인 링크로 사는 것(자가 구매)은 금지입니다. 그런 문구는 만들지 않습니다
+    - 수수료율은 추정 구간입니다. 실제 정산은 쿠팡 화면 숫자가 기준입니다
+
 # 정기 실행 — 되풀이해 돌 일은 아니다. 필요할 때만 돈다.
 schedule:
   cadence: manual

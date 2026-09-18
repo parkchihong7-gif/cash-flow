@@ -292,6 +292,35 @@ manuals:
   admin: docs/admin.md
   client: docs/client.md
 
+# 권한·환경 — 쓰기 전에 무엇이 필요한가 (🔑 권한·환경 화면)
+requirements:
+  home_pc: yes
+  internet: optional
+  accounts:
+    - name: YouTube Data API v3 키
+      why: 키워드별 영상·채널 지표를 모읍니다
+      cost: 무료
+      lead_time: 즉시
+      how: console.cloud.google.com → 새 프로젝트 → YouTube Data API v3 사용 설정 → API 키
+      env_key: YOUTUBE_API_KEY
+      blocking: false
+    - name: Claude API 키
+      why: 보고서 해설 5줄. 없으면 규칙으로 씁니다
+      cost: 쓴 만큼 (한 번에 백 원 안팎)
+      lead_time: 즉시
+      how: console.anthropic.com 에서 발급
+      env_key: ANTHROPIC_API_KEY
+      blocking: false
+  limits:
+    - 하루 10,000 유닛. search.list 한 번이 100 유닛이라 키워드 하나에 102 유닛입니다
+    - 그래서 하루 80개 키워드를 코드로 막아 뒀습니다. 넘친 것은 다음 날 맨 앞에 섭니다
+    - 쿼터는 태평양 시간 자정에 초기화됩니다. 수집은 새벽에 거세요
+  cautions:
+    - 매일 안 돌리면 그날 자료는 영영 빕니다. 유튜브는 지난 값을 돌려주지 않습니다
+    - 3일치는 쌓여야 지표가 나오고, 2주쯤 지나야 추이가 보입니다
+    - 특정 영상을 따라 만들라는 제안은 하지 않습니다 (노아AI 전례, README §7)
+    - 조회수나 구독자 증가를 약속하지 않습니다
+
 # 정기 실행 — 이 상품은 매일 돌지 않으면 뜻이 없다.
 # 유튜브 API 는 어제 값을 돌려주지 않는다. 오늘 안 찍으면 그 하루는 영영 빈다.
 schedule:

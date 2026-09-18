@@ -37,6 +37,7 @@ from fastapi.templating import Jinja2Templates
 
 from core import auth
 from core.db import Database, DEFAULT_DB_PATH
+from core.access import collect as collect_access, summarize as access_summary
 from core.compliance import audit as compliance_audit, RULES as COMPLIANCE_RULES
 from core.health import checklist
 from core.search import search as search_index
@@ -605,6 +606,22 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
             share=round(recurring * 12 / (one_time + recurring * 12) * 100, 1)
             if (one_time or recurring) else 0.0,
             expiring=db().expiring_licenses(30),
+        )
+
+    # ------------------------------------------------------ 권한·환경 점검
+    @app.get("/access", response_class=HTMLResponse)
+    def access_view(request: Request):
+        """**집 컴퓨터에서 되나, 무슨 권한이 필요한가.**
+
+        돈보다 자주 발목을 잡는 것은 심사 기간이다. 카드는 바로 긁히지만
+        API 심사는 못 당긴다. 그래서 '받는 데 걸리는 시간' 을 따로 세운다.
+        """
+        rows = collect_access(registry())
+        return page(
+            request, "access.html",
+            title="권한·환경 점검",
+            rows=rows,
+            summary=access_summary(rows),
         )
 
     # -------------------------------------------------------- 정기 실행

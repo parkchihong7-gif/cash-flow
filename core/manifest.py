@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 __all__ = [
     "ProgramManifest",
@@ -29,6 +29,9 @@ __all__ = [
     "PricingPlan",
     "RunSpec",
     "ScheduleSpec",
+    "Requirements",
+    "AccountNeed",
+    "SoftwareNeed",
     "Manuals",
     "load_manifest",
     "MANIFEST_FILENAME",
@@ -39,6 +42,9 @@ MANIFEST_FILENAME = "program.yaml"
 Status = Literal["ready", "wip", "planned"]
 SettingType = Literal["text", "textarea", "number", "boolean", "select"]
 Cadence = Literal["manual", "daily", "weekly", "monthly", "continuous"]
+HomePc = Literal["yes", "partial", "no"]
+Internet = Literal["none", "optional", "needed"]
+LeadTime = Literal["즉시", "하루 이틀", "심사 필요"]
 
 STATUS_LABEL = {"ready": "운영 중", "wip": "제작 중", "planned": "계획"}
 
@@ -52,6 +58,18 @@ CADENCE_LABEL = {
 
 # 이 주기를 넘기면 '밀렸다' 고 본다. 계속 켜 두는 것은 하루로 본다.
 CADENCE_DAYS = {"daily": 1, "weekly": 7, "monthly": 31, "continuous": 1}
+
+HOME_PC_LABEL = {
+    "yes": "집 컴퓨터로 됩니다",
+    "partial": "집 컴퓨터로 되지만 준비가 있습니다",
+    "no": "집 컴퓨터로는 어렵습니다",
+}
+
+INTERNET_LABEL = {
+    "none": "인터넷 없이도 됩니다",
+    "optional": "인터넷이 없어도 모의 실행은 됩니다",
+    "needed": "인터넷이 있어야 합니다",
+}
 
 
 class Step(BaseModel):
@@ -126,6 +144,103 @@ class RunSpec(BaseModel):
     timeout_seconds: int = Field(default=600, ge=10, le=3600)
 
 
+class AccountNeed(BaseModel):
+    """이 프로그램을 쓰려면 **따로 만들어야 하는 계정·권한** 하나.
+
+    돈보다 자주 발목을 잡는 것이 이쪽이다. 코드는 다 됐는데 API 심사가
+    2주 걸려서 못 판 적이 있다. 그래서 `lead_time` 을 따로 둔다.
+    """
+
+    name: str
+    why: str = Field(default="", description="이게 없으면 무엇이 안 되는가")
+    cost: str = Field(default="무료", description="비용. 모르면 '확인 필요'")
+    lead_time: LeadTime = Field(default="즉시", description="받는 데 걸리는 시간")
+    how: str = Field(default="", description="어디서 어떻게 받나")
+    env_key: str = Field(default="", description="받은 값을 넣을 .env 키 이름")
+    blocking: bool = Field(default=True, description="없으면 아예 못 쓰는가")
+
+
+class SoftwareNeed(BaseModel):
+    """따로 **깔아야 하는 프로그램** 하나 (pip 로 안 깔리는 것)."""
+
+    name: str
+    why: str = ""
+    how: str = Field(default="", description="설치 명령이나 받는 곳")
+    bundled: bool = Field(
+        default=False,
+        description="requirements.txt 로 같이 깔리면 True. 그러면 따로 안내하지 않는다",
+    )
+
+
+class Requirements(BaseModel):
+    """**쓰기 전에 무엇이 필요한가.**
+
+    상세페이지에 "설치만 하면 바로" 라고 써 놓고 실제로는 API 심사가 필요하면
+    환불로 돌아온다. 사기까지는 아니어도 신뢰는 거기서 끝난다. 그래서 필요한
+    것을 상품 자신이 들고 있게 하고, 대시보드가 한 장에 모아 보여 준다.
+    """
+
+    home_pc: HomePc = "yes"
+    home_pc_note: str = Field(default="", description="'되지만/어렵다' 면 이유를 쓴다")
+
+    @field_validator("home_pc", mode="before")
+    @classmethod
+    def _yaml_bool(cls, value):
+        """YAML 은 따옴표 없는 `yes` 를 참, `no` 를 거짓으로 읽는다.
+
+        여기서는 그게 바로 우리가 뜻한 값이므로 되돌려 준다. 이 한 줄이 없으면
+        `home_pc: yes` 라고 쓴 사람이 영문 모를 오류를 본다.
+        """
+        if isinstance(value, bool):
+            return "yes" if value else "no"
+        return value
+    internet: Internet = "optional"
+    accounts: list[AccountNeed] = Field(default_factory=list)
+    software: list[SoftwareNeed] = Field(default_factory=list)
+    limits: list[str] = Field(default_factory=list, description="쿼터·한도")
+    cautions: list[str] = Field(default_factory=list, description="법·정책상 조심할 것")
+
+    @model_validator(mode="after")
+    def _explain_when_not_easy(self) -> "Requirements":
+        # "집에서 어렵다" 고만 적고 이유를 안 쓰면 화면이 아무 도움이 안 된다.
+        if self.home_pc != "yes" and not self.home_pc_note.strip():
+            raise ValueError("home_pc 가 yes 가 아니면 home_pc_note 에 이유를 쓰세요")
+        return self
+
+    @property
+    def home_pc_label(self) -> str:
+        return HOME_PC_LABEL.get(self.home_pc, self.home_pc)
+
+    @property
+    def internet_label(self) -> str:
+        return INTERNET_LABEL.get(self.internet, self.internet)
+
+    @property
+    def blocking_accounts(self) -> list[AccountNeed]:
+        """없으면 아예 못 쓰는 계정."""
+        return [item for item in self.accounts if item.blocking]
+
+    @property
+    def reviewed_accounts(self) -> list[AccountNeed]:
+        """심사를 기다려야 하는 계정. 일정이 여기서 밀린다."""
+        return [item for item in self.accounts if item.lead_time == "심사 필요"]
+
+    @property
+    def extra_software(self) -> list[SoftwareNeed]:
+        """pip 말고 따로 깔아야 하는 것."""
+        return [item for item in self.software if not item.bundled]
+
+    @property
+    def starts_today(self) -> bool:
+        """오늘 받아서 오늘 쓸 수 있는가."""
+        return not self.reviewed_accounts and self.home_pc != "no"
+
+    @property
+    def signup_free(self) -> bool:
+        """가입 없이 바로 되는가."""
+        return not self.blocking_accounts
+
+
 class ScheduleSpec(BaseModel):
     """이 프로그램을 **얼마나 자주 돌려야 하는가.**
 
@@ -191,6 +306,7 @@ class ProgramManifest(BaseModel):
     manuals: Manuals = Field(default_factory=Manuals)
     run: RunSpec | None = None
     schedule: ScheduleSpec = Field(default_factory=ScheduleSpec)
+    requirements: Requirements = Field(default_factory=Requirements)
 
     # 로드 시 채워진다. YAML 에는 쓰지 않는다.
     directory: Path = Field(default=Path("."), exclude=True)
@@ -207,6 +323,11 @@ class ProgramManifest(BaseModel):
     def recurring(self) -> bool:
         """매일·매주처럼 되풀이해 돌려야 하는 프로그램인가."""
         return self.schedule.recurring
+
+    @property
+    def runs_at_home(self) -> bool:
+        """집 컴퓨터에서 그대로 도는가."""
+        return self.requirements.home_pc == "yes"
 
     def default_settings(self) -> dict[str, object]:
         """설정 항목의 기본값 묶음."""

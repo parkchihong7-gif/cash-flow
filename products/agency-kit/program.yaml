@@ -315,6 +315,57 @@ manuals:
   admin: docs/admin.md
   client: docs/client.md
 
+# 권한·환경 — 쓰기 전에 무엇이 필요한가 (🔑 권한·환경 화면)
+# 이 상품은 '납품' 이라 고객 계정의 권한까지 챙겨야 한다. 그래서 목록이 길다.
+requirements:
+  home_pc: partial
+  home_pc_note: >-
+    만들고 시험하는 것은 집 컴퓨터로 됩니다. 다만 카카오 스킬 서버와 인스타 예약은
+    24시간 켜져 있어야 해서, 납품할 때는 고객 쪽 서버나 월 5천 원대 클라우드에 올립니다.
+  internet: needed
+  accounts:
+    - name: 카카오 i 오픈빌더 + 카카오톡 채널
+      why: 모듈 A(FAQ 챗봇)를 붙일 곳입니다
+      cost: 무료
+      lead_time: 심사 필요
+      how: business.kakao.com 에서 채널 개설 → i 오픈빌더 신청. 심사가 있습니다
+      blocking: true
+    - name: 인스타그램 비즈니스 계정 + 페이스북 앱
+      why: 모듈 C(예약 게시)에 필요합니다. 개인 계정으로는 안 됩니다
+      cost: 무료
+      lead_time: 심사 필요
+      how: 페이스북 페이지 연결 → developers.facebook.com 앱 생성 → 권한 검수
+      env_key: IG_ACCESS_TOKEN
+      blocking: true
+    - name: 구글 서비스 계정(시트 읽기)
+      why: 모듈 A 의 FAQ 와 모듈 B 의 매출 자료를 읽습니다
+      cost: 무료
+      lead_time: 즉시
+      how: console.cloud.google.com 에서 서비스 계정 → 키(JSON) → 시트를 그 주소에 공유
+      env_key: GOOGLE_CREDENTIALS_JSON
+      blocking: false
+    - name: Claude API 키
+      why: FAQ 에 없는 질문 답변, 보고서 해설 3줄
+      cost: 쓴 만큼
+      lead_time: 즉시
+      how: console.anthropic.com 에서 발급
+      env_key: ANTHROPIC_API_KEY
+      blocking: false
+  software:
+    - name: 도커(Docker)
+      why: 카카오 스킬 서버를 고객 서버에 올릴 때 가장 간단합니다
+      how: docker.com 에서 설치. 직접 python 으로 띄워도 됩니다
+      bundled: false
+  limits:
+    - 카카오 오픈빌더 스킬은 **5초 안에** 답해야 합니다. 그래서 Claude 를 4초에서 끊습니다
+    - 인스타 게시는 계정당 24시간에 25건까지입니다
+    - 인스타 토큰은 60일마다 갱신해야 합니다. 안 하면 조용히 멈춥니다
+  cautions:
+    - 팔로우·좋아요·콜드 DM 기능은 넣지 않았습니다. Meta 정책 위반이고 계정이 정지됩니다
+    - 캡션은 사람이 승인해야 큐에 들어갑니다. 승인 없이 올라가지 않습니다
+    - 로그에 고객 문의 원문을 저장하지 않습니다 (개인정보)
+    - 이 키트는 반복 업무 자동화 도구이며 매출을 보장하지 않습니다
+
 # 정기 실행 — 납품한 뒤 매주 도는 것이 리테이너의 본체다.
 schedule:
   cadence: weekly
