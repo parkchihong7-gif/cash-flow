@@ -1,0 +1,196 @@
+id: exam-drill
+number: 13
+name: 공인중개사 기출 풀이 분석기
+tagline: 몇 개 틀렸는지가 아니라 어디서 왜 틀렸는지
+status: ready
+version: "1.0.0"
+
+summary: |
+  기출을 풀고 **채점만 하고 넘기는 일**을 막습니다.
+
+  본인이 푼 결과(O/X · 단원 · 왜 틀렸는지)를 표에 적으면,
+  **과락 위험 과목**부터 짚고 약한 단원과 처방을 돌려줍니다.
+
+  **기출문제는 들어 있지 않습니다.** 문제 지문·보기·정답을 담지도 배포하지도
+  않고, 적는 칸조차 없습니다. 시험문제는 어문저작물로 보호받기 때문입니다.
+  가지고 계신 문제집으로 푸시고 결과만 적으시면 됩니다.
+
+  계정도 인터넷도 필요 없습니다. 합격을 약속하지 않습니다.
+
+steps:
+  - title: 빈 기록표 만들기
+    body: >-
+      `python cli.py sheet --round 36회` 로 회차별 빈 표를 만듭니다.
+      과목을 고르면 그 과목만 나옵니다. 엑셀로 열면 됩니다.
+    estimate: 1분
+  - title: 풀면서 O/X 적기
+    body: >-
+      맞으면 O, 틀리면 X. 안 푼 줄은 비워 두면 계산에서 빠집니다.
+      한 번에 다 채울 필요가 없습니다.
+    estimate: 회차당 50분
+  - title: 단원 고르기
+    body: >-
+      그 문제가 어느 단원인지 본인이 적습니다. `python cli.py subjects` 에
+      과목별 단원 목록이 있습니다. 분류하는 일 자체가 공부입니다.
+    estimate: 문항당 5초
+  - title: 왜 틀렸는지 적기
+    body: >-
+      몰라서 / 헷갈려서 / 실수 / 시간부족 중 하나. **여기가 이 상품의 핵심입니다.**
+      이유마다 해야 할 일이 다릅니다.
+    estimate: 문항당 5초
+  - title: 표가 제대로 적혔는지 보기
+    body: >-
+      `python cli.py check` 는 이유나 단원을 빠뜨린 문항 수만 알려 줍니다.
+      보고서를 만들기 전에 한 번 돌려 보면 헛수고를 줄입니다.
+    estimate: 10초
+  - title: 보고서 만들기
+    body: >-
+      `python cli.py report` 로 마크다운과 HTML 두 벌이 나옵니다.
+      과락 위험이 맨 위에 옵니다.
+    estimate: 10초
+  - title: 2주 뒤 다시
+    body: >-
+      약한 단원을 보완한 뒤 같은 회차나 다른 회차를 풀고 표를 새로 만듭니다.
+      숫자가 움직이는지 보는 것이 이 도구의 쓰임입니다.
+    estimate: 2주 뒤
+
+faq:
+  - q: 기출문제도 같이 주나요?
+    a: >-
+      주지 않습니다. 시험문제는 어문저작물로 보호받습니다(대법원 2007다354 등).
+      문제집은 따로 구하셔야 하고, 이 프로그램은 푸신 결과만 다룹니다.
+    audience: both
+  - q: 틀린 문제와 비슷한 문제를 만들어 주나요?
+    a: >-
+      만들지 않습니다. 원문을 바탕으로 파생물을 만드는 일이라 넣지 않았습니다.
+      대신 약한 단원을 알려 드리니 그 단원 문제를 문제집에서 더 푸세요.
+    audience: both
+  - q: 인터넷이나 계정이 필요한가요?
+    a: >-
+      필요 없습니다. 집 컴퓨터에서 그대로 돕니다. 마지막 '다음 2주' 계획만
+      Claude 를 쓰는데 그것도 선택입니다. 없으면 규칙으로 씁니다.
+    audience: both
+  - q: 합격 점수를 예측해 주나요?
+    a: >-
+      하지 않습니다. 보고서의 환산 점수는 "지금 정답률이 40문항 내내 이어진다면"
+      이라는 가정입니다. 실제 시험은 회차마다 난이도가 다릅니다.
+    audience: both
+  - q: 왜 평균이 아니라 과락을 먼저 보여 주나요?
+    a: >-
+      절대평가라서 평균 65점으로 떨어지는 일이 생깁니다. 한 과목이 38점이면
+      나머지가 아무리 좋아도 불합격입니다. 그래서 순서를 바꿔 뒀습니다.
+    audience: both
+  - q: 단원을 잘못 분류하면 어떻게 되나요?
+    a: >-
+      그만큼 결과가 어긋납니다. 다만 분류가 조금 틀려도 '왜 틀렸나' 통계는
+      그대로 쓸모가 있습니다. 완벽하게 적으려 애쓰지 마세요.
+    audience: client
+  - q: 3문항 미만 단원은 왜 안 나오나요?
+    a: >-
+      두 문제 중 하나 틀린 것을 50%라고 적으면 숫자가 아니라 착시입니다.
+      더 푸시면 그때 표에 들어옵니다. 기준은 설정에서 바꿀 수 있습니다.
+    audience: both
+  - q: 파는 값은 어느 정도가 적당한가요?
+    a: >-
+      기본 29,000원, 첫 회차를 같이 채워 주는 세팅 포함 59,000원 정도로 잡았습니다.
+      "엑셀로 하면 되지 않냐" 는 말은 반드시 듣습니다. 관리자 매뉴얼 5장에 답이 있습니다.
+    audience: admin
+
+settings:
+  - key: MIN_SAMPLE
+    label: 단원별 표에 넣을 최소 문항 수
+    type: number
+    default: 3
+    help: >-
+      이보다 적게 푼 단원은 정답률을 계산하지 않습니다.
+      두 문제 중 하나를 50%라고 부르지 않기 위해서입니다.
+  - key: TARGET_SECONDS
+    label: 문항당 기준 시간(초)
+    type: number
+    default: 75
+    help: 한 과목 50분 40문항 기준입니다. 실전보다 빡빡하게 잡으려면 65로 내리세요.
+  - key: CLAUDE_MODEL
+    label: 계획을 쓸 모델
+    type: select
+    default: claude-sonnet-4-6
+    options: [claude-sonnet-4-6, claude-opus-5]
+    help: "'다음 2주' 계획에만 씁니다. 안 써도 규칙으로 계획이 나옵니다."
+  - key: AI_LABEL
+    label: AI 생성물 표시
+    type: boolean
+    default: true
+    help: 계획을 Claude 가 쓴 보고서에 고지 한 줄을 붙입니다 (인공지능기본법).
+
+editable_files:
+  - path: exam_drill/syllabus.py
+    label: 과목·단원 목록
+    kind: text
+    help: >-
+      **교재마다 단원 이름이 다릅니다.** 고객이 쓰는 교재에 맞춰 바꿔 주면
+      만족도가 확 오릅니다. 이 상품에서 가장 먼저 손볼 곳입니다.
+  - path: exam_drill/records.py
+    label: 틀린 이유와 처방 문장
+    kind: text
+    help: >-
+      REASON_FIX 가 이 상품에서 가장 값어치 있는 텍스트입니다.
+      이유마다 무엇을 해야 하는지 적힌 곳입니다.
+  - path: README.md
+    label: 상품 설명·판매 문구
+    kind: markdown
+    help: 판매 문구 초안이 맨 아래에 있습니다.
+
+outputs:
+  - path: outputs/report_<날짜>.md
+    label: 분석 보고서
+    description: 과락 위험 · 과목별 환산 점수 · 약한 단원 · 왜 틀렸나 · 시간 · 다음 2주
+  - path: outputs/report_<날짜>.html
+    label: 보고서 (그림 포함)
+    description: 같은 내용에 막대그래프. 인터넷이 없으면 표만 보이고 이유를 적습니다
+  - path: data/records_<회차>.csv
+    label: 빈 기록표
+    description: 회차별 40문항 표. 문제 지문을 적는 칸은 없습니다
+
+pricing:
+  - plan: 기본
+    price: 29000
+    description: 프로그램 + 사용 설명서
+  - plan: 세팅 포함
+    price: 59000
+    description: 위 + 화상 1회로 첫 회차 같이 채우기
+
+manuals:
+  admin: docs/admin.md
+  client: docs/client.md
+
+# 권한·환경 — 쓰기 전에 무엇이 필요한가 (🔑 권한·환경 화면)
+requirements:
+  home_pc: yes
+  internet: optional
+  accounts:
+    - name: Claude API 키
+      why: "'다음 2주' 계획 문장에만 씁니다. 없으면 규칙으로 씁니다"
+      cost: 한 번에 100원 안팎
+      lead_time: 즉시
+      how: console.anthropic.com 에서 발급
+      env_key: ANTHROPIC_API_KEY
+      blocking: false
+  limits:
+    - 인터넷 없이 돕니다. 계정도 한도도 없습니다
+  cautions:
+    - 기출문제 지문·보기·정답을 담거나 배포하지 않습니다 (시험문제는 어문저작물)
+    - 틀린 문제와 비슷한 문제를 지어내는 기능은 넣지 않았습니다
+    - 시험 점수를 예측하거나 합격을 약속하지 않습니다
+    - 기록 파일에는 본인 풀이 결과만 들어갑니다. 인터넷으로 나가지 않습니다
+
+# 정기 실행 — 회차를 풀 때마다. 정해진 주기는 없다.
+schedule:
+  cadence: manual
+  command: "python cli.py report --input data/records_36회.csv"
+  why: 한 회차를 다 풀고 나면 한 번. 보통 주 1회 정도가 됩니다.
+
+run:
+  input_file: data/records.csv
+  command: ["python", "cli.py", "report", "--input", "{input}"]
+  dry_run_command: ["python", "cli.py", "report", "--demo", "--dry-run"]
+  output_dir: outputs
+  timeout_seconds: 300

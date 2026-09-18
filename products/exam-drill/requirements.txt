@@ -1,0 +1,5 @@
+# 13. 공인중개사 기출 풀이 분석기
+# 루트 requirements.txt 로 한 번에 깔아도 됩니다.
+pydantic>=2.7
+python-dotenv>=1.0
+anthropic>=0.40        # '다음 2주' 계획에만. 없어도 나머지는 다 돕니다
