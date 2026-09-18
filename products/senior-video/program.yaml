@@ -1,0 +1,232 @@
+id: senior-video
+number: 14
+name: 시니어 영상 비용 견적·절감기
+tagline: 어디서 새는지 짚고, 아끼는 대가까지 같이 적습니다
+status: ready
+version: "1.0.0"
+
+summary: |
+  시니어 시청자를 노린 유튜브 채널의 **제작 비용이 어디서 새는지** 찾습니다.
+
+  음성·이미지·대본·렌더로 쪼갠 견적서를 만들고, 절감안마다 **무엇을 내주는지**
+  같이 적습니다. "품질 그대로 비용만 절반" 은 대개 거짓말이라 그렇게 쓰지 않습니다.
+
+  여기에 **시니어 시청자 규격**(자막 크기·말 속도·배경음·장면 길이)을 점검합니다.
+  취향이 아니라 몸이 달라서 생기는 기준이고, 이 규격 자체가 파는 것의 큰 부분입니다.
+
+  **자동 업로드 프로그램이 아닙니다.** 사람이 승인한 것만 올라가고, 승인 없이
+  올리는 경로가 코드에 없습니다. 유튜브 2025.7 양산형 콘텐츠 정책 때문입니다.
+  덧붙여 API 업로드는 쿼터상 **하루 6편**이 한계입니다.
+
+steps:
+  - title: 기획 수치 적기
+    body: >-
+      `plan.yaml` 에 대본 글자 수·이미지 장 수·월 편수와 쓸 음성 엔진을 적습니다.
+      시니어 규격 항목은 비워 둬도 됩니다.
+    estimate: 5분
+  - title: 견적 내기
+    body: >-
+      `python cli.py estimate --input plan.yaml`. 항목별로 쪼갠 표와
+      **가장 큰 줄**이 나옵니다. 줄이려면 거기부터 봅니다.
+    estimate: 10초
+  - title: 절감안에서 대가 확인하기
+    body: >-
+      ⚠ 표시가 붙은 것은 시니어 시청자에게 불리해지는 선택입니다.
+      아끼는 돈이 연 1만 원대인데 시청자가 떠나면 손해입니다.
+    estimate: 5분
+  - title: 시니어 규격 점검
+    body: >-
+      자막 크기·말 속도·배경음·장면 길이가 권장값에 맞는지 봅니다.
+      벗어난 항목은 **왜 그게 중요한지**까지 견적서에 적힙니다.
+    estimate: 5분
+  - title: 업로드 한도 확인
+    body: >-
+      `python cli.py quota --monthly 60`. 하루 6편이 끝이라는 사실과,
+      새 프로젝트는 감사를 받기 전까지 영상이 비공개로 잠긴다는 것을 미리 봅니다.
+    estimate: 1분
+  - title: 만든 영상을 대기열에 넣기
+    body: >-
+      `python cli.py queue add "제목"`. 항상 초안으로 들어갑니다.
+      상태를 직접 지정하는 방법이 없습니다.
+    estimate: 10초
+  - title: 사람이 승인하기
+    body: >-
+      `python cli.py approve 1 --by 홍길동`. **승인자 이름이 없으면 거절합니다.**
+      이름 없는 승인은 자동 승인과 다르지 않기 때문입니다.
+      승인 전에 대본을 소리 내어 한 번 읽어 보세요.
+    estimate: 편당 10분
+
+faq:
+  - q: 자동으로 업로드해 주나요?
+    a: >-
+      하지 않습니다. 유튜브가 2025년 7월부터 사람 손이 안 닿은 양산형 콘텐츠를
+      수익 창출에서 빼고 있습니다. 승인 대기열까지만 만들고, 올리는 것은 사람이 합니다.
+    audience: both
+  - q: 하루에 몇 편까지 올릴 수 있나요?
+    a: >-
+      API 로는 하루 6편입니다. 하루 한도 10,000 유닛인데 업로드 한 번이
+      1,600 유닛이기 때문입니다. 돈을 더 낸다고 늘지 않고 구글 심사를 받아야 합니다.
+    audience: both
+  - q: 왜 올린 영상이 비공개로 잠기나요?
+    a: >-
+      새로 만든 구글 API 프로젝트의 기본 동작입니다. 구글에 API 감사(audit)를
+      신청해 승인받아야 공개로 올라갑니다. 며칠에서 몇 주가 걸리니 채널을 열기
+      전에 먼저 신청하세요.
+    audience: both
+  - q: 견적이 실제 청구액과 다르면요?
+    a: >-
+      추정치입니다. 공개 요금표로 계산했고 요금제는 자주 바뀝니다.
+      `python cli.py rates` 로 단가마다 출처와 기준일을 볼 수 있습니다.
+    audience: both
+  - q: 왜 시니어 규격이 따로 있나요?
+    a: >-
+      취향이 아니라 몸이 다르기 때문입니다. 고주파부터 안 들리기 시작해서 자음이
+      먼저 뭉개지고, 노안으로 작은 자막을 못 읽습니다. 젊은 시청자 기준으로 만들면
+      끝까지 보는 사람이 줄어듭니다.
+    audience: both
+  - q: 음성을 싼 엔진으로 바꿔도 되나요?
+    a: >-
+      됩니다. 다만 ⚠ 표시가 붙은 것은 시니어 적합도가 떨어지는 선택입니다.
+      아끼는 돈과 잃는 것을 견적서에 나란히 적어 두었으니 보고 정하세요.
+    audience: client
+  - q: 조회수나 수익을 예측해 주나요?
+    a: 하지 않습니다. 이 상품은 비용 쪽만 봅니다.
+    audience: both
+  - q: 월 관리 플랜에서는 무엇을 하나요?
+    a: >-
+      분기마다 단가표 갱신, 월 1회 규격 점검 보고서, 견적 대비 실제 청구액 비교,
+      그리고 유튜브 정책 변경 알림입니다. 마지막이 사실상 가장 값어치 있습니다.
+    audience: admin
+
+settings:
+  - key: DEFAULT_TTS
+    label: 기본 음성 엔진
+    type: select
+    default: clova
+    options: [clova, google-neural, google-standard, elevenlabs, local-piper]
+    help: >-
+      한국어 시니어 대상은 클로바가 가장 잘 맞습니다. 중저음 화자가 여럿 있고
+      억양이 자연스럽습니다.
+  - key: MONTHLY_VIDEOS
+    label: 월 제작 편수
+    type: number
+    default: 20
+    help: 하루 6편이 API 한도입니다. 월 180편을 넘기면 쿼터를 넘습니다.
+  - key: SUBTITLE_PX
+    label: 자막 글자 크기 권장값(1080p)
+    type: number
+    default: 64
+    help: 화면 높이의 6% 정도입니다. 시니어 대상은 이보다 키워도 좋습니다.
+  - key: BGM_DB
+    label: 배경음악 권장 크기(dB)
+    type: number
+    default: -18
+    help: >-
+      말소리 대비입니다. 젊은 시청자 기준은 -12 인데 시니어 대상은 더 낮춰야 합니다.
+      아예 빼는 것도 좋습니다.
+  - key: REQUIRE_APPROVER_NAME
+    label: 승인자 이름 필수
+    type: boolean
+    default: true
+    help: >-
+      끄지 마세요. 이름 없는 승인은 자동 승인과 다르지 않고, 그러면 양산형
+      업로드가 됩니다.
+
+editable_files:
+  - path: data/unit_costs.yaml
+    label: 단가표
+    kind: yaml
+    help: >-
+      **분기에 한 번은 갱신하세요.** 요금제는 자주 바뀝니다.
+      출처가 8자 미만이면 프로그램이 읽기를 거절합니다. 근거도 같이 고치라는 뜻입니다.
+  - path: senior_video/senior.py
+    label: 시니어 시청자 규격
+    kind: text
+    help: >-
+      이 상품에서 가장 값어치 있는 텍스트입니다. 각 규칙의 why 가 중요합니다.
+      "자막을 크게" 는 누구나 하지만 "고주파부터 안 들려서 자음이 뭉개진다" 는 다릅니다.
+  - path: plan.yaml
+    label: 영상 기획 입력
+    kind: yaml
+    help: 견적을 낼 기획 수치입니다. 고객마다 새로 만드세요.
+  - path: README.md
+    label: 상품 설명·판매 문구
+    kind: markdown
+    help: 판매 문구 초안이 맨 아래에 있습니다.
+
+outputs:
+  - path: outputs/estimate_<날짜>.md
+    label: 비용 견적서
+    description: 항목별 비용 · 가장 큰 줄 · 절감안과 대가 · 규격 점검 · 업로드 한도
+  - path: queue.db
+    label: 승인 대기열
+    description: 초안 → 사람 승인 → 올림. 승인자 이름과 날짜가 남습니다
+  - path: data/unit_costs.yaml
+    label: 단가표
+    description: 항목마다 출처와 기준일이 붙은 요금 자료
+
+pricing:
+  - plan: 견적 1회
+    price: 90000
+    description: 채널 하나 견적 + 규격 점검 보고서
+  - plan: 세팅
+    price: 350000
+    description: 위 + 단가표 맞춤 + 승인 흐름 설치
+  - plan: 월 관리
+    price: 80000
+    description: 분기 단가 갱신 + 월 1회 규격 점검 + 정책 변경 알림
+
+manuals:
+  admin: docs/admin.md
+  client: docs/client.md
+
+# 권한·환경 — 쓰기 전에 무엇이 필요한가 (🔑 권한·환경 화면)
+# 견적만 낼 거면 아무것도 필요 없다. 실제로 올릴 때부터 길어진다.
+requirements:
+  home_pc: yes
+  internet: none
+  accounts:
+    - name: 유튜브 채널
+      why: 올릴 곳입니다. 견적만 내실 거면 없어도 됩니다
+      cost: 무료
+      lead_time: 즉시
+      how: 구글 계정으로 채널 개설
+      blocking: false
+    - name: 구글 API 프로젝트 + OAuth 클라이언트
+      why: 업로드는 API 키가 아니라 OAuth 로만 됩니다
+      cost: 무료
+      lead_time: 즉시
+      how: console.cloud.google.com → YouTube Data API v3 사용 설정 → OAuth 클라이언트(데스크톱)
+      env_key: YOUTUBE_OAUTH_CLIENT_JSON
+      blocking: false
+    - name: 구글 API 감사(audit) 승인
+      why: >-
+        받기 전에는 API 로 올린 영상이 비공개로 잠깁니다. 공개로 올리려면 필요합니다
+      cost: 무료
+      lead_time: 심사 필요
+      how: 구글 클라우드 콘솔에서 YouTube API 감사 신청. 며칠에서 몇 주
+      blocking: false
+  limits:
+    - 하루 10,000 유닛. 업로드 한 번이 1,600 유닛이라 하루 6편이 한계입니다
+    - 월로 치면 180편. 그 이상은 쿼터 상향 심사를 받아야 합니다
+    - 견적과 규격 점검은 외부 호출이 없어 한도가 없습니다
+  cautions:
+    - 사람 검수 없는 대량 업로드는 만들지 않습니다 (유튜브 2025.7 양산형 콘텐츠 정책)
+    - 승인자 이름이 없으면 승인으로 치지 않습니다
+    - 단가는 추정치입니다. 실제 청구액은 각 서비스의 사용량 화면이 기준입니다
+    - 조회수나 수익을 예측하지 않습니다
+
+# 정기 실행 — 단가가 바뀌니 분기에 한 번은 견적을 다시 낸다.
+schedule:
+  cadence: monthly
+  at: 매달 첫 주
+  command: "python cli.py estimate --input plan.yaml"
+  why: 요금제가 바뀌면 견적이 조용히 틀어집니다. 달마다 한 번은 다시 냅니다.
+  skipped: 몇 달 지난 단가로 견적을 내면 실제 청구액과 벌어집니다.
+
+run:
+  input_file: plan.yaml
+  command: ["python", "cli.py", "estimate", "--input", "{input}"]
+  dry_run_command: ["python", "cli.py", "estimate", "--demo"]
+  output_dir: outputs
+  timeout_seconds: 120

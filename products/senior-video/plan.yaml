@@ -1,0 +1,20 @@
+# 영상 기획 — 이 값으로 견적을 냅니다.
+# 시니어 규격 항목은 비워 두셔도 됩니다. 적으시면 맞는지 봐 드립니다.
+
+title: 어르신을 위한 스마트폰 사용법
+script_chars: 1500      # 대본 글자 수 (10분 영상이면 2,700자쯤)
+images: 12              # 쓸 이미지 장 수
+monthly_videos: 20      # 한 달에 몇 편
+
+tts: clova              # google-standard / google-neural / clova / elevenlabs / local-piper
+image_source: stock-free  # stock-free / ai-image / stock-paid
+script_source: claude-sonnet  # claude-sonnet / claude-opus / 직접작성
+
+# ---- 시니어 시청자 규격 (권장값은 `python cli.py spec` 으로) ----
+subtitle_px: 54         # 1080p 기준 자막 글자 크기. 권장 64 이상
+subtitle_chars: 18      # 자막 한 줄 글자 수. 권장 16 이하
+speech_rate: 330        # 분당 음절. 권장 300 이하
+bgm_db: -12             # 말소리 대비 배경음. 권장 -18 이하
+scene_seconds: 3        # 장면 유지 시간. 권장 4 이상
+contrast: 3.2           # 글자/배경 명도 대비. 권장 4.5 이상
+length_minutes: 9

@@ -1,0 +1,9 @@
+# 14. 시니어 영상 제작 비용 견적·절감기
+# 견적과 규격 점검은 외부 호출이 없습니다. 아래 둘이면 됩니다.
+pydantic>=2.7
+PyYAML>=6.0
+python-dotenv>=1.0
+
+# 실제로 유튜브에 올리실 때만 (선택)
+# google-api-python-client>=2.0
+# google-auth-oauthlib>=1.0
