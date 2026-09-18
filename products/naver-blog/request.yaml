@@ -1,0 +1,19 @@
+# 초안 요청 — 이 값으로 글을 씁니다.
+
+topic: 전세 계약할 때 확인할 것
+keyword: 전세 계약 주의사항
+audience: 처음 전세를 구하는 사회 초년생
+tone: 차분하고 담백하게
+
+# 대가를 받은 글인가요?
+#   none       받은 것 없음
+#   sponsored  원고료를 받음
+#   affiliate  제휴 링크가 있음
+#   paid       그 밖의 대가를 받음
+#   gift       제품을 무상으로 받음
+sponsor_kind: none
+sponsor_name: ""      # 광고주 이름. 대가를 받았다면 꼭 적으세요
+
+must_include:
+  - 등기부등본 확인
+  - 전세보증금 반환보증

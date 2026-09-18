@@ -1,0 +1,5 @@
+# 15. 네이버 블로그 포스팅 초안 생성기
+pydantic>=2.7
+PyYAML>=6.0
+python-dotenv>=1.0
+anthropic>=0.40        # 초안 문장에만. 없으면 뼈대만 만듭니다
