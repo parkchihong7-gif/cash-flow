@@ -50,3 +50,10 @@ Thumbs.db
 # 정적 스냅샷 결과 (python -m dashboard.snapshot)
 dashboard-snapshot/
 dashboard-snapshot.zip
+
+# 교육자료용 화면 캡처 (용량이 커서 커밋하지 않는다. tools/capture_screens.py 로 다시 만든다)
+docs/training/screens/
+
+# 교육자료 pptx (용량. tools/deck_*.js 로 다시 만든다)
+docs/training/*.pptx
+docs/training/*.pdf

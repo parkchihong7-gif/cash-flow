@@ -17,7 +17,7 @@
 
   {% if panel.table %}
     {% if panel.table.empty %}
-      <p class="help">{{ panel.table.note or '아직 보여 드릴 것이 없습니다.' }}</p>
+      <p class="help">{{ (panel.table.note or '아직 보여 드릴 것이 없습니다.') | md }}</p>
     {% else %}
     <table class="ptable">
       <tr>{% for h in panel.table.headers %}
@@ -31,7 +31,7 @@
       </tr>
       {% endfor %}
     </table>
-    {% if panel.table.note %}<p class="help">{{ panel.table.note }}</p>{% endif %}
+    {% if panel.table.note %}<p class="help">{{ panel.table.note | md }}</p>{% endif %}
     {% endif %}
   {% endif %}
 
