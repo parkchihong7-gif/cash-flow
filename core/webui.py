@@ -39,7 +39,9 @@ from typing import Any, Callable
 
 __all__ = [
     "Field", "Panel", "WebUI", "Table", "Note", "MODES", "MODE_LABEL",
-    "default_webui", "load_webui", "load_handler", "field_from_setting",
+    "default_webui", "generator_webui", "load_webui", "load_handler",
+    "field_from_setting", "yaml_input_panel", "outputs_panel",
+    "write_yaml_fields", "read_yaml_fields",
 ]
 
 MODES = ("admin", "client")
@@ -340,3 +342,143 @@ def load_webui(program, ctx: dict | None = None) -> WebUI:
         return default_webui(program)
     result.custom = True
     return result
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 생성기 상품용 공통 화면
+#
+# 1~6·9번(퍼널·후킹·전자책·강의·크몽카피·n8n·노션)은 하는 일의 모양이 같다.
+#
+#     입력 파일(yaml)을 채운다 → 돌린다 → 산출물을 본다
+#
+# 상품마다 다른 것은 **입력 칸**뿐이다. 그래서 껍데기를 여기 한 번 만들고
+# 상품은 칸만 넘긴다. 2·3차에 화면 모양을 바꿀 때도 여기만 고치면 일곱 종이
+# 같이 바뀐다.
+# ─────────────────────────────────────────────────────────────────────
+
+def yaml_input_panel(title: str, intro: str, fields: list[Field],
+                     action: str = "do:save", label: str = "저장하기") -> Panel:
+    """입력 파일을 채우는 패널."""
+    return Panel(key="input", title=title, intro=intro, fields=fields,
+                 action=action, action_label=label)
+
+
+def outputs_panel(program, latest: list[tuple[str, str]] | None = None) -> Panel:
+    """산출물 설명 + 최근에 만든 것 링크."""
+    rows = [[item.label, f"`{item.path}`", item.description]
+            for item in program.outputs]
+    return Panel(
+        key="outputs", title="나오는 것",
+        table=Table(headers=["무엇", "어디에", "설명"], rows=rows),
+        downloads=latest or [],
+        note="산출물은 `outputs/` 폴더에 쌓입니다.")
+
+
+def generator_webui(program, input_fields: list[Field], *,
+                    admin_intro: str = "", client_intro: str = "",
+                    input_title: str = "무엇을 만들까요",
+                    input_intro: str = "",
+                    client_fields: list[Field] | None = None,
+                    extra_admin: list[Panel] | None = None,
+                    latest: list[tuple[str, str]] | None = None) -> WebUI:
+    """입력 → 생성 → 산출물 꼴의 상품에 쓰는 공통 화면.
+
+    Args:
+        input_fields: 관리자 화면의 입력 칸.
+        client_fields: 고객 화면의 입력 칸. 비우면 `input_fields` 에서
+            `admin_only` 를 뺀 것을 쓴다.
+    """
+    run_admin = Panel(
+        key="run", title="만들어 보기",
+        intro="**모의 실행은 Claude 를 부르지 않아 비용이 0원입니다.** "
+              "값이 제대로 들어갔는지 먼저 이걸로 보세요.",
+        action="run", action_label="모의 실행", run_mode="dry",
+        note="실제 실행은 아래에 있습니다. API 비용이 듭니다.")
+    run_real = Panel(
+        key="run_real", title="실제로 만들기",
+        intro="Claude 를 부릅니다. **비용이 듭니다.**",
+        action="run", action_label="실제 실행", run_mode="real", tone="warn")
+
+    admin = [
+        yaml_input_panel(input_title, input_intro, input_fields),
+        run_admin,
+        run_real,
+        outputs_panel(program, latest),
+    ]
+    if extra_admin:
+        admin += extra_admin
+
+    shown = client_fields if client_fields is not None else [
+        field for field in input_fields if not field.admin_only]
+    client = [
+        yaml_input_panel(input_title, input_intro, shown),
+        Panel(key="run", title="만들기",
+              intro="누르시면 결과물이 만들어집니다.",
+              action="run", action_label="만들기", run_mode="dry"),
+        outputs_panel(program, latest),
+    ]
+
+    return WebUI(
+        program_id=program.id, title=program.name,
+        admin=admin, client=client,
+        admin_intro=admin_intro or f"**{program.name}** 의 관리자 화면입니다.",
+        client_intro=client_intro or (program.tagline or program.name),
+    )
+
+
+def read_yaml_fields(path) -> dict:
+    """입력 파일을 읽는다. 없거나 깨졌으면 빈 dict."""
+    import yaml as _yaml
+
+    path = Path(path)
+    if not path.is_file():
+        return {}
+    try:
+        return _yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except Exception:
+        return {}
+
+
+def write_yaml_fields(path, form: dict, *, int_keys: tuple = (),
+                      list_keys: tuple = (), required: tuple = (),
+                      allowed: tuple = ()) -> str:
+    """폼 값을 입력 yaml 에 합쳐 저장한다.
+
+    생성기 상품 일곱 종이 똑같이 하는 일이라 한 곳에 모았다. 돌려주는 값은
+    화면에 띄울 질의 문자열이다.
+
+    Args:
+        int_keys: 숫자로 바꿀 키.
+        list_keys: 줄바꿈으로 나눠 목록으로 만들 키.
+        required: 비면 거절할 키.
+        allowed: 이 키들만 받는다. 비우면 폼에 온 것을 다 받는다.
+    """
+    import yaml as _yaml
+
+    path = Path(path)
+    payload = read_yaml_fields(path)
+
+    for key in required:
+        if not str(form.get(key) or "").strip():
+            return f"error={key} 를 적어 주세요"
+
+    for key, raw in form.items():
+        if allowed and key not in allowed:
+            continue
+        text = str(raw).strip()
+        if key in int_keys:
+            if text == "":
+                continue
+            try:
+                payload[key] = int(float(text))
+            except ValueError:
+                return f"error={key} 는 숫자로 적어 주세요"
+        elif key in list_keys:
+            payload[key] = [line.strip() for line in text.splitlines() if line.strip()]
+        else:
+            payload[key] = text
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(_yaml.safe_dump(payload, allow_unicode=True, sort_keys=False),
+                    encoding="utf-8")
+    return "saved=저장했습니다. 아래에서 돌려 보세요"

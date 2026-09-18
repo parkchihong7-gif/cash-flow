@@ -88,10 +88,14 @@ def test_client_mode_hides_admin_tools(client):
 
 
 def test_admin_mode_shows_them(client):
-    """전용 화면이 없는 상품은 기본 화면이 뜬다. 거기엔 실제 실행이 있다."""
+    """관리자 화면에는 파일 편집과 **실제 실행**이 있다.
+
+    패널 제목은 상품마다 다르므로(돌리기/만들기) 제목이 아니라
+    실제 실행 폼이 있는지로 본다.
+    """
     body = client.get("/apps/funnel-builder/admin").text
     assert "편집할 파일" in body
-    assert "실제로 돌리기" in body
+    assert 'value="real"' in body, "실제 실행 폼이 없습니다"
 
 
 def test_client_mode_never_exposes_key_settings(client):

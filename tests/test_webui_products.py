@@ -297,7 +297,259 @@ def test_dedicated_screens_still_render(client, program_id, mode):
     assert "data-back" in response.text
 
 
-def test_a_product_without_a_screen_still_gets_the_default():
-    ui = load_webui(Registry().require("funnel-builder"))
+def test_a_product_without_a_screen_still_gets_the_default(tmp_path):
+    """새 상품을 만들면 webui.py 없이도 화면이 떠야 한다."""
+    program = Registry().require("funnel-builder").model_copy()
+    program.directory = tmp_path          # webui.py 가 없는 폴더
+    ui = load_webui(program)
     assert not ui.custom
     assert ui.admin and ui.client
+
+
+# ═══════════════════════════════════════════════ 3단계 — 나머지 13종
+ALL_IDS = [program.id for program in Registry().programs]
+
+
+@pytest.mark.parametrize("program_id", ALL_IDS)
+def test_every_program_now_has_its_own_screen(program_id):
+    """16종 전부 전용 화면을 가진다. 기본 화면으로 떨어지면 안 된다."""
+    ui = load_webui(Registry().require(program_id))
+    assert ui.custom, f"{program_id} 가 아직 기본 화면입니다"
+
+
+@pytest.mark.parametrize("program_id", ALL_IDS)
+def test_no_screen_falls_back_to_broken(program_id):
+    """상품 화면이 깨지면 'broken' 패널이 뜬다. 하나도 없어야 한다."""
+    ui = load_webui(Registry().require(program_id), {"settings": {}})
+    broken = [panel for panel in ui.admin if panel.key == "broken"]
+    assert not broken, f"{program_id}: {broken[0].note if broken else ''}"
+
+
+@pytest.mark.parametrize("program_id", ALL_IDS)
+def test_client_screen_is_never_empty(program_id):
+    ui = load_webui(Registry().require(program_id), {"settings": {}})
+    assert ui.client, f"{program_id} 의 고객 화면이 비어 있습니다"
+    assert ui.client_intro.strip()
+
+
+@pytest.mark.parametrize("program_id", ALL_IDS)
+def test_real_run_never_appears_on_a_client_screen(program_id):
+    """고객이 실수로 API 비용을 쓰는 일을 만들지 않는다."""
+    ui = load_webui(Registry().require(program_id), {"settings": {}})
+    for panel in ui.client:
+        assert panel.run_mode != "real", f"{program_id}/{panel.key}"
+
+
+# ── 16 해외 연사
+def test_speaker_screen_shouts_about_visa_waiver_plus_fee():
+    """무비자 + 강연료는 실무에서 가장 많이 틀리는 조합이다."""
+    ui = load_webui(Registry().require("speaker-desk"))
+    risk = next(panel for panel in ui.admin if panel.key == "risk")
+    bad = [note for note in risk.notes if note.tone == "bad"]
+    assert bad, "위험 조합이 빨갛게 떠야 한다"
+    assert any("무비자" in note.body or "사증면제" in note.body for note in bad)
+
+
+def test_speaker_tax_table_compares_gross_and_net():
+    """500만 원 계약이 641만 원이 되는 것을 계약 전에 봐야 한다."""
+    ui = load_webui(Registry().require("speaker-desk"))
+    tax = next(panel for panel in ui.admin if panel.key == "tax")
+    assert tax.table and tax.table.rows
+    assert "세전으로 적으면" in tax.table.headers
+    assert "세후로 적으면" in tax.table.headers
+
+
+def test_speaker_tax_calculator_shows_both_sides(client):
+    response = client.post("/apps/speaker-desk/admin/do/tax",
+                           data={"amount": "5000000"}, follow_redirects=False)
+    flash = _flash(response)
+    assert "6,410,256" in flash
+    assert "1,410,256" in flash
+
+
+def test_speaker_calculator_refuses_a_bad_treaty_rate(client):
+    response = client.post("/apps/speaker-desk/admin/do/tax",
+                           data={"amount": "5000000", "treaty": "22"},
+                           follow_redirects=False)
+    assert "0 이상 1 미만" in _flash(response)
+
+
+def test_speaker_add_validates_before_writing(client, keep):
+    """잘못된 줄이 명부에 들어가면 화면 전체가 안 뜬다."""
+    keep(Path(ROOT / "products" / "speaker-desk" / "event.yaml"))
+    response = client.post(
+        "/apps/speaker-desk/admin/do/add_speaker",
+        data={"name": "Test Person", "country": "Japan",
+              "fee_krw": "1000000", "expenses_only": "1"},
+        follow_redirects=False)
+    assert "둘 다일 수 없습니다" in _flash(response)
+
+
+def test_speaker_add_warns_on_the_dangerous_combination(client, keep):
+    keep(Path(ROOT / "products" / "speaker-desk" / "event.yaml"))
+    response = client.post(
+        "/apps/speaker-desk/admin/do/add_speaker",
+        data={"name": "Risky Guest", "country": "United States",
+              "fee_krw": "3000000", "visa_waiver": "1",
+              "arrival": "2026-11-18", "departure": "2026-11-20"},
+        follow_redirects=False)
+    assert "무비자로 강연할 수 없습니다" in _flash(response)
+
+
+def test_speaker_duplicate_name_is_refused(client, keep):
+    keep(Path(ROOT / "products" / "speaker-desk" / "event.yaml"))
+    response = client.post(
+        "/apps/speaker-desk/admin/do/add_speaker",
+        data={"name": "Jane Doe", "country": "United States"},
+        follow_redirects=False)
+    assert "이미 명부에 있는" in _flash(response)
+
+
+# ── 12 니치 리서치
+def test_niche_screen_flags_missing_days():
+    """거른 날은 영영 빈다. 화면이 알려 줘야 한다."""
+    ui = load_webui(Registry().require("niche-research"))
+    state = next(panel for panel in ui.admin if panel.key == "state")
+    assert state.notes
+
+
+def test_niche_quota_panel_counts_units():
+    ui = load_webui(Registry().require("niche-research"))
+    quota = next(panel for panel in ui.admin if panel.key == "quota")
+    assert any("유닛" in note.title for note in quota.notes)
+
+
+def test_niche_warns_when_over_the_daily_keyword_cap(client, keep):
+    keep(Path(ROOT / "products" / "niche-research" / "keywords.txt"))
+    words = "\n".join(f"키워드{index}" for index in range(90))
+    response = client.post("/apps/niche-research/admin/do/keywords",
+                           data={"words": words}, follow_redirects=False)
+    assert "다음 날로 넘어갑니다" in _flash(response)
+
+
+def test_niche_screen_never_lists_videos_or_channels():
+    """노아AI 전례. 화면에도 영상 제목·채널명을 싣지 않는다."""
+    ui = load_webui(Registry().require("niche-research"))
+    gap = next(panel for panel in ui.admin if panel.key == "gap")
+    if gap.table:
+        for header in gap.table.headers:
+            assert "제목" not in header and "채널명" not in header
+
+
+# ── 10 제휴 매칭
+def test_affiliate_screen_leads_with_the_disclosure():
+    ui = load_webui(Registry().require("affiliate-matcher"))
+    assert ui.admin[0].key == "disclosure"
+    joined = " ".join(note.title + note.body for note in ui.admin[0].notes)
+    assert "쿠팡 파트너스" in joined
+    assert "자격이 정지" in joined
+
+
+def test_affiliate_refuses_a_too_short_body(client, keep):
+    keep(Path(ROOT / "products" / "affiliate-matcher" / "data" / "input.txt"))
+    response = client.post("/apps/affiliate-matcher/admin/do/save",
+                           data={"text": "짧은 글"}, follow_redirects=False)
+    assert "100자 이상" in _flash(response)
+
+
+def test_affiliate_rate_table_carries_sources():
+    ui = load_webui(Registry().require("affiliate-matcher"))
+    rates = next(panel for panel in ui.admin if panel.key == "rates")
+    assert rates.table and rates.table.rows
+    assert "출처" in rates.table.headers
+
+
+# ── 11 대행 키트
+def test_agency_screen_leads_with_pending_reviews():
+    """코드가 다 돼도 심사가 안 나면 못 판다."""
+    ui = load_webui(Registry().require("agency-kit"))
+    assert ui.admin[0].key == "review"
+    joined = " ".join(note.title for note in ui.admin[0].notes)
+    assert "오픈빌더" in joined and "인스타" in joined
+
+
+def test_agency_package_needs_a_client_name(client):
+    response = client.post("/apps/agency-kit/admin/do/package",
+                           data={"plan": "basic", "client": ""},
+                           follow_redirects=False)
+    assert "고객 상호를 적어" in _flash(response)
+
+
+def test_agency_client_screen_lists_what_was_left_out():
+    ui = load_webui(Registry().require("agency-kit"))
+    never = next(panel for panel in ui.client if panel.key == "never")
+    joined = " ".join(never.lines)
+    assert "콜드 DM" in joined
+    assert "사람이 승인한 것만" in joined
+
+
+# ── 8 수익 시뮬레이터
+def test_income_sim_shows_a_projection():
+    ui = load_webui(Registry().require("income-sim"), {"settings": {}})
+    result = next(panel for panel in ui.admin if panel.key == "result")
+    assert result.table and len(result.table.rows) == 12
+    assert any("추정치" in note.title for note in result.notes)
+
+
+def test_income_sim_rejects_a_non_number(client):
+    response = client.post("/apps/income-sim/admin/do/calc",
+                           data={"new_deals_per_month": "두 건"},
+                           follow_redirects=False)
+    assert "숫자로 적어" in _flash(response)
+
+
+# ── 7 공구 정산
+def test_groupbuy_screen_checks_the_inputs_first():
+    """계산이 아니라 원본이 성한지부터 본다."""
+    ui = load_webui(Registry().require("groupbuy-ledger"))
+    assert ui.admin[0].key == "check"
+    joined = " ".join(note.title + note.body for note in ui.admin[0].notes)
+    assert "개인정보" in joined or "참여자 이름" in joined
+
+
+# ── 6 n8n
+def test_n8n_screen_shows_the_four_tips():
+    ui = load_webui(Registry().require("n8n-gen"))
+    tips = next(panel for panel in ui.admin if panel.key == "tips")
+    assert len(tips.lines) == 4
+    assert any("credential" in note.title for note in tips.notes)
+
+
+def test_n8n_refuses_an_empty_request(client, keep):
+    keep(Path(ROOT / "products" / "n8n-gen" / "request.txt"))
+    response = client.post("/apps/n8n-gen/admin/do/save",
+                           data={"requests": "   \n  "}, follow_redirects=False)
+    assert "한 줄에 하나씩" in _flash(response)
+
+
+# ── 생성기 일곱 종 공통
+GENERATORS = ["funnel-builder", "hook-script", "ebook-gen", "lecture-deck",
+              "kmong-copy", "notion-template-kit"]
+
+
+@pytest.mark.parametrize("program_id", GENERATORS)
+def test_generator_screens_share_one_shape(program_id):
+    """한 곳을 고치면 일곱 종이 같이 바뀌어야 한다."""
+    ui = load_webui(Registry().require(program_id))
+    assert [panel.key for panel in ui.admin] == ["input", "run", "run_real", "outputs"]
+    assert [panel.key for panel in ui.client] == ["input", "run", "outputs"]
+
+
+@pytest.mark.parametrize("program_id", GENERATORS)
+def test_generator_input_requires_its_key_field(client, keep, program_id):
+    program = Registry().require(program_id)
+    keep(program.resolve(program.run.input_file))
+    response = client.post(f"/apps/{program_id}/admin/do/save",
+                           data={}, follow_redirects=False)
+    assert "적어 주세요" in _flash(response)
+
+
+def test_generator_save_writes_the_input_file(client, keep):
+    program = Registry().require("ebook-gen")
+    path = program.resolve(program.run.input_file)
+    keep(path)
+    client.post("/apps/ebook-gen/admin/do/save",
+                data={"topic": "테스트 주제", "pages": "30"}, follow_redirects=False)
+    saved = yaml.safe_load(path.read_text(encoding="utf-8"))
+    assert saved["topic"] == "테스트 주제"
+    assert saved["pages"] == 30
