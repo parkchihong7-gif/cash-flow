@@ -11,7 +11,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { makeServer } = require('./harness');
+const { makeServer, BUNDLE_PATH } = require('./harness');
+const fs = require('node:fs');
 
 const PW = '주인비밀번호7';
 const PROPS = {
@@ -419,11 +420,12 @@ test('목록에 남의 세션 표가 딸려 나오지 않는다', () => {
   // 이게 새면 그 표로 남의 자리에 그대로 앉을 수 있다.
   const srv = makeServer(PROPS);
   const 한벌 = invite(srv);
-  srv.call({ action: 'validateKeyPair', key1: 한벌.primaryKey, key2: 한벌.secondaryKeys.PC });
+  const 세션 = srv.call({ action: 'validateKeyPair', key1: 한벌.primaryKey,
+                          key2: 한벌.secondaryKeys.PC });
   const rows = srv.call({ action: 'adminList', token: PW }).rows;
   const 글 = JSON.stringify(rows);
   assert.ok(!글.includes('sessionToken'), '세션 표 칸이 그대로 나갔습니다');
-  assert.ok(!글.includes('uuid-'), '세션 표 값이 그대로 나갔습니다');
+  assert.ok(!글.includes(세션.sessionToken), '세션 표 값이 그대로 나갔습니다');
   assert.ok(rows.some((r) => r.live === true), '누가 들어와 있는지는 보여야 합니다');
 });
 
@@ -439,8 +441,10 @@ test('여러 번 찍어 보면 막는다', () => {
 
 test('서버가 터져도 속사정을 밖으로 내지 않는다', () => {
   const srv = makeServer(PROPS);
-  // 장부를 못 읽게 만든다.
+  // 장부를 못 읽게도, 못 만들게도 한다. 구글 쪽이 통째로 막힌 경우다.
   srv.sandbox.SpreadsheetApp.getActiveSpreadsheet = () => { throw new Error('시트 abc123 를 못 엽니다'); };
+  srv.sandbox.SpreadsheetApp.openById = () => { throw new Error('시트 abc123 를 못 엽니다'); };
+  srv.sandbox.SpreadsheetApp.create = () => { throw new Error('시트 abc123 를 못 만듭니다'); };
   const out = srv.call({ action: 'validateKeyPair', key1: 'AAAA-BBBB-CCCC', key2: 'DDDD-EEEE-FFFF' });
   assert.strictEqual(out.ok, false);
   assert.strictEqual(out.reason, 'server_error');
@@ -509,4 +513,190 @@ test('시트에서 1차키 기간만 손으로 줄여도 2차키가 막힌다', 
   const 확인 = srv.call({ action: 'checkSession', key: 한벌.secondaryKeys.PC, sessionToken: 세션.sessionToken });
   assert.strictEqual(확인.ok, false, '1차키 기간이 끝났는데 2차키가 그대로 열려 있습니다');
   assert.strictEqual(확인.reason, 'expired');
+});
+
+// ── 손으로 만들 것이 없어야 한다 ────────────────────────────────────
+//
+// 사장님이 "난 구글 시트에 만든 적이 없어" 라고 하셨다. 맞는 말씀이다.
+// 시트를 만들고 id 를 옮겨 적으라고 시키는 것은 설치가 아니라 숙제다.
+
+test('시트가 없으면 서버가 스스로 만든다', () => {
+  const srv = makeServer({ ADMIN_PASSWORD: PW });   // SHEET_ID 없음
+  assert.strictEqual(srv.book(), null, '시작부터 장부가 있으면 시험이 뜻이 없습니다');
+
+  const out = invite(srv);
+  assert.strictEqual(out.ok, true, JSON.stringify(out));
+  assert.strictEqual(srv.madeSheets().length, 1, '시트를 안 만들었거나 여러 개 만들었습니다');
+  assert.ok(srv.props.SHEET_ID, '만든 시트 id 를 안 적어 두었습니다');
+  assert.ok(srv.sheet('keys'), '장부에 keys 칸이 없습니다');
+});
+
+test('한 번 만든 시트를 계속 쓴다', () => {
+  const srv = makeServer({ ADMIN_PASSWORD: PW });
+  invite(srv, { email: 'a@example.com' });
+  const 처음id = srv.props.SHEET_ID;
+  invite(srv, { email: 'b@example.com' });
+  invite(srv, { email: 'c@example.com' });
+  assert.strictEqual(srv.props.SHEET_ID, 처음id, '부를 때마다 새 시트를 만들고 있습니다');
+  assert.strictEqual(srv.madeSheets().length, 1);
+  assert.strictEqual(srv.call({ action: 'adminList', token: PW }).rows.length, 12);
+});
+
+test('시트에 붙여 만든 프로젝트면 그 시트를 쓴다', () => {
+  const srv = makeServer({ ADMIN_PASSWORD: PW, __ATTACHED_SHEET__: true });
+  invite(srv);
+  assert.strictEqual(srv.madeSheets().length, 0, '붙어 있는 시트를 두고 새로 만들었습니다');
+  assert.strictEqual(srv.props.SHEET_ID, 'sheet-붙음');
+});
+
+test('서명값도 스스로 만든다', () => {
+  const srv = makeServer({ ADMIN_PASSWORD: PW });   // SIGNING_SECRET 없음
+  const login = srv.call({ action: 'adminLogin', password: PW });
+  assert.strictEqual(login.ok, true);
+  assert.ok(srv.props.SIGNING_SECRET, '서명값을 안 만들었습니다');
+  assert.ok(srv.props.SIGNING_SECRET.length >= 16);
+  // 만든 값으로 표가 실제로 통해야 한다.
+  assert.strictEqual(srv.call({ action: 'adminList', token: login.token }).ok, true);
+});
+
+test('처음설정 한 번이면 설치가 끝난다', () => {
+  const srv = makeServer({});          // 아무것도 없는 상태
+  const 안내 = srv.sandbox.처음설정();
+
+  assert.ok(srv.props.ADMIN_PASSWORD, '비밀번호를 안 만들었습니다');
+  assert.ok(srv.props.SIGNING_SECRET, '서명값을 안 만들었습니다');
+  assert.ok(srv.props.SHEET_ID, '장부를 안 만들었습니다');
+  assert.ok(안내.includes(srv.props.ADMIN_PASSWORD), '비밀번호를 안 알려 줍니다');
+  assert.ok(안내.includes('docs.google.com'), '장부 주소를 안 알려 줍니다');
+  assert.ok(안내.includes('모든 사용자'), '배포할 때 무엇을 고를지 안 알려 줍니다');
+  assert.ok(srv.logged.length, '실행 기록에 안 남겼습니다');
+
+  // 그 비밀번호로 곧바로 들어가진다.
+  assert.strictEqual(
+    srv.call({ action: 'adminLogin', password: srv.props.ADMIN_PASSWORD }).ok, true);
+});
+
+test('처음설정을 두 번 눌러도 비밀번호가 안 바뀐다', () => {
+  // 바뀌면 이미 알려 드린 비밀번호가 죽는다.
+  const srv = makeServer({});
+  srv.sandbox.처음설정();
+  const 처음 = srv.props.ADMIN_PASSWORD;
+  srv.sandbox.처음설정();
+  assert.strictEqual(srv.props.ADMIN_PASSWORD, 처음);
+  assert.strictEqual(srv.madeSheets().length, 1, '누를 때마다 시트를 만듭니다');
+});
+
+test('처음설정이 만드는 비밀번호는 전화로 불러 줄 수 있다', () => {
+  const srv = makeServer({});
+  srv.sandbox.처음설정();
+  const pw = srv.props.ADMIN_PASSWORD;
+  assert.match(pw, /^[A-Z2-9]{4}(-[A-Z2-9]{4}){3}$/, pw);
+  assert.ok(!/[0O1IL]/.test(pw), '헷갈리는 글자가 들었습니다: ' + pw);
+});
+
+test('처음설정은 웹 주소로 부를 수 없다', () => {
+  // 닿으면 주소를 아는 사람이 비밀번호를 갈아 버린다.
+  const srv = makeServer({ ADMIN_PASSWORD: PW });
+  const out = srv.call({ action: '처음설정' });
+  assert.strictEqual(out.ok, false);
+  assert.strictEqual(out.reason, 'unknown_action');
+});
+
+// ── 배포 주소가 곧 관리자 화면 ──────────────────────────────────────
+
+/** 묶음 판(붙여 넣을 그 파일)으로 장치를 차린다. */
+function 묶음(props) {
+  if (!fs.existsSync(BUNDLE_PATH)) {
+    assert.fail('server/keyserver.bundle.gs 가 없습니다. '
+                + 'python -m tools.build_keyserver 를 먼저 돌리세요.');
+  }
+  return makeServer(props, BUNDLE_PATH);
+}
+
+test('묶음 판은 주소만 열면 관리자 화면을 내어 준다', () => {
+  const srv = 묶음(Object.assign({}, PROPS));
+  const page = srv.sandbox.doGet({ parameter: {} }).getContent();
+  assert.ok(page.length > 10000, `화면이 너무 작습니다 (${page.length}자)`);
+  assert.ok(page.includes('접속키 관리자'), '제목이 없습니다');
+  assert.ok(page.includes('window.PROGRAMS'), '프로그램 목록이 안 들어 있습니다');
+  assert.ok(!page.includes('src="programs.js"'), '옆 파일을 부르고 있습니다');
+  assert.ok(page.includes('google.script.run'), '구글 안에서 서버를 부르는 길이 없습니다');
+});
+
+test('묶음 판에도 비밀이 안 들어 있다', () => {
+  const 글 = fs.readFileSync(BUNDLE_PATH, 'utf8');
+  assert.ok(!/AKfyc[A-Za-z0-9_-]{20,}/.test(글), '키 서버 주소가 박혀 있습니다');
+  assert.ok(!글.includes('redwind7'), '접속 코드가 들어 있습니다');
+  assert.ok(!/ADMIN_PASSWORD\s*=\s*['"][^'"]+['"]/.test(글), '비밀번호가 박혀 있습니다');
+});
+
+test('묶음 판도 규약이 그대로 돈다', () => {
+  // 묶으면서 서버 쪽이 깨지면, 화면은 뜨는데 발급이 안 되는 꼴이 된다.
+  const srv = 묶음(Object.assign({}, PROPS));
+  const out = srv.call({ action: 'adminCreateInvite', token: PW,
+                         program: 'agency-kit', name: '김', email: 'k@example.com' });
+  assert.strictEqual(out.ok, true, JSON.stringify(out));
+  const 열림 = srv.call({ action: 'validateKeyPair', program: 'agency-kit',
+                          key1: out.primaryKey, key2: out.secondaryKeys.PC });
+  assert.strictEqual(열림.ok, true);
+});
+
+test('묶음 판도 처음설정 한 번이면 끝난다', () => {
+  const srv = 묶음({});
+  const 안내 = srv.sandbox.처음설정();
+  assert.ok(srv.props.ADMIN_PASSWORD && srv.props.SHEET_ID && srv.props.SIGNING_SECRET);
+  assert.ok(안내.includes(srv.props.ADMIN_PASSWORD));
+  // 그 비밀번호로 화면을 열고 바로 발급까지 된다.
+  const data = JSON.parse(srv.sandbox.apiCall(JSON.stringify({
+    action: 'adminCreateInvite', token: srv.props.ADMIN_PASSWORD,
+    program: 'exam', name: '홍', email: 'h@example.com' })));
+  assert.strictEqual(data.ok, true, JSON.stringify(data));
+});
+
+test('묶음 판이 낡으면 알아챈다', () => {
+  // 서버나 화면만 고치고 묶는 것을 잊으면, 구글에는 옛 판이 올라간다.
+  const 묶은것 = fs.readFileSync(BUNDLE_PATH, 'utf8');
+  const 서버 = fs.readFileSync(require('path').join(__dirname, '..', 'keyserver.gs'), 'utf8');
+  const 화면 = fs.readFileSync(
+    require('path').join(__dirname, '..', '..', 'web', 'admin.html'), 'utf8');
+  // 서버의 함수 이름들과 화면의 표시가 묶음 안에 다 있어야 한다.
+  for (const 조각 of ['function validateKeyPair', 'function adminCreateInvite',
+                      'function 처음설정', 'function servePage']) {
+    assert.ok(서버.includes(조각) && 묶은것.includes(조각), `묶음에 ${조각} 가 없습니다`);
+  }
+  for (const 조각 of ['id="issueBtn"', 'id="resetBtn"', 'id="program"']) {
+    assert.ok(화면.includes(조각) && 묶은것.includes(조각), `묶음에 ${조각} 가 없습니다`);
+  }
+});
+
+test('안 묶은 판은 화면을 못 내어 주고, 그 사실을 말한다', () => {
+  const srv = makeServer(PROPS);      // keyserver.gs 그대로
+  const page = srv.sandbox.doGet({ parameter: {} }).getContent();
+  assert.ok(page.includes('keyserver.bundle.gs'), '무엇을 붙이라는 말이 없습니다');
+});
+
+test('화면은 google.script.run 으로 서버를 부른다', () => {
+  const srv = makeServer(PROPS);
+  const out = srv.sandbox.apiCall(JSON.stringify({
+    action: 'adminCreateInvite', token: PW, program: 'agency-kit',
+    name: '김', email: 'k@example.com',
+  }));
+  const data = JSON.parse(out);
+  assert.strictEqual(data.ok, true);
+  assert.ok(data.primaryKey);
+});
+
+test('apiCall 로도 비밀번호 없이는 못 본다', () => {
+  const srv = makeServer(PROPS);
+  const data = JSON.parse(srv.sandbox.apiCall(JSON.stringify({ action: 'adminList' })));
+  assert.strictEqual(data.ok, false);
+  assert.ok(!data.rows);
+});
+
+test('apiCall 에 이상한 글자를 넣어도 안 터진다', () => {
+  const srv = makeServer(PROPS);
+  for (const 쓰레기 of ['', 'null', '깨진글자{{{', '[]']) {
+    const data = JSON.parse(srv.sandbox.apiCall(쓰레기));
+    assert.strictEqual(data.ok, false, 쓰레기);
+  }
 });

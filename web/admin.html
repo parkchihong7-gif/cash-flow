@@ -167,6 +167,14 @@
     el.textContent = text;
   }
 
+  /**
+   * 구글이 이 화면을 직접 내어 주고 있나?
+   *
+   * 그렇다면 주소를 물어볼 것이 없다 — `google.script.run` 이 같은
+   * 스크립트를 바로 부른다. CORS 도, 주소를 어디 적어 둘 일도 없다.
+   */
+  var 구글안 = !!(window.google && window.google.script && window.google.script.run);
+
   function serverUrl() { return localStorage.getItem(URL_KEY) || ""; }
   function token() { return sessionStorage.getItem(TOKEN_KEY) || ""; }
 
@@ -178,9 +186,25 @@
    * 둔다 — 그래야 브라우저가 미리 묻는 요청(preflight)을 보내지 않는다.
    */
   function api(action, params) {
+    var body = Object.assign({ action: action }, params || {});
+
+    if (구글안) {
+      // 구글이 감싸 준다. 주소도 CORS 도 없다.
+      return new Promise(function (ok, fail) {
+        google.script.run
+          .withSuccessHandler(function (text) {
+            try { ok(JSON.parse(text)); }
+            catch (_) { fail(new Error("서버가 이상한 답을 보냈습니다.")); }
+          })
+          .withFailureHandler(function (err) {
+            fail(new Error((err && err.message) || "서버에 닿지 못했습니다."));
+          })
+          .apiCall(JSON.stringify(body));
+      });
+    }
+
     var url = serverUrl();
     if (!url) { return Promise.reject(new Error("키 서버 주소를 먼저 넣어 주세요.")); }
-    var body = Object.assign({ action: action }, params || {});
     return fetch(url, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -242,9 +266,10 @@
   };
 
   function showStage() {
-    var hasUrl = !!serverUrl();
+    var hasUrl = 구글안 || !!serverUrl();
     var hasToken = !!token();
-    $("setup").classList.toggle("hide", hasUrl && hasToken);
+    // 구글이 내어 주는 판에서는 주소 칸 자체가 필요 없다.
+    $("setup").classList.toggle("hide", 구글안 || (hasUrl && hasToken));
     $("login").classList.toggle("hide", !hasUrl || hasToken);
     $("main").classList.toggle("hide", !(hasUrl && hasToken));
   }
@@ -277,7 +302,9 @@
       email: email,
       role: $("role").value,
       expiryDays: $("days").value.trim(),
-      baseUrl: location.origin + location.pathname.replace(/admin\.html$/, "")
+      // 고객에게 보낼 주소. 구글이 내어 주는 판에서는 이 화면의 주소가
+      // 곧 서버 주소라, 고객용 문 주소는 사장님이 따로 적어 주셔야 한다.
+      baseUrl: 구글안 ? "" : location.origin + location.pathname.replace(/admin\.html$/, "")
     }).then(function (data) {
       $("issueBtn").disabled = false;
       if (!data.ok) { say($("issueNote"), data.message || "발급하지 못했습니다.", "bad"); return; }
@@ -445,7 +472,7 @@
 
   // ── 시작 ──────────────────────────────────────────────────────
   showStage();
-  if (serverUrl() && token()) { refresh(); }
+  if ((구글안 || serverUrl()) && token()) { refresh(); }
 })();
 </script>
 </body>

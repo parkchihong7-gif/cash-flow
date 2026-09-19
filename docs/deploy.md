@@ -16,10 +16,14 @@
 
 ## 무료 쪽 — 이쪽을 먼저
 
-→ **[server/README.md](../server/README.md)** 를 보세요.
+→ **[server/README.md](../server/README.md)** 를 보세요. **세 단계**입니다.
 
-구글 시트 하나 만들고, `server/keyserver.gs` 를 붙이고, 배포하면 끝입니다.
-관리자 화면은 `web/admin.html` 입니다.
+1. [script.google.com](https://script.google.com) 새 프로젝트에
+   `server/keyserver.bundle.gs` **한 파일**을 붙여넣기
+2. `처음설정` 함수를 한 번 실행 — 시트·비밀번호를 만들어 알려 줍니다
+3. 웹 앱으로 배포 → 나온 주소를 열면 **관리자 화면이 바로** 뜹니다
+
+**손으로 만드실 것이 없습니다.** 구글 시트도 서버가 알아서 만듭니다.
 
 공인중개사 기출문제 프로그램이 이미 이 방식으로 돌고 있습니다. 새로 지어
 낸 것이 아니라, **이미 되는 것을 16종으로 넓힌 것**입니다.

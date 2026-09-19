@@ -48,7 +48,14 @@ class FakeSheet {
 }
 
 class FakeBook {
-  constructor() { this.sheets = new Map(); }
+  constructor(id = 'sheet-1', title = '장부') {
+    this.sheets = new Map();
+    this.id = id;
+    this.title = title;
+  }
+  getId() { return this.id; }
+  getUrl() { return `https://docs.google.com/spreadsheets/d/${this.id}/edit`; }
+  getName() { return this.title; }
   getSheetByName(name) { return this.sheets.get(name) || null; }
   insertSheet(name) {
     const sheet = new FakeSheet(name);
@@ -80,10 +87,16 @@ function formatDate(date, tz, pattern) {
  * @param {object} props 스크립트 속성 (ADMIN_PASSWORD 등)
  * @returns 서버를 부르는 도구들
  */
-function makeServer(props = {}) {
-  const book = new FakeBook();
+function makeServer(props = {}, gsPath = GS_PATH) {
+  // 시트를 스스로 만드는지 보려고, 처음에는 **아무것도 없는** 상태로 둔다.
+  const books = new Map();
+  const made = [];
   const cache = new Map();
+  let bookSeq = 0;
+  const 붙은시트 = props.__ATTACHED_SHEET__ ? new FakeBook('sheet-붙음') : null;
+  if (붙은시트) { books.set(붙은시트.getId(), 붙은시트); }
   const mails = [];
+  const logged = [];
   let lockHeld = 0;
   let uuidSeq = 0;
   let slept = 0;
@@ -102,12 +115,35 @@ function makeServer(props = {}) {
     isNaN,
 
     SpreadsheetApp: {
-      getActiveSpreadsheet: () => book,
-      openById: () => book,
+      // 따로 만든 프로젝트에는 '붙어 있는 시트' 가 없다. 그 경우가 기본이다.
+      getActiveSpreadsheet: () => 붙은시트,
+      openById: (id) => {
+        const found = books.get(id);
+        if (!found) { throw new Error(`그런 시트가 없습니다: ${id}`); }
+        return found;
+      },
+      create: (title) => {
+        const fresh = new FakeBook(`sheet-새로-${++bookSeq}`, title);
+        books.set(fresh.getId(), fresh);
+        made.push(fresh);
+        return fresh;
+      },
     },
     PropertiesService: {
-      getScriptProperties: () => ({ getProperty: (k) => (k in props ? props[k] : null) }),
+      getScriptProperties: () => ({
+        getProperty: (k) => (k in props ? props[k] : null),
+        setProperty: (k, v) => { props[k] = String(v); },
+      }),
     },
+    HtmlService: {
+      createHtmlOutput: (html) => ({
+        html,
+        setTitle() { return this; },
+        addMetaTag() { return this; },
+        getContent: () => html,
+      }),
+    },
+    Logger: { log: (text) => { logged.push(String(text)); } },
     LockService: {
       getScriptLock: () => ({
         waitLock() {
@@ -125,7 +161,9 @@ function makeServer(props = {}) {
       }),
     },
     Utilities: {
-      getUuid: () => `uuid-${++uuidSeq}`,
+      // 진짜 앱스 스크립트는 36글자 UUID 를 준다. 짧은 가짜를 주면
+      // 길이에 기대는 잘못을 시험이 못 잡는다.
+      getUuid: () => { uuidSeq++; return crypto.randomUUID(); },
       formatDate,
       sleep: (ms) => { slept += ms; },
       computeHmacSha256Signature: (text, secret) => {
@@ -151,7 +189,7 @@ function makeServer(props = {}) {
   };
   sandbox.globalThis = sandbox;
 
-  const code = fs.readFileSync(GS_PATH, 'utf8');
+  const code = fs.readFileSync(gsPath, 'utf8');
   vm.createContext(sandbox);
   vm.runInContext(code, sandbox, { filename: 'keyserver.gs' });
 
@@ -167,11 +205,23 @@ function makeServer(props = {}) {
     return JSON.parse(out.text);
   }
 
+  /** 서버가 지금 쓰고 있는 장부. 없으면 아직 안 만든 것이다. */
+  function book() {
+    const id = props.SHEET_ID;
+    return (id && books.get(id)) || 붙은시트 || null;
+  }
+
   return {
-    call, post, mails, book, cache, sandbox,
+    call, post, mails, logged, cache, sandbox, props,
+    book,
+    madeSheets: () => made.slice(),
     lockLeaked: () => lockHeld !== 0,
-    sheet: (name) => book.getSheetByName(name),
+    sheet: (name) => {
+      const b = book();
+      return b ? b.getSheetByName(name) : null;
+    },
   };
 }
 
-module.exports = { makeServer, FakeSheet, FakeBook };
+module.exports = { makeServer, FakeSheet, FakeBook, GS_PATH,
+                   BUNDLE_PATH: path.join(__dirname, '..', 'keyserver.bundle.gs') };

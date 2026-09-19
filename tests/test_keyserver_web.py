@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import json
+import re
 import os
 import shutil
 import socket
@@ -339,3 +340,48 @@ def test_키서버_비밀번호가_틀리면_아무것도_안_만든다(tmp_path
     로그인 = 부르기(시험서버, {"action": "adminLogin", "password": "주인비밀번호7"})
     assert not 부르기(시험서버, {"action": "adminList", "token": 로그인["token"],
                                 "program": "agency-kit"})["rows"]
+
+
+# ── 붙여 넣을 한 장 ─────────────────────────────────────────────────
+
+def test_묶음_파일이_최신이다():
+    """서버나 화면만 고치고 묶는 것을 잊으면, 구글에는 옛 판이 올라간다.
+
+    화면은 멀쩡히 뜨는데 방금 고친 것이 안 들어 있어, 무엇이 잘못됐는지
+    알기가 가장 어려운 꼴이 된다. 여기서 막는다.
+    """
+    from tools.build_keyserver import OUT, build
+
+    assert OUT.exists(), "server/keyserver.bundle.gs 가 없습니다"
+    지금것 = OUT.read_text(encoding="utf-8")
+    다시만든것 = build()
+    assert 지금것 == 다시만든것, (
+        "묶음 파일이 낡았습니다. `python -m tools.build_keyserver` 를 돌리고 "
+        "다시 커밋해 주세요."
+    )
+
+
+def test_묶음_파일에_비밀이_없다():
+    """공개 저장소에 올라가는 파일이다."""
+    from tools.build_keyserver import OUT
+
+    글 = OUT.read_text(encoding="utf-8")
+    assert "redwind7" not in 글
+    assert "주인비밀번호" not in 글
+    assert not re.search(r"AKfyc[A-Za-z0-9_-]{20,}", 글), "키 서버 주소가 박혀 있습니다"
+    assert not re.search(r"ADMIN_PASSWORD['\"]?\s*[:=]\s*['\"][^'\"]+", 글)
+
+
+def test_묶음_파일_하나만_붙이면_되게_들어_있다():
+    """두 파일을 각각 붙이게 하면 그것부터가 숙제다."""
+    from tools.build_keyserver import OUT
+
+    글 = OUT.read_text(encoding="utf-8")
+    assert "var ADMIN_HTML" in 글, "관리자 화면이 안 들어 있습니다"
+    assert 'src="programs.js"' not in 글, "옆 파일을 부르고 있습니다"
+    assert "window.PROGRAMS" in 글, "프로그램 목록이 안 들어 있습니다"
+    assert "function 처음설정" in 글
+    # 등록부의 16종이 다 들어 있어야 고르는 칸에서 보인다.
+    from core.registry import Registry
+    for program in Registry().programs:
+        assert f'"{program.id}"' in 글, f"{program.id} 가 빠졌습니다"

@@ -1,3 +1,579 @@
+// ═══════════════════════════════════════════════════════════════════
+//  접속키 서버 — 구글 앱스 스크립트에 붙여 넣는 **한 장짜리** 판입니다.
+//
+//  이 파일은 만들어진 것입니다. 손으로 고치지 마세요.
+//    만든 것   : server/keyserver.gs + web/admin.html
+//    다시 만들기: python -m tools.build_keyserver
+//
+//  설치 (세 단계)
+//    1. script.google.com → 새 프로젝트 → 이 파일을 통째로 붙여넣기
+//    2. 함수 고르는 칸에서 `처음설정` 을 고르고 [실행]
+//       → 장부 시트·서명값·관리자 비밀번호를 만들어 알려 줍니다
+//    3. [배포] → [새 배포] → 웹 앱
+//       실행: 나 / 권한: 모든 사용자
+//       → 나온 주소를 열면 관리자 화면이 바로 뜹니다
+// ═══════════════════════════════════════════════════════════════════
+
+//: 관리자 화면. web/admin.html 을 그대로 넣은 것입니다.
+var ADMIN_HTML = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>접속키 관리자</title>
+<style>
+  :root {
+    --ground: #10141a; --chrome: #171d26; --hairline: #2a3442;
+    --ink: #e8eef6; --muted: #93a1b3; --amber: #e0a44a; --on-amber: #1a1206;
+    --good: #5fbf8f; --bad: #ff8f7a; --chip: #1e2733;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0 16px 60px; background: var(--ground); color: var(--ink);
+    font: 15px/1.6 "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  header { padding: 22px 0 16px; border-bottom: 1px solid var(--hairline); }
+  h1 { margin: 0 0 4px; font-size: 21px; }
+  .sub { margin: 0; color: var(--muted); font-size: 13px; }
+  section { margin: 22px 0; padding: 18px; background: var(--chrome);
+            border: 1px solid var(--hairline); border-radius: 10px; }
+  h2 { margin: 0 0 14px; font-size: 16px; }
+  label { display: block; margin: 0 0 5px; font-size: 13px; color: var(--muted); }
+  input, select, button, textarea {
+    font: inherit; color: var(--ink); background: var(--chip);
+    border: 1px solid var(--hairline); border-radius: 7px; padding: 9px 11px;
+  }
+  input, select { width: 100%; }
+  button { cursor: pointer; background: var(--amber); color: var(--on-amber);
+           border: 0; font-weight: 600; white-space: nowrap; }
+  button.quiet { background: var(--chip); color: var(--ink); border: 1px solid var(--hairline);
+                 font-weight: 400; padding: 5px 9px; font-size: 13px; }
+  button.danger { background: var(--chip); color: var(--bad); border: 1px solid var(--hairline); }
+  button:disabled { opacity: .5; cursor: wait; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .row > div { flex: 1; min-width: 150px; }
+  .row > div.narrow { flex: 0 0 130px; }
+  .note { margin: 10px 0 0; font-size: 13px; min-height: 20px; }
+  .note.bad { color: var(--bad); }
+  .note.good { color: var(--good); }
+  .note.busy { color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--hairline);
+           vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; }
+  td.key { font-family: ui-monospace, Menlo, Consolas, monospace; letter-spacing: .02em; }
+  .tag { display: inline-block; padding: 1px 7px; border-radius: 99px; font-size: 11px;
+         background: var(--chip); border: 1px solid var(--hairline); }
+  .tag.admin { color: var(--amber); }
+  .tag.live { color: var(--good); }
+  .tag.off { color: var(--bad); }
+  .keys { margin: 12px 0 0; padding: 12px; background: var(--ground);
+          border: 1px solid var(--hairline); border-radius: 8px;
+          font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px;
+          white-space: pre-wrap; word-break: break-all; }
+  .stats { display: flex; gap: 14px; flex-wrap: wrap; margin: 0 0 14px; }
+  .stat { padding: 8px 14px; background: var(--ground); border: 1px solid var(--hairline);
+          border-radius: 8px; }
+  .stat b { display: block; font-size: 19px; }
+  .stat span { font-size: 12px; color: var(--muted); }
+  .hide { display: none; }
+  .warn { margin: 0 0 14px; padding: 10px 12px; border-radius: 8px;
+          background: #3a2a12; border: 1px solid #6b4e1f; color: #f0d9a8; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>접속키 관리자</h1>
+  <p class="sub">16종 + 공인중개사 + maim 이 한 서버를 같이 씁니다. 여기서 발급하면 그 자리에서 이메일이 나갑니다.</p>
+</header>
+
+<!-- ── 설정: 키 서버 주소 ───────────────────────────────────────── -->
+<section id="setup">
+  <h2>키 서버 주소</h2>
+  <p class="sub" style="margin-bottom:12px">
+    구글 앱스 스크립트를 배포하면 나오는 주소입니다. 한 번 넣으면 이 브라우저가 기억합니다.
+    처음이시면 <code>server/README.md</code> 를 보세요.
+  </p>
+  <div class="row">
+    <div><input type="url" id="serverUrl" placeholder="https://script.google.com/macros/s/.../exec"></div>
+    <div class="narrow"><button id="saveUrl">저장</button></div>
+  </div>
+  <p class="note" id="setupNote"></p>
+</section>
+
+<!-- ── 로그인 ───────────────────────────────────────────────────── -->
+<section id="login" class="hide">
+  <h2>관리자 비밀번호</h2>
+  <div class="row">
+    <div><input type="password" id="pw" placeholder="비밀번호" autocomplete="current-password"></div>
+    <div class="narrow"><button id="loginBtn">들어가기</button></div>
+  </div>
+  <p class="note" id="loginNote"></p>
+</section>
+
+<!-- ── 본 화면 ──────────────────────────────────────────────────── -->
+<div id="main" class="hide">
+
+  <section>
+    <h2>프로그램 고르기</h2>
+    <div class="row">
+      <div><select id="program"></select></div>
+      <div class="narrow"><button class="quiet" id="refreshBtn">새로 읽기</button></div>
+      <div class="narrow"><button class="quiet" id="logoutBtn">나가기</button></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>키 주기 — 1차키 1개 + 2차키 3개(PC·노트북·휴대폰)</h2>
+    <div class="row">
+      <div>
+        <label for="role">무슨 키</label>
+        <select id="role">
+          <option value="admin">판매 — 이 프로그램을 산 분 (관리자)</option>
+          <option value="client">고객용 — 쓰는 화면만</option>
+        </select>
+      </div>
+      <div><label for="name">이름</label><input id="name" placeholder="홍길동"></div>
+      <div><label for="email">이메일</label><input type="email" id="email" placeholder="hong@example.com"></div>
+      <div class="narrow"><label for="days">유효기간</label><input id="days" placeholder="비우면 무제한"></div>
+      <div class="narrow"><button id="issueBtn">발급하고 보내기</button></div>
+    </div>
+    <p class="note" id="issueNote"></p>
+    <div class="keys hide" id="issued"></div>
+  </section>
+
+  <section>
+    <h2>발급한 키</h2>
+    <div class="stats" id="stats"></div>
+    <div id="list"><p class="sub">읽는 중...</p></div>
+  </section>
+
+  <section>
+    <h2>이 프로그램의 키 전부 지우기</h2>
+    <p class="warn">되돌릴 수 없습니다. 이미 파신 키가 있으면 고객이 그 자리에서 못 들어오게 됩니다.</p>
+    <div class="row">
+      <div><input id="confirm" placeholder='지우시려면 여기에 "초기화" 라고 적으세요'></div>
+      <div class="narrow"><button class="danger" id="resetBtn">전부 지우기</button></div>
+    </div>
+    <p class="note" id="resetNote"></p>
+  </section>
+
+</div>
+</div>
+
+<script>
+/* 키 서버가 다루는 프로그램 목록. dashboard 의 등록부에서 뽑아 만든 것입니다.
+   \`python -m tools.gen_programs_js\` 로 다시 만듭니다. 손으로 고치지 마세요. */
+window.PROGRAMS = [
+  {
+    "id": "funnel-builder",
+    "name": "퍼널 빌더"
+  },
+  {
+    "id": "hook-script",
+    "name": "후킹 대본 생성기"
+  },
+  {
+    "id": "ebook-gen",
+    "name": "전자책 원고 생성기"
+  },
+  {
+    "id": "lecture-deck",
+    "name": "강의 슬라이드 생성기"
+  },
+  {
+    "id": "kmong-copy",
+    "name": "크몽 상세페이지 카피 생성기"
+  },
+  {
+    "id": "n8n-gen",
+    "name": "n8n 워크플로 JSON 생성기"
+  },
+  {
+    "id": "groupbuy-ledger",
+    "name": "공구 정산 엑셀 자동 생성기"
+  },
+  {
+    "id": "income-sim",
+    "name": "수익 시뮬레이터"
+  },
+  {
+    "id": "notion-template-kit",
+    "name": "노션 템플릿 기획·설명서 생성기"
+  },
+  {
+    "id": "affiliate-matcher",
+    "name": "제휴 상품 매칭 로직"
+  },
+  {
+    "id": "agency-kit",
+    "name": "자동화 대행 납품 키트"
+  },
+  {
+    "id": "niche-research",
+    "name": "니치 리서치"
+  },
+  {
+    "id": "exam-drill",
+    "name": "공인중개사 기출 풀이 분석기"
+  },
+  {
+    "id": "senior-video",
+    "name": "시니어 영상 비용 견적·절감기"
+  },
+  {
+    "id": "naver-blog",
+    "name": "네이버 블로그 초안 생성기"
+  },
+  {
+    "id": "speaker-desk",
+    "name": "해외 연사 초청 관리"
+  },
+  {
+    "id": "exam",
+    "name": "공인중개사 기출문제 (바깥 프로그램)"
+  },
+  {
+    "id": "maim",
+    "name": "maim 블로그 (바깥 프로그램)"
+  }
+];
+
+</script>
+<script>
+(function () {
+  "use strict";
+
+  // 주소는 이 브라우저에만 둔다. 비밀은 아니지만 저장소에 박아 두면
+  // 서버를 옮길 때마다 코드를 고쳐야 한다.
+  var URL_KEY = "keyserver.url";
+  // 표는 sessionStorage 에 둔다. 창을 닫으면 사라진다 — 공용 PC 에서
+  // localStorage 에 두면 다음 사람이 그대로 들어온다.
+  var TOKEN_KEY = "keyserver.token";
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function say(el, text, kind) {
+    el.className = "note" + (kind ? " " + kind : "");
+    el.textContent = text;
+  }
+
+  /**
+   * 구글이 이 화면을 직접 내어 주고 있나?
+   *
+   * 그렇다면 주소를 물어볼 것이 없다 — \`google.script.run\` 이 같은
+   * 스크립트를 바로 부른다. CORS 도, 주소를 어디 적어 둘 일도 없다.
+   */
+  var 구글안 = !!(window.google && window.google.script && window.google.script.run);
+
+  function serverUrl() { return localStorage.getItem(URL_KEY) || ""; }
+  function token() { return sessionStorage.getItem(TOKEN_KEY) || ""; }
+
+  /**
+   * 서버를 부른다.
+   *
+   * POST 로 보낸다. GET 은 주소에 비밀번호가 실려 구글 실행 기록에 그대로
+   * 남는다. 앱스 스크립트는 리다이렉트를 거치므로 형식은 text/plain 으로
+   * 둔다 — 그래야 브라우저가 미리 묻는 요청(preflight)을 보내지 않는다.
+   */
+  function api(action, params) {
+    var body = Object.assign({ action: action }, params || {});
+
+    if (구글안) {
+      // 구글이 감싸 준다. 주소도 CORS 도 없다.
+      return new Promise(function (ok, fail) {
+        google.script.run
+          .withSuccessHandler(function (text) {
+            try { ok(JSON.parse(text)); }
+            catch (_) { fail(new Error("서버가 이상한 답을 보냈습니다.")); }
+          })
+          .withFailureHandler(function (err) {
+            fail(new Error((err && err.message) || "서버에 닿지 못했습니다."));
+          })
+          .apiCall(JSON.stringify(body));
+      });
+    }
+
+    var url = serverUrl();
+    if (!url) { return Promise.reject(new Error("키 서버 주소를 먼저 넣어 주세요.")); }
+    return fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(body)
+    }).then(function (res) {
+      if (!res.ok) { throw new Error("서버가 " + res.status + " 로 답했습니다."); }
+      return res.json();
+    });
+  }
+
+  function authed(action, params) {
+    return api(action, Object.assign({ token: token() }, params || {}));
+  }
+
+  // ── 설정 ──────────────────────────────────────────────────────
+  $("serverUrl").value = serverUrl();
+  $("saveUrl").onclick = function () {
+    var value = $("serverUrl").value.trim();
+    if (!/^https:\\/\\/script\\.google\\.com\\/macros\\/s\\/.+\\/exec$/.test(value)) {
+      say($("setupNote"), "앱스 스크립트 주소가 아닙니다. .../exec 으로 끝나야 합니다.", "bad");
+      return;
+    }
+    localStorage.setItem(URL_KEY, value);
+    say($("setupNote"), "확인하는 중...", "busy");
+    api("ping").then(function (data) {
+      if (data.ok) { say($("setupNote"), "서버가 살아 있습니다.", "good"); showStage(); }
+      else { say($("setupNote"), "서버가 답을 이상하게 합니다.", "bad"); }
+    }).catch(function (err) {
+      say($("setupNote"), "연결하지 못했습니다: " + err.message, "bad");
+    });
+  };
+
+  // ── 로그인 ────────────────────────────────────────────────────
+  $("loginBtn").onclick = function () {
+    var pw = $("pw").value;
+    if (!pw) { say($("loginNote"), "비밀번호를 넣어 주세요.", "bad"); return; }
+    $("loginBtn").disabled = true;
+    say($("loginNote"), "확인하는 중...", "busy");
+    api("adminLogin", { password: pw }).then(function (data) {
+      $("loginBtn").disabled = false;
+      if (!data.ok) { say($("loginNote"), data.message || "들어가지 못했습니다.", "bad"); return; }
+      sessionStorage.setItem(TOKEN_KEY, data.token);
+      $("pw").value = "";
+      say($("loginNote"), "", "");
+      showStage();
+      refresh();
+    }).catch(function (err) {
+      $("loginBtn").disabled = false;
+      say($("loginNote"), err.message, "bad");
+    });
+  };
+  $("pw").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { $("loginBtn").click(); }
+  });
+
+  $("logoutBtn").onclick = function () {
+    sessionStorage.removeItem(TOKEN_KEY);
+    showStage();
+  };
+
+  function showStage() {
+    var hasUrl = 구글안 || !!serverUrl();
+    var hasToken = !!token();
+    // 구글이 내어 주는 판에서는 주소 칸 자체가 필요 없다.
+    $("setup").classList.toggle("hide", 구글안 || (hasUrl && hasToken));
+    $("login").classList.toggle("hide", !hasUrl || hasToken);
+    $("main").classList.toggle("hide", !(hasUrl && hasToken));
+  }
+
+  // ── 프로그램 고르기 ───────────────────────────────────────────
+  var select = $("program");
+  (window.PROGRAMS || []).forEach(function (p) {
+    var option = document.createElement("option");
+    option.value = p.id;
+    option.textContent = p.name + "  (" + p.id + ")";
+    select.appendChild(option);
+  });
+  select.onchange = refresh;
+  $("refreshBtn").onclick = refresh;
+
+  // ── 발급 ──────────────────────────────────────────────────────
+  $("issueBtn").onclick = function () {
+    var name = $("name").value.trim();
+    var email = $("email").value.trim();
+    if (!name) { say($("issueNote"), "이름을 적어 주세요. 누구에게 준 키인지 남아야 합니다.", "bad"); return; }
+    if (email.indexOf("@") < 0) { say($("issueNote"), "이메일 주소를 확인해 주세요.", "bad"); return; }
+
+    $("issueBtn").disabled = true;
+    say($("issueNote"), "만들고 보내는 중...", "busy");
+    $("issued").classList.add("hide");
+
+    authed("adminCreateInvite", {
+      program: select.value,
+      name: name,
+      email: email,
+      role: $("role").value,
+      expiryDays: $("days").value.trim(),
+      // 고객에게 보낼 주소. 구글이 내어 주는 판에서는 이 화면의 주소가
+      // 곧 서버 주소라, 고객용 문 주소는 사장님이 따로 적어 주셔야 한다.
+      baseUrl: 구글안 ? "" : location.origin + location.pathname.replace(/admin\\.html$/, "")
+    }).then(function (data) {
+      $("issueBtn").disabled = false;
+      if (!data.ok) { say($("issueNote"), data.message || "발급하지 못했습니다.", "bad"); return; }
+
+      // 메일이 막혀도 키는 이미 있다. 그것을 그대로 보여 줘야 직접 보내실 수 있다.
+      say($("issueNote"), data.message || "발급했습니다.", data.mailed ? "good" : "bad");
+      var lines = [
+        "받는 분 : " + name + " <" + email + ">",
+        "프로그램 : " + select.options[select.selectedIndex].textContent,
+        "",
+        "1차키   : " + data.primaryKey,
+        "2차키 PC   : " + data.secondaryKeys["PC"],
+        "2차키 노트북 : " + data.secondaryKeys["노트북"],
+        "2차키 휴대폰 : " + data.secondaryKeys["휴대폰"]
+      ];
+      if (data.url) { lines.push("", "들어가는 곳 : " + data.url); }
+      var box = $("issued");
+      box.textContent = lines.join("\\n");
+      var copy = document.createElement("button");
+      copy.className = "quiet";
+      copy.style.marginTop = "10px";
+      copy.textContent = "전부 복사";
+      copy.onclick = function () {
+        navigator.clipboard.writeText(lines.join("\\n")).then(function () {
+          copy.textContent = "복사했습니다";
+        }).catch(function () { copy.textContent = "복사하지 못했습니다"; });
+      };
+      box.appendChild(document.createElement("br"));
+      box.appendChild(copy);
+      box.classList.remove("hide");
+
+      $("name").value = ""; $("email").value = "";
+      refresh();
+    }).catch(function (err) {
+      $("issueBtn").disabled = false;
+      say($("issueNote"), err.message, "bad");
+    });
+  };
+
+  // ── 목록 ──────────────────────────────────────────────────────
+  function refresh() {
+    if (!token()) { return; }
+    $("list").innerHTML = '<p class="sub">읽는 중...</p>';
+    authed("adminList", { program: select.value }).then(function (data) {
+      if (!data.ok) {
+        // 표가 만료됐으면 다시 로그인시킨다. 빈 목록을 보여 주면
+        // 판 키가 사라진 줄 아시게 된다.
+        if (data.reason === "unauthorized") {
+          sessionStorage.removeItem(TOKEN_KEY);
+          showStage();
+          say($("loginNote"), "시간이 지나 다시 들어가셔야 합니다.", "busy");
+          return;
+        }
+        $("list").innerHTML = '<p class="note bad">' + (data.message || "읽지 못했습니다.") + "</p>";
+        return;
+      }
+      drawStats(data.counts);
+      drawRows(data.rows);
+    }).catch(function (err) {
+      $("list").innerHTML = '<p class="note bad">' + err.message + "</p>";
+    });
+  }
+
+  function drawStats(counts) {
+    var pairs = [
+      ["판 것 (관리자키)", counts.admins],
+      ["고객키", counts.clients],
+      ["2차키", counts.secondary],
+      ["들어와 있음", counts.live],
+      ["정지", counts.suspended]
+    ];
+    $("stats").innerHTML = pairs.map(function (p) {
+      return '<div class="stat"><b>' + p[1] + "</b><span>" + p[0] + "</span></div>";
+    }).join("");
+  }
+
+  function esc(text) {
+    return String(text == null ? "" : text)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function drawRows(rows) {
+    if (!rows.length) {
+      $("list").innerHTML = '<p class="sub">아직 발급한 키가 없습니다.</p>';
+      return;
+    }
+    // 1차키를 먼저, 그 아래 딸린 2차키를 붙여 보여 준다.
+    var primaries = rows.filter(function (r) { return r.type !== "secondary"; });
+    var byParent = {};
+    rows.forEach(function (r) {
+      if (r.type !== "secondary") { return; }
+      (byParent[r.parentKey] = byParent[r.parentKey] || []).push(r);
+    });
+
+    var html = ['<table><thead><tr><th>키</th><th>누구</th><th>무슨 키</th>',
+                '<th>상태</th><th>발급일</th><th>만료</th><th></th></tr></thead><tbody>'];
+    primaries.forEach(function (r) {
+      html.push(line(r, false));
+      (byParent[r.key] || []).forEach(function (s) { html.push(line(s, true)); });
+    });
+    html.push("</tbody></table>");
+    $("list").innerHTML = html.join("");
+
+    $("list").querySelectorAll("button[data-do]").forEach(function (btn) {
+      btn.onclick = function () {
+        var what = btn.dataset.do, key = btn.dataset.key;
+        if (what === "adminDeleteKey" &&
+            !confirm("이 키를 지웁니다. 1차키면 딸린 2차키도 함께 사라집니다.\\n\\n" + key)) { return; }
+        btn.disabled = true;
+        authed(what, { program: select.value, key: key }).then(function (data) {
+          if (!data.ok) { alert(data.message || "하지 못했습니다."); btn.disabled = false; return; }
+          refresh();
+        }).catch(function (err) { alert(err.message); btn.disabled = false; });
+      };
+    });
+  }
+
+  function line(r, indented) {
+    var 상태 = r.status === "suspended"
+      ? '<span class="tag off">정지</span>'
+      : (r.live ? '<span class="tag live">들어와 있음</span>' : '<span class="tag">사용 가능</span>');
+    var 종류 = r.type === "secondary"
+      ? '<span class="tag">2차 · ' + esc(r.deviceLabel) + "</span>"
+      : (r.type === "legacy"
+          ? '<span class="tag">레거시</span>'
+          : (r.role === "admin"
+              ? '<span class="tag admin">1차 · 판매</span>'
+              : '<span class="tag">1차 · 고객</span>'));
+    var 되돌리기 = r.status === "suspended" ? "adminResumeKey" : "adminSuspendKey";
+    return '<tr><td class="key" style="padding-left:' + (indented ? 26 : 8) + 'px">'
+      + esc(r.key) + "</td>"
+      + "<td>" + esc(r.assignedName) + "<br><span class='sub'>" + esc(r.assignedEmail) + "</span></td>"
+      + "<td>" + 종류 + "</td>"
+      + "<td>" + 상태 + "</td>"
+      + "<td>" + esc(r.issuedDate) + "</td>"
+      + "<td>" + (esc(r.expiryDate) || "무제한") + "</td>"
+      + '<td><button class="quiet" data-do="' + 되돌리기 + '" data-key="' + esc(r.key) + '">'
+      + (r.status === "suspended" ? "풀기" : "정지") + "</button> "
+      + '<button class="quiet" data-do="adminDeleteKey" data-key="' + esc(r.key) + '">지우기</button></td>'
+      + "</tr>";
+  }
+
+  // ── 초기화 ────────────────────────────────────────────────────
+  $("resetBtn").onclick = function () {
+    var word = $("confirm").value.trim();
+    if (word !== "초기화") {
+      say($("resetNote"), '"초기화" 라고 정확히 적어 주셔야 움직입니다.', "bad");
+      return;
+    }
+    if (!confirm(select.options[select.selectedIndex].textContent
+                 + "\\n\\n이 프로그램의 키를 전부 지웁니다. 되돌릴 수 없습니다.")) { return; }
+    $("resetBtn").disabled = true;
+    authed("adminResetAll", { program: select.value, confirm: "초기화" }).then(function (data) {
+      $("resetBtn").disabled = false;
+      $("confirm").value = "";
+      say($("resetNote"), data.ok ? (data.deleted + "개를 지웠습니다.") : (data.message || "지우지 못했습니다."),
+          data.ok ? "good" : "bad");
+      refresh();
+    }).catch(function (err) {
+      $("resetBtn").disabled = false;
+      say($("resetNote"), err.message, "bad");
+    });
+  };
+
+  // ── 시작 ──────────────────────────────────────────────────────
+  showStage();
+  if ((구글안 || serverUrl()) && token()) { refresh(); }
+})();
+</script>
+</body>
+</html>
+`;
+
 /**
  * 통합 접속키 서버 — 구글 앱스 스크립트 판.
  *
@@ -978,11 +1554,3 @@ function sendInvite(email, name, program, primaryKey, secondaries, url, role, ex
   }
 }
 
-// 노드에서 시험할 때만 쓴다. 앱스 스크립트에는 module 이 없어 그냥 지나간다.
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    handle: handle, doGet: doGet, doPost: doPost,
-    newKey: newKey, normalizeKey: normalizeKey, constantEquals: constantEquals,
-    COLUMNS: COLUMNS, DEVICES: DEVICES, ALPHABET: ALPHABET
-  };
-}
