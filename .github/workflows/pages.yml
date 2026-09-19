@@ -58,9 +58,16 @@ jobs:
           # 그걸 씁니다. 없으면 기본 접속 코드를 씁니다.
           LOCK: ${{ secrets.SNAPSHOT_KEY || 'redwind7' }}
         run: |
-          python -m dashboard.snapshot --out _build --demo \
-                 --single _site/index.html --lock "$LOCK"
+          python -m dashboard.snapshot --out _build --demo --split \
+                 --single _site/index.html --lock "$LOCK" \
+                 --stamp "$(date -u '+%Y-%m-%d %H:%M UTC')"
           test -f _site/index.html
+          test -f _site/data.bin
+          # 표지는 작아야 한다. 크면 화면이 뜨기 전에 브라우저가 멎는다.
+          size=$(stat -c%s _site/index.html)
+          test "$size" -lt 200000 \
+            || { echo "::error::표지가 ${size} 바이트나 됩니다"; exit 1; }
+          echo "표지 ${size}B · 자료 $(stat -c%s _site/data.bin)B"
 
       - name: 검색 엔진이 긁어가지 않게
         # 저장소가 공개라도 검색 결과에까지 뜰 이유는 없다.
@@ -75,7 +82,9 @@ jobs:
             || { echo "::error::자물쇠가 안 걸렸습니다. 올리지 않습니다."; exit 1; }
           grep -q 'id="pages"' _site/index.html \
             && { echo "::error::덮지 않은 내용이 들어 있습니다."; exit 1; }
-          echo "자물쇠 확인됨 ($(du -h _site/index.html | cut -f1))"
+          grep -q 'https://' _site/index.html \
+            && { echo "::error::바깥에서 받아 오는 것이 있습니다. 화면이 멎습니다."; exit 1; }
+          echo "자물쇠 확인됨"
 
       - uses: actions/upload-pages-artifact@v3
         with:

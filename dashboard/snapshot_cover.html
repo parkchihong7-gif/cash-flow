@@ -209,6 +209,9 @@
       내용은 이 키로 <strong>덮여 있습니다.</strong>
       키가 없으면 파일을 받아 소스를 열어도 읽을 수 없습니다.
     </p>
+    <!-- 화면이 안 뜰 때 사장님이 저에게 알려 주실 수 있는 유일한 단서다.
+         이게 보이면 적어도 자바스크립트는 돌고 있다는 뜻이다. -->
+    <p class="gatestamp" id="gate-stamp">{{STAMP}}</p>
   </div>
 </div>
 
@@ -244,6 +247,7 @@
     margin: 18px 0 0; padding-top: 14px; border-top: 1px solid var(--hairline);
     font-size: 12px; color: var(--muted);
   }
+  .gatestamp { margin: 8px 0 0; font-size: 11px; color: var(--muted); opacity: .75; }
 </style>
 
 <header class="bar">
@@ -291,6 +295,16 @@
 
     function startLocked(blob) {
       var gate = document.getElementById("gate");
+      // 이 줄이 바뀌면 스크립트가 돌았다는 뜻이다. 안 바뀌면 안 돈 것이다.
+      var stamp = document.getElementById("gate-stamp");
+      if (stamp) {
+        var can = [];
+        if (!(window.crypto && window.crypto.subtle)) { can.push("암호기능 없음"); }
+        if (typeof DecompressionStream === "undefined") { can.push("압축해제 없음"); }
+        if (typeof fetch === "undefined") { can.push("fetch 없음"); }
+        stamp.textContent = stamp.textContent + " · 준비됨"
+          + (can.length ? " (" + can.join(", ") + ")" : "");
+      }
       var input = document.getElementById("gate-key");
       var button = document.getElementById("gate-go");
       var note = document.getElementById("gate-note");
@@ -302,6 +316,41 @@
         return fetch("data:application/octet-stream;base64," + b64)
           .then(function (r) { return r.arrayBuffer(); })
           .then(function (buf) { return new Uint8Array(buf); });
+      }
+
+      // 덮은 덩어리가 옆 파일에 있을 때. 받는 동안 몇 퍼센트인지 보여 준다.
+      function fetchData(src, total) {
+        return fetch(src, { cache: "no-store" }).then(function (res) {
+          if (!res.ok) {
+            throw new Error("자료 파일을 못 받았습니다 (" + res.status + ")");
+          }
+          if (!res.body || !res.body.getReader) {
+            return res.arrayBuffer().then(function (b) {
+              return new Uint8Array(b);
+            });
+          }
+          var reader = res.body.getReader(), chunks = [], got = 0;
+          return (function pump() {
+            return reader.read().then(function (step) {
+              if (step.done) {
+                var all = new Uint8Array(got), at = 0;
+                chunks.forEach(function (c) { all.set(c, at); at += c.length; });
+                return all;
+              }
+              chunks.push(step.value);
+              got += step.value.length;
+              if (total) {
+                say("받는 중 " + Math.round(got / total * 100) + "%");
+              }
+              return pump();
+            });
+          })();
+        });
+      }
+
+      function say(text) {
+        note.className = "gatenote working";
+        note.textContent = text;
       }
 
       // 덮기 전에 눌러 두었다. 그대로 풀면 13MB 가 2MB 로 줄어 든다.
@@ -318,16 +367,16 @@
         var word = (input.value || "").trim();
         if (!word) { return; }
         button.disabled = true;
-        // 화면이 몇 초 멈춘 듯 보이는 구간이 있다. 어디쯤인지 알려 준다.
-        function say(text) { note.className = "gatenote working";
-                             note.textContent = text; }
-        say("열쇠를 만드는 중입니다...");
+        say("준비하는 중입니다...");
 
         var enc = new TextEncoder();
         var parts = {};
-        Promise.all([bytes(blob.salt), bytes(blob.iv), bytes(blob.data)])
+        var getData = blob.src ? fetchData(blob.src, blob.bytes)
+                               : bytes(blob.data);
+        Promise.all([bytes(blob.salt), bytes(blob.iv), getData])
           .then(function (got) {
             parts.salt = got[0]; parts.iv = got[1]; parts.data = got[2];
+            say("열쇠를 만드는 중입니다...");
             return crypto.subtle.importKey("raw", enc.encode(word), "PBKDF2",
                                            false, ["deriveKey"]);
           })
@@ -355,11 +404,18 @@
             var home = frame.getAttribute("data-home");
             show(home || (chips.length ? chips[0].dataset.src : null));
           })
-          .catch(function () {
-            // 복호화 실패 = 암호가 틀렸다는 뜻이다. 다른 이유는 거의 없다.
-            note.textContent = "키가 맞지 않습니다. 다시 넣어 주세요.";
+          .catch(function (err) {
+            // 열쇠가 틀린 것과 파일을 못 받은 것은 다른 일이다. 뭉뚱그리면
+            // 사장님이 키만 계속 다시 넣게 된다.
+            note.className = "gatenote";
+            var why = (err && err.message) || "";
+            if (why.indexOf("자료 파일") === 0 || why.indexOf("압축") >= 0) {
+              note.textContent = why;
+            } else {
+              note.textContent = "키가 맞지 않습니다. 다시 넣어 주세요.";
+              input.select();
+            }
             button.disabled = false;
-            input.select();
           });
       }
 

@@ -364,3 +364,60 @@ def test_안_잠근_판에서는_잠금_화면이_숨는다(snap, tmp_path):
 
     start = page.index('<div id="gate"')
     assert "hidden" in page[start:page.index(">", start) + 1]
+
+
+# ──────────────────────────────── 웹에 올리는 판 — 화면이 먼저 떠야 한다
+#
+# 1.5MB 를 한 장에 넣으면 브라우저가 그걸 다 읽기 전에 글자 하나 안 그린다.
+# 뭐가 잘못되면 하얀 화면으로 멎고 콘솔에는 아무것도 안 남는다. 실제로
+# 그 일이 났고, 무엇이 문제인지 알아내는 데 여러 번을 헛짚었다.
+
+@pytest.fixture(scope="module")
+def web(tmp_path_factory):
+    out = tmp_path_factory.mktemp("web")
+    build(out, stamp="테스트빌드", single=str(out / "index.html"),
+          lock=LOCK_WORD, split=True)
+    return out
+
+
+def test_표지가_작다(web):
+    """화면이 먼저 뜨려면 표지가 가벼워야 한다."""
+    size = (web / "index.html").stat().st_size
+    assert size < 200_000, f"표지가 {size:,} 바이트나 된다"
+
+
+def test_덮은_덩어리는_옆_파일에_있다(web):
+    data = web / "data.bin"
+    assert data.is_file()
+    assert data.stat().st_size > 100_000, "자료가 비었다"
+
+    page = (web / "index.html").read_text(encoding="utf-8")
+    assert '"src": "data.bin"' in page
+    assert '"data"' not in page, "덩어리가 표지에도 들어갔다"
+
+
+def test_옆_파일도_덮여_있다(web):
+    """따로 뺐다고 맨몸으로 두면 안 된다. 주소만 알면 그냥 받아진다."""
+    raw = (web / "data.bin").read_bytes()
+
+    assert not raw.startswith(b"{"), "덮지 않은 JSON 이다"
+    assert b"\x1f\x8b" != raw[:2], "덮지 않은 gzip 이다"
+    for phrase in ("공인중개사".encode(), b"exam-drill", b"<html"):
+        assert phrase not in raw, f"{phrase!r} 가 그대로 보인다"
+
+
+def test_빌드_시각이_화면에_적힌다(web):
+    """화면이 안 뜰 때 사장님이 알려 주실 수 있는 유일한 단서다.
+
+    이게 보이면 적어도 표지는 받아졌다는 뜻이고, 옛 파일이 남아 있는지도
+    이걸로 가린다.
+    """
+    page = (web / "index.html").read_text(encoding="utf-8")
+    assert "테스트빌드" in page
+    assert 'id="gate-stamp"' in page
+
+
+def test_한_장_판은_그대로_한_장이다(locked):
+    """파일로 드리는 판은 옆 파일이 있으면 안 된다. 하나만 열어 봐야 한다."""
+    assert '"src"' not in locked
+    assert '"data"' in locked

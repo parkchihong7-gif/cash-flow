@@ -315,14 +315,7 @@ def _payload(raw: dict[str, str], pages: dict[str, str], dangling: set[str],
     Args:
         lock: 넣으면 **자물쇠를 건다.** 이 글자를 모르면 못 읽는다.
     """
-    bundle = {}
-    for url, body in raw.items():
-        body = _rewrite(body, pages, dangling, single=True)
-        body = body.replace("<body>", "<body>\n" + banner, 1)
-        body = body.replace("</body>", FREEZE + "\n</body>", 1)
-        bundle[pages[url]] = body
-    bundle["__css__"] = css
-    text = json.dumps(bundle, ensure_ascii=False)
+    text = _bundle_text(raw, pages, dangling, banner, css)
 
     if lock:
         return _locked_payload(text, lock)
@@ -330,6 +323,48 @@ def _payload(raw: dict[str, str], pages: dict[str, str], dangling: set[str],
     # </script> 가 글자 그대로 들어가면 쪽지가 거기서 끊긴다.
     return ('<script type="application/json" id="pages">'
             + text.replace("</", "<\\/") + "</script>")
+
+
+def _bundle_text(raw: dict[str, str], pages: dict[str, str], dangling: set[str],
+                 banner: str, css: str) -> str:
+    """화면 전부를 글자 하나로 묶는다."""
+    bundle = {}
+    for url, body in raw.items():
+        body = _rewrite(body, pages, dangling, single=True)
+        body = body.replace("<body>", "<body>\n" + banner, 1)
+        body = body.replace("</body>", FREEZE + "\n</body>", 1)
+        bundle[pages[url]] = body
+    bundle["__css__"] = css
+    return json.dumps(bundle, ensure_ascii=False)
+
+
+def _locked_blob(text: str, password: str) -> tuple[dict, bytes]:
+    """덮은 내용과, 그것을 여는 데 필요한 정보를 따로 돌려준다.
+
+    파일 하나에 다 넣으면 1.5MB 짜리 HTML 이 되고, 브라우저가 그걸 다 읽기
+    전에는 **글자 하나 안 그린다.** 뭐가 잘못되면 하얀 화면으로 멎어 있고
+    콘솔에는 아무것도 안 남는다. 실제로 그 일이 났다.
+
+    그래서 웹에 올릴 때는 덮은 덩어리를 옆 파일로 뺀다. 화면이 먼저 뜨고,
+    받는 동안 몇 퍼센트인지 보이고, 실패하면 왜인지 말할 수 있다.
+    """
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+    packed = gzip.compress(text.encode("utf-8"), compresslevel=9)
+    salt = secrets.token_bytes(16)
+    nonce = secrets.token_bytes(12)
+    key = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt,
+                              PBKDF2_ROUNDS, dklen=32)
+    sealed = AESGCM(key).encrypt(nonce, packed, None)
+
+    meta = {
+        "salt": base64.b64encode(salt).decode(),
+        "iv": base64.b64encode(nonce).decode(),
+        "rounds": PBKDF2_ROUNDS,
+        "gzip": True,
+        "bytes": len(sealed),
+    }
+    return meta, sealed
 
 
 def _locked_payload(text: str, password: str) -> str:
@@ -371,7 +406,8 @@ def _locked_payload(text: str, password: str) -> str:
 
 def build(out_dir: str | Path, db_path: str | Path | None = None,
           products_dir: Path | None = None, stamp: str = "",
-          demo: bool = False, single: str = "", lock: str = "") -> Snapshot:
+          demo: bool = False, single: str = "", lock: str = "",
+          split: bool = False) -> Snapshot:
     """화면을 떠서 `out_dir` 아래에 static HTML 묶음을 만든다.
 
     Args:
@@ -449,10 +485,22 @@ def build(out_dir: str | Path, db_path: str | Path | None = None,
         snapshot.index.write_text(_cover(snapshot, registry, stamp), encoding="utf-8")
 
         if single:
-            payload = _payload(raw, snapshot.pages, snapshot.dangling, banner, css,
-                               lock=lock)
             snapshot.single = Path(single)
             snapshot.single.parent.mkdir(parents=True, exist_ok=True)
+
+            if lock and split:
+                # 덮은 덩어리를 옆 파일로 뺀다. 화면이 먼저 뜬다.
+                text = _bundle_text(raw, snapshot.pages, snapshot.dangling,
+                                    banner, css)
+                meta, sealed = _locked_blob(text, lock)
+                data_name = "data.bin"
+                (snapshot.single.parent / data_name).write_bytes(sealed)
+                meta["src"] = data_name
+                payload = ('<script type="application/json" id="locked">'
+                           + json.dumps(meta) + "</script>")
+            else:
+                payload = _payload(raw, snapshot.pages, snapshot.dangling, banner,
+                                   css, lock=lock)
             snapshot.single.write_text(
                 _cover(snapshot, registry, stamp, payload=payload,
                        locked=bool(lock)), encoding="utf-8")
@@ -476,6 +524,10 @@ def main(argv: list[str] | None = None) -> int:
         "--lock", default="",
         help="확인용 한 장에 자물쇠를 겁니다. 이 글자를 모르면 못 읽습니다. "
              "흉내가 아니라 내용을 AES-GCM 으로 덮습니다. --single 과 같이 쓰세요.")
+    parser.add_argument(
+        "--split", action="store_true",
+        help="덮은 덩어리를 data.bin 으로 따로 뺍니다. 웹에 올릴 때 쓰세요 — "
+             "화면이 먼저 뜨고, 받는 동안 몇 퍼센트인지 보입니다.")
     parser.add_argument("--single", nargs="?", const="auto", default="",
                         help="화면 전부를 담은 HTML 파일 하나도 만듭니다")
     parser.add_argument("--zip", action="store_true", help="폴더를 zip 으로도 묶습니다")
@@ -489,7 +541,7 @@ def main(argv: list[str] | None = None) -> int:
         single = str(Path(args.out) / "통합-관리자-대시보드.html")
     snapshot = build(args.out, Path(args.db) if args.db else None,
                      stamp=args.stamp, demo=args.demo, single=single,
-                     lock=args.lock)
+                     lock=args.lock, split=args.split)
     print(f"화면 {snapshot.count}개 → {snapshot.index}")
     if snapshot.single:
         size = snapshot.single.stat().st_size / 1_000_000
