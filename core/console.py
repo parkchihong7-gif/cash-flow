@@ -50,7 +50,9 @@ from core.webui import MODE_LABEL, Panel
 
 __all__ = [
     "Stat", "Tab", "Todo", "ManualTask", "Trouble", "FileLoc", "Console",
-    "from_webui", "add_standard_tabs", "STANDARD_GROUP", "STANDARD_TABS",
+    "from_webui", "add_standard_tabs", "tabs_from", "generator_console",
+    "STANDARD_GROUP",
+    "STANDARD_TABS",
 ]
 
 #: 공통 탭이 묶이는 자리. 상품 고유 탭은 이 위에 온다.
@@ -293,6 +295,50 @@ STANDARD_TABS: tuple[tuple[str, str, str, bool, str], ...] = (
 )
 
 
+def tabs_from(webui, spec: list[dict]) -> list[Tab]:
+    """이미 만들어 둔 패널을 탭으로 **나누기만** 한다.
+
+    대부분의 상품은 1차에서 만든 패널이 이미 옳다. 틀린 것은 그것들이 한 장에
+    쏟아져 있다는 점뿐이다. 그래서 패널을 다시 짓지 않고 자리만 나눈다.
+    데이터를 다시 읽지 않으니 **필드 이름을 잘못 짚을 일이 없다.**
+
+    Args:
+        webui: 상품의 `WebUI`. 관리자 패널 목록에서 골라 쓴다.
+        spec: 탭 하나당 딕셔너리. `panels` 에 패널 key 를 순서대로 적는다.
+
+            {"key": "run", "label": "돌리기", "icon": "▶",
+             "group": "쓰는 자리", "intro": "...", "panels": ["run", "out"]}
+
+    쓰지 않은 패널은 조용히 버려지지 않는다 — 마지막 탭에 모아 붙인다.
+    한 번 만든 화면이 개편 중에 사라지는 일을 막기 위해서다.
+    """
+    by_key = {panel.key: panel for panel in webui.admin}
+    client_keys = {panel.key for panel in webui.client}
+    used: set[str] = set()
+    tabs: list[Tab] = []
+
+    for item in spec:
+        keys = [key for key in item.get("panels", []) if key in by_key]
+        used.update(keys)
+        panels = [by_key[key] for key in keys]
+        for panel in panels:
+            # 클라이언트 화면에 없던 패널은 관리자 전용으로 본다.
+            if panel.key not in client_keys:
+                setattr(panel, "admin_only", True)
+        tabs.append(Tab(
+            key=item["key"], label=item["label"], icon=item.get("icon", ""),
+            group=item.get("group", ""), intro=item.get("intro", ""),
+            panels=panels, admin_only=item.get("admin_only", False),
+            common_buttons=item.get("buttons", ""),
+        ))
+
+    leftover = [panel for panel in webui.admin if panel.key not in used]
+    if leftover:
+        tabs.append(Tab(key="etc", label="그 밖에", icon="📎",
+                        group=STANDARD_GROUP, panels=leftover))
+    return tabs
+
+
 def default_files(program) -> list[FileLoc]:
     """`program.yaml` 만 보고 채우는 '무엇이 어디에' 표.
 
@@ -351,3 +397,58 @@ def add_standard_tabs(console: "Console", program=None) -> "Console":
             intro=intro, admin_only=admin_only, render=key,
         ))
     return console
+
+
+def generator_console(program, webui, *, input_label: str, input_icon: str,
+                      output_label: str, output_icon: str, output_intro: str = "",
+                      make_label: str = "만들기", make_intro: str = "",
+                      todos=None, manual_tasks=None, troubles=None, files=None,
+                      stats=None, admin_intro: str = "", client_intro: str = "",
+                      extra_tabs=None) -> "Console":
+    """Claude 를 한 번 불러 문서를 만드는 상품들의 공통 콘솔.
+
+    일곱 상품(퍼널·후크·전자책·강의자료·크몽카피·노션템플릿·n8n)은 **정말로
+    같은 모양**이다. 적고 → 만들고 → 받는다. 여기서 억지로 다른 구조를 만들면
+    쓰는 사람만 헷갈린다. 그래서 뼈대는 나누고, **탭 이름과 내용은 상품이
+    정한다** — 나오는 것이 랜딩 페이지인지 워드 원고인지는 전혀 다른 일이라
+    같은 이름을 붙이면 안 된다.
+
+    나중에 한 상품만 깊어지면 이 함수를 안 부르고 자기 `console()` 을 쓰면
+    된다. 나머지 여섯은 흔들리지 않는다.
+    """
+    def pick(*keys):
+        by_key = {panel.key: panel for panel in webui.admin}
+        return [by_key[key] for key in keys if key in by_key]
+
+    client_keys = {panel.key for panel in webui.client}
+    for panel in webui.admin:
+        if panel.key not in client_keys:
+            setattr(panel, "admin_only", True)
+
+    tabs = [
+        Tab(key="input", label=input_label, icon=input_icon, group="적는 자리",
+            intro="**여기 적은 것이 결과를 거의 다 정합니다.** 자세히 적을수록 "
+                  "고칠 일이 줄어듭니다.",
+            panels=pick("input", "tips")),
+        Tab(key="make", label=make_label, icon="✨", group="만드는 자리",
+            intro=make_intro or "**모의 실행은 뼈대만 만들고 비용이 0원입니다.** "
+                                "모양을 먼저 보시고, 마음에 들면 실제로 만드세요.",
+            panels=pick("run", "run_real")),
+        Tab(key="out", label=output_label, icon=output_icon, group="받는 자리",
+            intro=output_intro, panels=pick("outputs")),
+    ]
+    tabs += list(extra_tabs or [])
+
+    return Console(
+        program_id=program.id, title=program.name,
+        subtitle=getattr(program, "tagline", ""),
+        tabs=tabs,
+        stats=list(stats or []),
+        todos=list(todos or []),
+        manual_tasks=list(manual_tasks or []),
+        troubles=list(troubles or []),
+        files=list(files or []),
+        admin_intro=admin_intro or webui.admin_intro,
+        client_intro=client_intro or webui.client_intro,
+        custom=True,
+    )

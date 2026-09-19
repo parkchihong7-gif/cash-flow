@@ -267,7 +267,7 @@ def test_프로그램마다_키가_따로_논다(client):
 # 14번 콘솔을 쓰다가 속성 이름을 세 번 잘못 짚었는데(level·monthly_won·
 # DAILY_UNITS) 화면은 200 으로 멀쩡히 떴다. 그래서 따로 본다.
 
-CUSTOM = ["exam-drill", "senior-video", "naver-blog", "speaker-desk"]
+CUSTOM = ALL           # 16종 전부 전용 콘솔을 갖는다
 
 
 @pytest.mark.parametrize("program_id", CUSTOM)

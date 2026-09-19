@@ -167,3 +167,106 @@ def handle(program, ctx, action: str, form: dict) -> str:
         return (f"saved={len(words)}개 저장했습니다. 다만 하루 상한이 "
                 f"{DEFAULT_KEYWORD_LIMIT}개라 나머지는 다음 날로 넘어갑니다")
     return f"saved=키워드 {len(words)}개를 저장했습니다"
+
+
+# ══════════════════════════════════════════════════════════ 운영 콘솔
+#
+# 탭은 **니치를 찾는 일**에서 나온다. 매일 조금씩 모아서 쌓고, 쌓인 것으로
+# 공백을 본다. 하루치만으로는 아무것도 못 본다는 것이 이 상품의 전제라,
+# '쌓인 자료' 와 '오늘 모으기' 가 서로 다른 탭이다.
+#
+# '하지 않는 것' 탭을 굳이 남겨 두었다. 노아AI 가 '터진 영상 따라 만들기' 로
+# 표절 논란을 부르고 서비스를 접은 전례가 있어, 이 도구가 무엇을 안 하는지를
+# 사는 사람이 먼저 보게 해야 한다.
+
+from core.console import (                                        # noqa: E402
+    Console, FileLoc, ManualTask, Stat, Tab, Todo, Trouble, tabs_from,
+)
+
+
+def console(program, ctx) -> Console:
+    ui = build(program, ctx)
+    store = _store()
+    words = _keywords()
+
+    # getattr 로 슬쩍 넘기지 않는다. 없으면 없다고 화면에 적어야 한다.
+    counts = store.counts() if store is not None else None
+    stats = [Stat("보는 키워드", str(len(words)), "개", tab="keywords")]
+    if counts is None:
+        stats.append(Stat("쌓은 자료", "없음", tone="warn",
+                          hint="아직 한 번도 모으지 않았습니다", tab="collect"))
+    else:
+        days = counts["days"]
+        stats += [
+            Stat("쌓은 날", str(days), "일",
+                 tone="warn" if days < MIN_DAYS else "ok",
+                 hint=f"{MIN_DAYS}일치는 모여야 지표가 나옵니다" if days < MIN_DAYS
+                      else "지표를 계산할 수 있습니다",
+                 tab="state"),
+            Stat("모은 영상", f"{counts['videos']:,}", "개", tab="state"),
+        ]
+
+    return Console(
+        program_id=program.id, title=program.name, subtitle=program.tagline,
+        tabs=tabs_from(ui, [
+            {"key": "state", "label": "쌓인 자료", "icon": "🗄", "group": "보는 자리",
+             "intro": "**하루치로는 아무것도 못 봅니다.** 며칠 쌓여야 흐름이 나옵니다.",
+             "panels": ["state"]},
+            {"key": "gap", "label": "공백", "icon": "🕳", "group": "보는 자리",
+             "intro": "찾는 사람에 견줘 **만든 사람이 적은** 자리입니다.",
+             "panels": ["gap"]},
+            {"key": "keywords", "label": "볼 키워드", "icon": "🔤", "group": "모으는 자리",
+             "panels": ["keywords"]},
+            {"key": "collect", "label": "오늘 모으기", "icon": "📥", "group": "모으는 자리",
+             "intro": "하루 한 번이면 충분합니다. 더 눌러도 같은 날 자료가 덮일 뿐입니다.",
+             "panels": ["collect", "quota"]},
+            {"key": "nocopy", "label": "하지 않는 것", "icon": "🚫", "group": "보는 자리",
+             "intro": "사시기 전에 **이 도구가 무엇을 안 하는지** 먼저 보세요.",
+             "panels": ["nocopy"]},
+        ]),
+        stats=stats,
+        todos=[
+            Todo("오늘 자료 모으기", tab="collect",
+                 detail="하루 한 번이면 됩니다. 쿼터를 아껴 쓰는 편이 오래 갑니다."),
+            Todo("공백이 큰 키워드를 보고 **각도**를 정하기", tab="gap",
+                 detail="키워드를 그대로 쓰지 마시고, 그 안에서 아직 아무도 안 다룬 "
+                        "각도를 잡으세요."),
+        ],
+        manual_tasks=[
+            ManualTask(
+                task="영상 기획과 제작",
+                where="직접",
+                why="이 도구는 **어느 자리가 비었는지**까지만 말합니다. "
+                    "무엇을 어떻게 만들지는 사람이 정합니다."),
+            ManualTask(
+                task="유튜브 API 키 발급",
+                where="Google Cloud Console → YouTube Data API v3",
+                why="키는 계정마다 발급받으셔야 합니다. 무료이고 하루 10,000 유닛을 "
+                    "줍니다. 대신 키를 공유해 드릴 수는 없습니다."),
+        ],
+        troubles=[
+            Trouble("공백 표가 비어 있다",
+                    "자료가 아직 모자랍니다. **사흘 이상** 모으셔야 흐름이 나옵니다. "
+                    "하루치로는 '지금 많다/적다' 밖에 말할 수 없습니다."),
+            Trouble("오늘 더 못 모은다고 나온다",
+                    "유튜브 API 하루 쿼터를 다 쓰셨습니다. **기다리시는 것이 맞습니다** — "
+                    "재시도하면 다음 날 몫까지 깎입니다. 키워드 수를 줄이면 오래 갑니다."),
+            Trouble("잘 나가는 영상을 찾아 주지 않는다",
+                    "일부러 안 만들었습니다. '터진 영상 따라 만들기' 를 추천하던 도구가 "
+                    "표절 논란으로 서비스를 접은 전례가 있습니다. 여기서는 **키워드·"
+                    "포맷의 공백**만 말합니다."),
+            Trouble("수치가 실제 유튜브와 다르다",
+                    "검색량 자체는 API 로 받을 수 없어, **검색 결과 수와 조회수 분포**로 "
+                    "가늠한 값입니다. 절대값이 아니라 **키워드끼리 견주는 용도**입니다."),
+        ],
+        files=[
+            FileLoc("볼 키워드", "products/niche-research/keywords.txt"),
+            FileLoc("쌓인 자료", "products/niche-research/data/snapshots.db",
+                    "날마다 한 줄씩 쌓입니다. 지우면 흐름이 사라집니다."),
+            FileLoc("보고서", "products/niche-research/outputs/"),
+        ],
+        admin_intro="**공급이 비어 있는 자리**를 찾습니다. 잘 나가는 영상을 "
+                    "따라 만들라고는 하지 않습니다.",
+        client_intro="찾는 사람에 견줘 만든 사람이 적은 자리를 알려 드립니다.",
+        custom=True,
+    )

@@ -135,3 +135,101 @@ def handle(program, ctx, action: str, form: dict) -> str:
     return (f"saved={client} · {plan} 플랜으로 꾸러미를 만들려면 "
             f"'모의 실행' 대신 터미널에서 `python cli.py package --plan {plan} "
             f"--client \"{client}\"` 를 쓰세요")
+
+
+# ══════════════════════════════════════════════════════════ 운영 콘솔
+#
+# 탭은 **대행 납품**에서 나온다. 이 상품은 내가 쓰는 도구가 아니라 **남에게
+# 설치해 주고 돈을 받는 꾸러미**다. 그래서 순서가 이렇다.
+#
+#     팔기 전에 심사를 신청한다 → 모듈을 돌려 본다 → 납품 문서를 챙긴다
+#     → 꾸러미로 묶는다
+#
+# '먼저 신청해야 하는 것' 이 첫 탭인 이유는 하나다. 카카오 i 오픈빌더 심사는
+# 코드와 무관하게 몇 주가 걸리고, **이게 안 나면 코드가 다 돼도 못 판다.**
+# 만들기 시작할 때 같이 넣어야 하는 일이라 맨 앞에 둔다.
+
+from core.console import (                                        # noqa: E402
+    Console, FileLoc, ManualTask, Tab, Todo, Trouble, tabs_from,
+)
+
+
+def console(program, ctx) -> Console:
+    ui = build(program, ctx)
+    return Console(
+        program_id=program.id, title=program.name, subtitle=program.tagline,
+        tabs=tabs_from(ui, [
+            {"key": "review", "label": "먼저 신청할 것", "icon": "📮", "group": "팔기 전",
+             "intro": "**코드보다 이게 먼저입니다.** 심사는 몇 주가 걸리고, "
+                      "안 나면 다 만들어도 못 팝니다.",
+             "panels": ["review"], "admin_only": True},
+            {"key": "modules", "label": "모듈 세 개", "icon": "🧩", "group": "납품물",
+             "panels": ["modules"]},
+            {"key": "run", "label": "돌려 보기", "icon": "▶", "group": "납품물",
+             "intro": "설치해 드리기 전에 **내 손에서** 세 개가 다 도는지 봅니다.",
+             "panels": ["run"]},
+            {"key": "deliverables", "label": "납품 문서", "icon": "📑", "group": "납품물",
+             "intro": "계약서·매뉴얼·인수인계서. **문서가 없으면 유지비를 못 받습니다.**",
+             "panels": ["deliverables"], "admin_only": True},
+            {"key": "package", "label": "꾸러미 만들기", "icon": "📦", "group": "내보내기",
+             "panels": ["package"], "admin_only": True},
+            {"key": "never", "label": "넣지 않은 것", "icon": "🚫", "group": "납품물",
+             "panels": ["never"]},
+        ]),
+        todos=[
+            Todo("심사 신청이 진행 중인지 확인", tab="review", by_hand=True,
+                 admin_only=True,
+                 detail="카카오 i 오픈빌더는 채널을 먼저 만들고 신청합니다."),
+            Todo("고객에게 설치하기 전에 세 모듈을 한 번 돌려 보기", tab="run"),
+            Todo("납품 문서를 고객 이름으로 채우기", tab="deliverables",
+                 by_hand=True, admin_only=True),
+        ],
+        manual_tasks=[
+            ManualTask(
+                task="카카오 i 오픈빌더 심사 신청",
+                where="카카오 비즈니스 → 채널 개설 → 오픈빌더 신청",
+                why="**사람이 심사합니다.** 몇 주가 걸리고, 승인이 안 나면 챗봇을 "
+                    "못 붙입니다. 코드와 무관하니 만들기 시작할 때 같이 신청하세요.",
+                someday="한 번 승인받으면 다음 고객부터는 바로 붙입니다."),
+            ManualTask(
+                task="고객 계정으로 API 키 받기",
+                where="고객의 구글·카카오 계정",
+                why="**내 키를 고객에게 심으면 안 됩니다.** 고객이 나가도 내 키로 "
+                    "요금이 나가고, 내가 키를 바꾸면 고객 것이 멈춥니다. "
+                    "고객 계정으로 받아 고객 것에 넣어 드리세요."),
+            ManualTask(
+                task="설치 후 인수인계",
+                where="고객 사무실 또는 화상",
+                why="**여기서 유지비가 갈립니다.** 고객이 스스로 못 고치면 매번 "
+                    "부르고, 그게 리테이너의 근거가 됩니다. 반대로 아무것도 안 "
+                    "알려 드리면 신뢰를 잃습니다. 문서를 드리고 한 번 같이 해 보세요."),
+            ManualTask(
+                task="계약서 서명",
+                where="고객과 직접",
+                why="만들어 드리는 것은 **초안**입니다. 유지 범위와 해지 조건은 "
+                    "고객마다 달라 비워 두었습니다."),
+        ],
+        troubles=[
+            Trouble("챗봇이 답을 안 한다",
+                    "오픈빌더 심사가 아직 안 났거나, 스킬 서버 주소가 "
+                    "**https 가 아닌** 경우입니다. 카카오는 http 를 받지 않습니다."),
+            Trouble("구글시트를 못 읽는다",
+                    "시트를 서비스 계정 이메일에 **공유**하셔야 합니다. "
+                    "키만 넣고 공유를 안 하면 권한 오류가 납니다."),
+            Trouble("고객이 '내가 직접 못 고친다' 고 한다",
+                    "납품 문서의 매뉴얼을 같이 보면서 한 번 해 보세요. "
+                    "그래도 어려우면 그게 곧 **유지비를 받을 근거**입니다."),
+            Trouble("인스타 예약 게시가 안 된다",
+                    "**비즈니스·크리에이터 계정**이어야 하고 페이스북 페이지와 "
+                    "연결돼 있어야 합니다. 개인 계정은 API 로 못 올립니다."),
+        ],
+        files=[
+            FileLoc("모듈 정의", "products/agency-kit/modules/"),
+            FileLoc("납품 문서 틀", "products/agency-kit/docs/"),
+            FileLoc("만든 꾸러미", "products/agency-kit/outputs/"),
+        ],
+        admin_intro="**남에게 설치해 주고 받는** 꾸러미입니다. 심사 신청부터 "
+                    "챙기세요 — 코드가 다 돼도 그게 안 나면 못 팝니다.",
+        client_intro="설치해 드린 자동화 세 가지입니다. 여기서 한 번 돌려 보실 수 있습니다.",
+        custom=True,
+    )

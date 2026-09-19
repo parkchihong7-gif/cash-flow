@@ -25,7 +25,7 @@ from dashboard.snapshot import PAGE_DIR, build, local_name, should_follow
 
 @pytest.fixture(scope="module")
 def snap(tmp_path_factory):
-    """한 번만 뜬다. 화면이 150개라 매 테스트마다 뜨면 느리다."""
+    """한 번만 뜬다. 화면이 600장이 넘어 매 테스트마다 뜨면 느리다."""
     out = tmp_path_factory.mktemp("snapshot")
     return build(out, stamp="테스트")
 
@@ -173,3 +173,28 @@ def test_the_payload_cannot_break_out_of_the_script_tag(single):
     payload = single.single.read_text(encoding="utf-8")
     payload = payload[payload.index('id="pages"'):]
     assert "</script>" not in payload[:-20], "쪽지 안에 닫는 표가 남아 있습니다"
+
+
+def test_상품_콘솔이_스냅샷에_들어간다(snap):
+    """16종 × 두 모드가 오프라인 사본에도 있어야 한다.
+
+    스냅샷은 **서버 없이** 화면을 보여 주려고 만든 것이다. 정작 파는 물건의
+    운영 화면이 빠져 있으면 볼 것이 없다.
+    """
+    pages = snap.pages
+    for program in Registry().programs:
+        for mode in ("admin", "client"):
+            assert f"/apps/{program.id}/{mode}" in pages, \
+                f"{program.id}/{mode} 가 스냅샷에 없다"
+
+
+def test_링크는_있는데_안_열리는_화면이_없다(snap):
+    """상한(MAX_PAGES)에 걸리면 조용히 잘린다.
+
+    실제로 콘솔 탭을 넣자 400장 상한에 걸려 221개가 링크만 남았다. 눌러도
+    아무 일이 안 나는데, 만든 사람은 모르고 지나간다. 그래서 0을 못 박는다.
+    """
+    assert snap.dangling == set(), (
+        f"눌러도 안 열리는 링크가 {len(snap.dangling)}개 있습니다. "
+        f"MAX_PAGES 를 올리거나 FOLLOW_PREFIXES 를 좁히세요. "
+        f"예: {sorted(snap.dangling)[:3]}")

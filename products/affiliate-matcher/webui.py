@@ -111,3 +111,75 @@ def handle(program, ctx, action: str, form: dict) -> str:
     DRAFT.parent.mkdir(parents=True, exist_ok=True)
     DRAFT.write_text(text, encoding="utf-8")
     return f"saved={len(text):,}자를 저장했습니다. 아래에서 돌려 보세요"
+
+
+# ══════════════════════════════════════════════════════════ 운영 콘솔
+#
+# 탭은 **제휴 글을 쓰는 일**에서 나온다. 원고를 붙이고 → 어느 문단에 무엇을
+# 붙일지 받고 → 대가성 문구를 넣는다. 세 걸음뿐이라 탭도 적다.
+#
+# '대가성 문구' 를 **첫 탭**에 둔 이유가 있다. 쿠팡파트너스는 이 문구가 없으면
+# **경고 없이 자격이 정지된다.** 매칭 결과를 먼저 보여 주면 사람은 그것만
+# 챙기고 문구를 잊는다. 순서가 곧 안전장치다.
+
+from core.console import (                                        # noqa: E402
+    Console, FileLoc, ManualTask, Tab, Todo, Trouble, tabs_from,
+)
+
+
+def console(program, ctx) -> Console:
+    ui = build(program, ctx)
+    return Console(
+        program_id=program.id, title=program.name, subtitle=program.tagline,
+        tabs=tabs_from(ui, [
+            {"key": "disclosure", "label": "대가성 문구", "icon": "⚖️", "group": "먼저",
+             "intro": "**이것부터입니다.** 빠뜨리면 경고 없이 자격이 정지됩니다.",
+             "panels": ["disclosure"]},
+            {"key": "paste", "label": "원고 붙이기", "icon": "📋", "group": "쓰는 자리",
+             "panels": ["paste"]},
+            {"key": "run", "label": "상품 찾기", "icon": "🔗", "group": "쓰는 자리",
+             "intro": "문단마다 **어울리는 상품 종류**를 짚어 드립니다.",
+             "panels": ["run"]},
+            {"key": "rates", "label": "수수료율", "icon": "💵", "group": "보는 자리",
+             "panels": ["rates"], "admin_only": True},
+            {"key": "rules", "label": "규칙", "icon": "📜", "group": "보는 자리",
+             "panels": ["rules"]},
+        ]),
+        todos=[
+            Todo("대가성 문구가 글 맨 위에 있는지 확인", tab="disclosure", by_hand=True),
+            Todo("원고를 붙이고 붙일 자리 받기", tab="run"),
+            Todo("추천받은 상품이 **글 내용과 맞는지** 직접 보기", by_hand=True,
+                 detail="안 맞는 상품을 억지로 붙이면 읽는 사람이 바로 압니다."),
+        ],
+        manual_tasks=[
+            ManualTask(
+                task="실제 상품 고르기와 링크 만들기",
+                where="쿠팡파트너스 등 제휴 사이트",
+                why="이 도구는 **어느 문단에 어떤 종류**가 어울리는지까지만 "
+                    "말합니다. 실제 상품은 직접 보고 고르셔야 합니다 — 품절이거나 "
+                    "가격이 이상한 상품을 프로그램이 알 수 없습니다."),
+            ManualTask(
+                task="대가성 문구 넣기",
+                where="글 맨 위 (블로그·유튜브 설명란)",
+                why="**빠뜨리면 경고 없이 자격 정지**입니다. 문구는 만들어 "
+                    "드리지만 넣는 것은 손으로 하셔야 합니다."),
+        ],
+        troubles=[
+            Trouble("추천 상품이 글과 안 어울린다",
+                    "원고가 짧거나 주제가 흩어져 있을 때 그렇습니다. 문단을 나눠 "
+                    "주제별로 붙여 보세요. **안 맞으면 쓰지 마세요** — 억지로 "
+                    "붙인 링크는 읽는 사람이 바로 압니다."),
+            Trouble("수수료가 생각보다 적다",
+                    "쿠팡파트너스는 카테고리별 1~3%, 쿠키는 24시간, 정산은 "
+                    "다다음 달 15일입니다. **이 구조에서 큰돈이 나오기는 어렵습니다.** "
+                    "글 자체로 사람을 모으는 편이 낫습니다."),
+            Trouble("자격이 정지됐다",
+                    "대가성 문구 누락이 가장 흔한 이유입니다. 지난 글도 전부 "
+                    "확인하세요 — 한 건만 빠져도 걸립니다."),
+        ],
+        files=[FileLoc("만든 표", "products/affiliate-matcher/outputs/")],
+        admin_intro="원고를 읽고 **어느 문단에 무엇을 붙일지** 표로 만듭니다. "
+                    "상품은 직접 고르셔야 합니다.",
+        client_intro="쓰신 글에 어울리는 제휴 상품 종류를 짚어 드립니다.",
+        custom=True,
+    )

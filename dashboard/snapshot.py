@@ -51,12 +51,19 @@ BASE_DIR = Path(__file__).resolve().parent
 PAGE_DIR = "app"
 
 #: 안전장치. 링크를 잘못 따라가 폭주하는 일을 막는다.
-MAX_PAGES = 400
+#: 떠 올 화면 수의 상한. 링크를 따라가다 보면 끝이 없을 수 있어 막아 둔다.
+#: 상품마다 운영 콘솔 탭이 열 개 남짓이고 모드가 둘이라, 16종이면 콘솔만
+#: 400장이 넘는다. 여기에 대시보드 화면을 더해 잡았다. 이 값이 모자라면
+#: 링크는 있는데 안 열리는 화면이 생긴다 — 만든 사람은 모르고 지나간다.
+MAX_PAGES = 900
 
 #: 이 접두어로 시작하는 주소만 따라간다.
 FOLLOW_PREFIXES = (
     "/", "/programs/", "/manual", "/members", "/settings", "/config",
     "/rules", "/revenue", "/schedule", "/access", "/runs", "/search", "/preview",
+    # 상품별 운영 콘솔. 탭마다 주소가 따로 있어, 씨앗으로 두 모드만 넣어도
+    # 왼쪽 메뉴를 따라가며 나머지 탭이 전부 걸린다.
+    "/apps/",
 )
 
 #: 따라가지 않는 주소. 스냅샷에서 뜻이 없거나 서버가 있어야만 되는 것들.
@@ -174,6 +181,8 @@ def _seeds(registry: Registry) -> list[str]:
             urls.append(f"/programs/{program.id}/manual/admin")
         if program.manuals.client:
             urls.append(f"/programs/{program.id}/manual/client")
+        # 두 모드의 첫 화면만 넣는다. 탭은 사이드바 링크를 따라가며 걸린다.
+        urls += [f"/apps/{program.id}/admin", f"/apps/{program.id}/client"]
     return urls
 
 

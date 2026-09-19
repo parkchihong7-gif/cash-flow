@@ -49,3 +49,61 @@ def handle(program, ctx, action: str, form: dict) -> str:
         return "error=모르는 동작입니다"
     return write_yaml_fields(INPUT, form, int_keys=INT_KEYS,
                              list_keys=LIST_KEYS, required=REQUIRED)
+
+
+# ══════════════════════════════════════════════════════════ 운영 콘솔
+#
+# 적는다 → 만든다 → 받는다. 이 상품은 정말로 이 세 걸음이라 탭도 셋이다.
+# 억지로 늘리지 않았다. 대신 **탭 이름은 이 상품이 내놓는 것**으로 붙였다 —
+# 나오는 것이 무엇인지가 상품마다 전혀 다르기 때문이다.
+
+from core.console import (                                        # noqa: E402
+    Console, FileLoc, ManualTask, Tab, Todo, Trouble, generator_console,
+)
+
+
+def console(program, ctx) -> Console:
+    return generator_console(
+        program, build(program, ctx),
+        input_label="템플릿 기획", input_icon="🗂",
+        output_label="구조·판매문구·설명서", output_icon="📐",
+        output_intro="데이터베이스 구조 설계, 판매 문구, 구매자용 설명서가 나옵니다.",
+        make_label="템플릿 기획하기",
+        todos=[
+            Todo("어떤 일을 도와주는 템플릿인지 적기", tab="input"),
+            Todo("나온 구조대로 **노션에서 직접 만들기**", by_hand=True,
+                 detail="설계도까지 드립니다. 만드는 것은 노션에서 하셔야 합니다."),
+            Todo("구매자 설명서를 템플릿 안에 넣기", by_hand=True,
+                 detail="설명서가 없으면 환불 문의가 늘어납니다."),
+        ],
+        manual_tasks=[
+            ManualTask(
+                task="노션에서 실제로 만들기",
+                where="노션",
+                why="노션은 템플릿을 만드는 공개 API 가 제한적이고, 데이터베이스 "
+                    "뷰·수식·연결은 손으로 짜야 합니다. **설계도와 문구까지** "
+                    "드리고 조립은 사람이 합니다.",
+                someday="노션 API 가 뷰와 수식까지 열면 일부는 자동으로 할 수 "
+                        "있습니다. 지금은 안 됩니다."),
+            ManualTask(
+                task="템플릿 복제 링크 만들기",
+                where="노션 → 공유 → 웹에 게시 → 템플릿 복제 허용",
+                why="이 설정을 안 켜면 산 사람이 복제하지 못합니다. "
+                    "가장 흔한 환불 사유입니다."),
+        ],
+        troubles=[
+            Trouble("구매자가 복제가 안 된다고 한다",
+                    "노션 공유 설정에서 **'템플릿 복제 허용'** 을 켜셔야 합니다. "
+                    "웹에 게시만 하면 보기만 됩니다."),
+            Trouble("구조가 너무 복잡하다",
+                    "기획에 **쓰는 사람의 수준**을 적어 주세요. 처음 쓰는 사람용과 "
+                    "익숙한 사람용은 구조가 달라야 합니다."),
+            Trouble("비슷한 템플릿이 이미 많다",
+                    "구조로는 차별화가 어렵습니다. **설명서와 사용 예시**에서 "
+                    "갈립니다 — 그래서 설명서를 같이 만들어 드립니다."),
+        ],
+        files=[
+            FileLoc("템플릿 기획", "products/notion-template-kit/input.yaml"),
+            FileLoc("만든 설계", "products/notion-template-kit/outputs/"),
+        ],
+    )

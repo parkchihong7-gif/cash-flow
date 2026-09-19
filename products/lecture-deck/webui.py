@@ -52,3 +52,56 @@ def handle(program, ctx, action: str, form: dict) -> str:
         return "error=모르는 동작입니다"
     return write_yaml_fields(INPUT, form, int_keys=INT_KEYS,
                              list_keys=LIST_KEYS, required=REQUIRED)
+
+
+# ══════════════════════════════════════════════════════════ 운영 콘솔
+#
+# 적는다 → 만든다 → 받는다. 이 상품은 정말로 이 세 걸음이라 탭도 셋이다.
+# 억지로 늘리지 않았다. 대신 **탭 이름은 이 상품이 내놓는 것**으로 붙였다 —
+# 나오는 것이 무엇인지가 상품마다 전혀 다르기 때문이다.
+
+from core.console import (                                        # noqa: E402
+    Console, FileLoc, ManualTask, Tab, Todo, Trouble, generator_console,
+)
+
+
+def console(program, ctx) -> Console:
+    return generator_console(
+        program, build(program, ctx),
+        input_label="강의 기획", input_icon="🎓",
+        output_label="커리큘럼·슬라이드·노트", output_icon="🖥",
+        output_intro="커리큘럼, 슬라이드(.pptx), 발표자 노트가 한 벌로 나옵니다.",
+        make_label="강의 자료 만들기",
+        todos=[
+            Todo("누구에게 무엇을 가르칠지 적기", tab="input"),
+            Todo("커리큘럼을 먼저 보고 **차시 순서**를 고치기", tab="make"),
+            Todo("발표자 노트를 보며 **한 번 말해 보기**", by_hand=True,
+                 detail="슬라이드는 괜찮은데 말이 안 이어지는 일이 흔합니다."),
+        ],
+        manual_tasks=[
+            ManualTask(
+                task="실습 자료·예제 준비",
+                where="직접",
+                why="강의의 값어치는 실습에서 나옵니다. 슬라이드는 뼈대일 뿐이라 "
+                    "실제로 돌려 볼 예제는 만드셔야 합니다."),
+            ManualTask(
+                task="슬라이드 디자인 다듬기",
+                where="파워포인트·키노트",
+                why="내용과 구조까지 만들어 드립니다. 글꼴·색·이미지는 "
+                    "브랜드마다 달라 손으로 하셔야 합니다."),
+        ],
+        troubles=[
+            Trouble("pptx 가 안 만들어진다",
+                    "`python-pptx` 가 필요합니다. `requirements.txt` 로 설치하세요."),
+            Trouble("차시 분량이 들쭉날쭉하다",
+                    "기획에 **총 시간**을 적어 주세요. 안 적으면 꼭지마다 "
+                    "같은 무게로 잡습니다."),
+            Trouble("슬라이드에 글이 너무 많다",
+                    "발표자 노트로 옮기세요. 슬라이드는 보는 것이고 "
+                    "노트는 말하는 것입니다."),
+        ],
+        files=[
+            FileLoc("강의 기획", "products/lecture-deck/input.yaml"),
+            FileLoc("만든 자료", "products/lecture-deck/outputs/"),
+        ],
+    )

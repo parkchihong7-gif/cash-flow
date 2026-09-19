@@ -140,3 +140,68 @@ def handle(program, ctx, action: str, form: dict) -> str:
             database.set_program_setting(program.id, key, text)
             saved += 1
     return f"saved={saved}개 값을 바꿔 계산했습니다"
+
+
+# ══════════════════════════════════════════════════════════ 운영 콘솔
+#
+# 탭은 **견줘 보는 일**에서 나온다. 모델을 고르고 → 가정을 바꾸고 → 결과를
+# 본다. 그게 전부라 탭이 셋이다. 억지로 늘리지 않았다.
+#
+# 이 상품의 핵심은 숫자가 아니라 **시간당 수익**이다. 월 500만 원을 버는
+# 부업도 하루 12시간이 들면 최저임금만 못하다. 그래서 결과 탭이 시간당을
+# 앞에 놓는다.
+
+from core.console import (                                        # noqa: E402
+    Console, FileLoc, ManualTask, Tab, Todo, Trouble, tabs_from,
+)
+
+
+def console(program, ctx) -> Console:
+    ui = build(program, ctx)
+    return Console(
+        program_id=program.id, title=program.name, subtitle=program.tagline,
+        tabs=tabs_from(ui, [
+            {"key": "pick", "label": "모델 고르기", "icon": "📋", "group": "견주기",
+             "panels": ["pick"]},
+            {"key": "vars", "label": "가정 바꾸기", "icon": "🎚", "group": "견주기",
+             "intro": "**여기 숫자가 결과를 다 정합니다.** 낙관적으로 잡으면 "
+                      "결과도 낙관적으로 나옵니다.",
+             "panels": ["vars"]},
+            {"key": "result", "label": "결과", "icon": "📈", "group": "견주기",
+             "intro": "**시간당 수익**을 먼저 보세요. 월 매출이 커도 시간이 "
+                      "많이 들면 남는 게 없습니다.",
+             "panels": ["result"]},
+            {"key": "run", "label": "보고서", "icon": "📄", "group": "내보내기",
+             "panels": ["run"]},
+        ]),
+        todos=[
+            Todo("견줄 모델을 두세 개 골라 보기", tab="pick"),
+            Todo("**내 상황의 숫자**로 가정을 바꾸기", tab="vars",
+                 detail="남이 쓴 기본값으로는 내 답이 안 나옵니다."),
+            Todo("시간당 수익이 최저임금을 넘는지 보기", tab="result"),
+        ],
+        manual_tasks=[
+            ManualTask(
+                task="내 상황의 숫자 알아 오기",
+                where="직접 (해 본 사람에게 묻거나, 작게 시험해 보고)",
+                why="기본값은 **공개 자료로 잡은 평균**입니다. 내 전환율과 내 "
+                    "작업 속도는 내가 해 봐야 압니다. 이 값이 틀리면 결과도 "
+                    "그만큼 틀립니다."),
+        ],
+        troubles=[
+            Trouble("결과가 너무 좋게 나온다",
+                    "전환율이나 단가를 낙관적으로 잡으신 경우입니다. **절반으로 "
+                    "낮춰 보세요.** 그래도 할 만하면 그때 시작하시는 편이 안전합니다."),
+            Trouble("이 숫자를 믿어도 되나",
+                    "**믿지 마세요.** 이건 가정에서 나온 계산이지 예측이 아닙니다. "
+                    "여러 모델을 같은 잣대로 견주는 용도입니다."),
+            Trouble("내가 하려는 부업이 목록에 없다",
+                    "비슷한 구조의 모델을 고르고 가정을 바꿔 보세요. "
+                    "구조가 같으면 숫자만 바꾸면 됩니다."),
+        ],
+        files=[FileLoc("만든 보고서", "products/income-sim/outputs/")],
+        admin_intro="부업 여러 개를 **같은 잣대**로 견줍니다. 예측이 아니라 "
+                    "가정 계산입니다.",
+        client_intro="생각하시는 부업의 **시간당 수익**을 가늠해 보실 수 있습니다.",
+        custom=True,
+    )
