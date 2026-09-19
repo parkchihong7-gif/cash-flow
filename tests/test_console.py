@@ -267,7 +267,7 @@ def test_프로그램마다_키가_따로_논다(client):
 # 14번 콘솔을 쓰다가 속성 이름을 세 번 잘못 짚었는데(level·monthly_won·
 # DAILY_UNITS) 화면은 200 으로 멀쩡히 떴다. 그래서 따로 본다.
 
-CUSTOM = ["exam-drill", "senior-video"]
+CUSTOM = ["exam-drill", "senior-video", "naver-blog", "speaker-desk"]
 
 
 @pytest.mark.parametrize("program_id", CUSTOM)
@@ -297,11 +297,62 @@ def test_전용_콘솔에는_손으로_할_일과_문제_해결이_있다(progra
 
 
 @pytest.mark.parametrize("program_id", CUSTOM)
-def test_전용_콘솔의_탭이_저마다_다르다(program_id):
-    """컨퍼런스 탭을 그대로 복사해 붙이지 않았는지."""
+def test_한_콘솔_안에_같은_이름의_탭이_없다(program_id):
     from core.webui import load_console
 
     labels = [tab.label for tab in load_console(Registry().require(program_id), {}).tabs]
     assert len(labels) == len(set(labels)), f"{program_id} 에 같은 이름의 탭이 있다"
-    assert "초청 현황" not in labels and "비자" not in labels, (
-        "컨퍼런스 관리자의 탭을 그대로 옮겨 왔다")
+
+
+def test_프로그램마다_탭_구성이_다르다():
+    """참조한 관리자의 탭을 통째로 복사해 붙이지 않았는지.
+
+    낱말로 거르지 않는다. 처음에는 '비자' 라는 낱말을 금지어로 뒀는데,
+    16번은 **실제로 해외 연사 비자가 업무**라 정당한 탭을 잡아냈다.
+    베끼기의 증거는 낱말이 아니라 **탭 구성이 통째로 겹치는 것**이다.
+    """
+    from core.webui import load_console
+
+    sets = {}
+    for program_id in CUSTOM:
+        built = load_console(Registry().require(program_id), {})
+        sets[program_id] = frozenset(tab.label for tab in built.tabs)
+
+    seen: dict[frozenset, str] = {}
+    for program_id, labels in sets.items():
+        twin = seen.get(labels)
+        assert twin is None, f"{program_id} 와 {twin} 의 탭이 완전히 같다"
+        seen[labels] = program_id
+
+    for program_id, labels in sets.items():
+        for other_id, other in sets.items():
+            if program_id >= other_id:
+                continue
+            shared = labels & other
+            assert len(shared) <= 2, (
+                f"{program_id} 와 {other_id} 가 탭을 {len(shared)}개 공유한다: {shared}")
+
+
+def test_올려도_되나_타일이_검사_결과와_어긋나지_않는다():
+    """타일과 검사가 다른 말을 하면 둘 다 못 믿게 된다.
+
+    실제로 `Issue.level` 을 'bad' 로 걸러서(진짜 값은 'block') 빈칸이 세 곳
+    남았는데도 '올려도 됩니다' 라고 띄운 적이 있다. 화면은 멀쩡해 보였다.
+    """
+    import sys
+    sys.path.insert(0, str(Registry().require("naver-blog").directory))
+    from naver_blog.review import ready
+    from core.webui import load_console
+
+    built = load_console(Registry().require("naver-blog"), {})
+    tile = next((item for item in built.stats if item.label == "올려도 되나"), None)
+    if tile is None:
+        return                      # 초안이 아직 없는 상태
+
+    import importlib
+    webui = importlib.import_module("webui_naver_blog") if \
+        "webui_naver_blog" in sys.modules else None
+    del webui
+
+    blocked = tile.value == "아직"
+    assert (tile.tone == "bad") is blocked, "타일 색과 문구가 어긋난다"

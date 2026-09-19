@@ -306,3 +306,207 @@ def _save_keywords(form: dict) -> str:
         "# 수요를 볼 키워드. 한 줄에 하나씩. # 로 시작하면 건너뜁니다.\n"
         + "\n".join(words) + "\n", encoding="utf-8")
     return f"saved=키워드 {len(words)}개를 저장했습니다"
+
+
+# ══════════════════════════════════════════════════════════ 운영 콘솔
+#
+# 탭은 **블로그를 쓰는 일**에서 나온다. 이 사람이 한 편을 올리기까지 하는 일.
+#
+#     무엇을 쓸지 고른다(수요) → 초안을 받는다 → 내 이야기를 채운다
+#     → 대가를 받았으면 표시한다 → 올리기 전에 검사한다 → 손으로 올린다
+#
+# 그래서 '대가 표시' 가 독립된 탭이다. 다른 프로그램에는 없는 자리인데,
+# 이것만은 빠뜨리면 **과태료**라 초안 옆에 묻어 두면 안 된다.
+# 마지막 '올리기' 는 버튼이 아니라 설명이다. 네이버가 글쓰기 API 를 열지
+# 않아서다 — 자동 게시를 안 만든 것이 아니라 **만들면 안 되는** 것이다.
+
+from core.console import Console, FileLoc, ManualTask, Stat, Tab, Todo, Trouble  # noqa: E402
+
+from naver_blog.demand import DAILY_CALL_LIMIT                    # noqa: E402
+from naver_blog.review import MAX_CHARS, MIN_CHARS, MIN_HEADINGS, MAX_TAGS  # noqa: E402
+
+
+def _stats(request, draft, issues) -> list[Stat]:
+    """위쪽 타일. **올려도 되는가**가 맨 앞이다.
+
+    글자 수나 키워드 수를 앞에 두면 정작 중요한 걸 못 본다. 빈칸이 남은 채
+    올리면 AI 가 쓴 티가 그대로 나고, 대가 표시를 빠뜨리면 과태료다.
+    """
+    # Issue.level 은 block/warn/note 다. 'bad' 로 거르면 하나도 안 잡혀서
+    # 빈칸이 남았는데도 '올려도 됩니다' 라고 말하게 된다. `blocking` 을 쓴다.
+    blockers = [item for item in issues if item.blocking] if issues else []
+    tiles = []
+
+    if draft is None:
+        return [Stat("초안", "없음", tone="warn",
+                     hint="무엇에 대해 쓰실지부터 적어 주세요", tab="request")]
+
+    tiles.append(Stat(
+        "올려도 되나", "아직" if blockers else "됩니다",
+        tone="bad" if blockers else "ok",
+        hint=f"고칠 곳 {len(blockers)}군데" if blockers else "검사를 통과했습니다",
+        tab="review"))
+    tiles.append(Stat(
+        "내가 채울 빈칸", str(draft.placeholders), "곳",
+        tone="bad" if draft.placeholders else "ok",
+        hint="직접 겪은 일을 두세 줄만 넣으시면 됩니다" if draft.placeholders
+             else "다 채우셨습니다",
+        tab="draft"))
+    tiles.append(Stat(
+        "본문", f"{draft.chars:,}", "자",
+        tone="warn" if not (MIN_CHARS <= draft.chars <= MAX_CHARS) else "",
+        hint=f"{MIN_CHARS:,}~{MAX_CHARS:,}자 사이가 좋습니다", tab="review"))
+
+    if request.sponsor_kind and request.sponsor_kind != "none":
+        tiles.append(Stat(
+            "대가 표시", KIND_LABEL.get(request.sponsor_kind, request.sponsor_kind),
+            tone="warn", hint="본문 **맨 위**에 넣으셔야 합니다", tab="disclosure"))
+    return tiles
+
+
+def console(program, ctx) -> Console:
+    """15번 운영 콘솔."""
+    request = _request()
+    draft, issues = _draft_preview()
+    ui = build(program, ctx)
+
+    def panel(key: str):
+        return next((item for item in ui.admin if item.key == key), None)
+
+    tabs = [
+        Tab(key="demand", label="키워드 수요", icon="🔍", group="고르는 자리",
+            intro="그 키워드로 **이미 몇 건이 쓰였는지** 봅니다. "
+                  "붐빈다고 꼭 피하실 것은 없습니다 — 각도를 좁히면 자리가 있습니다.",
+            panels=[p for p in [panel("demand")] if p],
+            common_buttons="`키워드 저장` — 저장해 두면 다음에도 이 목록으로 봅니다."),
+        Tab(key="request", label="초안 요청", icon="✍️", group="쓰는 자리",
+            intro="무엇에 대해 쓰실지 적으시면 **뼈대**를 만들어 드립니다.",
+            panels=[p for p in [panel("state"), panel("request")] if p]),
+    ]
+
+    if draft:
+        tabs.append(Tab(
+            key="draft", label="초안 채우기", icon="📝", group="쓰는 자리",
+            intro=f"`{PLACEHOLDER}` 가 {draft.placeholders}곳 있습니다. "
+                  f"**여기에 직접 겪은 일을 넣으셔야 합니다.**",
+            panels=[Panel(
+                key="body", title=draft.title or "초안",
+                intro="아래 글을 복사해 네이버 블로그 편집기에 붙이시고, "
+                      "빈칸을 채우시면 됩니다.",
+                fields=[Field("body", "본문", "textarea",
+                              default=draft.body, rows=24)],
+                note="이 칸은 보시라고 띄운 것입니다. 고치실 것은 "
+                     "**블로그 편집기에서** 하시는 편이 편합니다."
+                     if draft.placeholders else "",
+                tone="warn" if draft.placeholders else "")]))
+
+    tabs.append(Tab(
+        key="disclosure", label="대가 표시", icon="⚖️", group="쓰는 자리",
+        intro="원고료·제품·제휴 수수료를 받으셨다면 **반드시** 표시해야 합니다. "
+              "빠뜨리면 과태료 대상입니다.",
+        panels=[p for p in [panel("disclosure")] if p]))
+
+    if issues:
+        tabs.append(Tab(
+            key="review", label="올리기 전 검사", icon="✅", group="올리는 자리",
+            intro="**올리면 탈이 나는 것**만 봅니다. 글이 좋은지는 사람이 봅니다.",
+            panels=[p for p in [panel("review")] if p]))
+
+    tabs += [
+        Tab(key="publish", label="올리기", icon="📤", group="올리는 자리",
+            intro="이 자리에는 **버튼이 없습니다.** 아래 이유를 읽어 주세요.",
+            panels=[Panel(
+                key="publish", title="왜 자동 게시 버튼이 없는가",
+                intro=NO_WRITE_API,
+                lines=[BANNED_AUTOMATION,
+                       "초안을 **복사해서** 네이버 블로그 편집기에 붙이시면 됩니다",
+                       "사진은 직접 찍으신 것을 넣으세요. 남의 사진은 넣지 마세요"],
+                tone="warn")]),
+        Tab(key="file", label="초안 파일", icon="📄", group="내보내기",
+            panels=[p for p in [panel("run")] if p]),
+        Tab(key="policy", label="지켜야 할 것", icon="📜", group="올리는 자리",
+            panels=[p for p in [panel("policy")] if p]),
+    ]
+
+    return Console(
+        program_id=program.id,
+        title=program.name,
+        subtitle=program.tagline,
+        tabs=tabs,
+        stats=_stats(request, draft, issues),
+        todos=[
+            Todo("오늘 쓸 키워드를 고르기", tab="demand",
+                 detail="**너무 한산한 키워드는 오히려 의심하세요.** 찾는 사람이 "
+                        "없는 것일 수 있습니다."),
+            Todo("초안의 빈칸을 **내 이야기로** 채우기", tab="draft", by_hand=True,
+                 detail="두세 줄이면 충분합니다. 이 부분이 없으면 AI 가 쓴 티가 "
+                        "그대로 납니다."),
+            Todo("대가를 받았으면 문구를 본문 맨 위에 넣기", tab="disclosure",
+                 by_hand=True),
+            Todo("검사에서 ✗ 를 없애고 복사해 붙이기", tab="review"),
+        ],
+        manual_tasks=[
+            ManualTask(
+                task="블로그에 글 올리기",
+                where="네이버 블로그 편집기 (직접 복사해 붙이기)",
+                why=NO_WRITE_API + " " + BANNED_AUTOMATION,
+                someday="네이버가 글쓰기 API 를 열면 그때 붙입니다. 지금은 없습니다."),
+            ManualTask(
+                task="빈칸에 직접 겪은 일 넣기",
+                where="초안 채우기 탭",
+                why="겪지 않은 일을 AI 가 지어내면 **거짓말이 됩니다.** 게다가 "
+                    "읽는 사람은 금방 압니다. 이 자리는 비워 두는 것이 설계입니다."),
+            ManualTask(
+                task="대가 표시 문구 넣기",
+                where="본문 맨 위 (블로그 편집기)",
+                why="공정위 표시 지침입니다. **맨 아래나 '더보기' 안에 숨기면 "
+                    "표시한 것으로 보지 않습니다.** 프로그램이 문구는 만들어 "
+                    "드리지만, 편집기에 넣는 것은 손으로 하셔야 합니다."),
+            ManualTask(
+                task="사진 넣기",
+                where="블로그 편집기",
+                why="직접 찍으신 사진을 쓰셔야 합니다. 남의 사진을 가져오면 "
+                    "저작권 문제가 되고, AI 로 만든 사진은 표시가 필요합니다."),
+            ManualTask(
+                task="이웃·댓글 관리",
+                where="네이버 블로그",
+                why="자동 이웃추가·자동 댓글은 **약관 위반**이라 계정이 정지됩니다. "
+                    "만들지 않습니다."),
+        ],
+        troubles=[
+            Trouble("검사에서 ✗ 가 안 없어진다",
+                    f"빈칸(`{PLACEHOLDER}`)이 남아 있거나, 본문이 {MIN_CHARS:,}자보다 "
+                    f"짧거나, 소제목이 {MIN_HEADINGS}개보다 적을 때입니다. "
+                    "검사 탭에 어느 줄인지 나옵니다."),
+            Trouble("대가 표시 문구가 안 만들어진다",
+                    "**광고주 이름을 적어야** 문구가 나옵니다. 'OO' 그대로 두면 "
+                    "표시한 것으로 보지 않습니다."),
+            Trouble("키워드 수요가 안 나온다",
+                    "네이버 검색 API 키가 없으면 **예시 자료**로 보여 드립니다. "
+                    "실제 값을 보시려면 네이버 개발자센터에서 키를 받아 "
+                    "`.env` 에 넣으세요. 무료입니다."),
+            Trouble("키워드를 많이 넣었더니 막힌다",
+                    f"네이버 검색 API 는 하루 {DAILY_CALL_LIMIT:,}회까지입니다. "
+                    "넘으면 다음 날로 넘어갑니다. 재시도하면 더 깎이니 "
+                    "기다리시는 편이 맞습니다."),
+            Trouble("태그를 많이 달면 더 노출되나",
+                    f"아닙니다. {MAX_TAGS}개를 넘으면 검사에서 경고가 뜹니다. "
+                    "관계없는 태그는 오히려 손해입니다."),
+            Trouble("글이 검색에 안 잡힌다",
+                    "이 프로그램이 답할 수 있는 범위를 넘습니다. 네이버 노출은 "
+                    "체류시간·이웃·꾸준함이 크게 작용하고, **보장할 수 있는 "
+                    "방법은 없습니다.** 여기서는 '탈이 나는 것' 만 걸러 드립니다."),
+        ],
+        files=[
+            FileLoc("초안 요청", "products/naver-blog/request.yaml"),
+            FileLoc("볼 키워드", "products/naver-blog/keywords.txt"),
+            FileLoc("예시 자료", "products/naver-blog/data/fixtures/",
+                    "API 키가 없을 때 쓰는 자료입니다."),
+            FileLoc("만든 초안", "products/naver-blog/outputs/"),
+        ],
+        admin_intro="수요 보고 초안 쓰고 검사까지 **한 화면에서** 됩니다. "
+                    "자동 게시는 일부러 안 만들었습니다 — '올리기' 탭에 이유가 있습니다.",
+        client_intro="**빈칸만 채우시면 되게** 만들어 드립니다. "
+                     "올리는 것은 직접 하셔야 합니다.",
+        custom=True,
+    )
