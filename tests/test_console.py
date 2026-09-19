@@ -364,3 +364,51 @@ def test_올려도_되나_타일이_검사_결과와_어긋나지_않는다():
 
     blocked = tile.value == "아직"
     assert (tile.tone == "bad") is blocked, "타일 색과 문구가 어긋난다"
+
+
+# ──────────────────────────────────── 화면에 이상한 것이 그려지지 않는가
+#
+# 테스트가 다 통과했는데 화면은 깨져 있던 적이 있다. 16번 비자 탭의 설명에
+# 문장 하나를 목록으로 착각하고 `"\n".join(...)` 을 걸어, **한 글자씩** 세로로
+# 늘어놓았다. 눈으로 보고서야 알았다. 같은 실수를 자동으로 잡는다.
+
+@pytest.mark.parametrize("program_id", ALL)
+def test_설명글이_한_글자씩_쪼개지지_않는다(program_id):
+    """`"\\n".join(문자열)` 은 글자 사이에 줄바꿈을 넣는다.
+
+    목록인 줄 알고 문자열에 join 을 걸면 화면에 글자가 세로로 쏟아진다.
+    한 글자짜리 줄이 여러 개 이어지면 그 일이 난 것이다.
+    """
+    from core.webui import load_console
+
+    built = load_console(Registry().require(program_id), {})
+    for tab in built.tabs:
+        for panel in tab.panels:
+            for text in _texts(panel):
+                runs = _single_char_runs(text)
+                assert runs < 4, (
+                    f"{program_id}/{tab.key}/{panel.key}: 한 글자짜리 줄이 "
+                    f"{runs}개 이어집니다. 문자열에 join 을 걸었는지 보세요.\n"
+                    f"{text[:120]}")
+
+
+def _texts(panel) -> list[str]:
+    out = [panel.intro, panel.note]
+    out += list(panel.lines)
+    out += [note.body for note in panel.notes]
+    if panel.table is not None:
+        out.append(panel.table.note)
+    return [item for item in out if item]
+
+
+def _single_char_runs(text: str) -> int:
+    """한 글자짜리 줄이 연달아 몇 개나 나오는가."""
+    best = run = 0
+    for line in text.splitlines():
+        stripped = line.strip().lstrip("-*• ").strip()
+        if len(stripped) == 1:
+            run += 1
+            best = max(best, run)
+        else:
+            run = 0
+    return best

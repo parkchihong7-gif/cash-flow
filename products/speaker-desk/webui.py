@@ -452,9 +452,11 @@ def _visa_table(event) -> Table:
     return Table(
         headers=["연사", "국적", "체류", "사례비", "확인할 것"],
         rows=rows, tones=tones,
+        # MUST_CONFIRM 은 문장 하나다. 목록으로 착각하고 한 글자씩 쪼개
+        # 화면에 세로로 늘어놓은 적이 있다. 테스트는 다 통과했고, 화면을
+        # 눈으로 보고서야 알았다.
         note="**이 표는 판정이 아닙니다.** 사증면제로 들어와도 사례비를 받으면 "
-             "문제가 되는 경우가 있어, 반드시 아래를 확인하세요.\n\n"
-             + "\n".join(f"- {item}" for item in MUST_CONFIRM),
+             "문제가 되는 경우가 있습니다.\n\n" + MUST_CONFIRM,
     )
 
 
