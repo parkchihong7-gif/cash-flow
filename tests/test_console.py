@@ -412,3 +412,19 @@ def _single_char_runs(text: str) -> int:
         else:
             run = 0
     return best
+
+
+@pytest.mark.parametrize("program_id", ALL)
+def test_한_화면에_같은_아이콘이_두_번_나오지_않는다(program_id):
+    """왼쪽 메뉴는 아이콘으로 훑는다. 같은 그림이 둘이면 그 구실을 못 한다.
+
+    실제로 n8n 의 'workflow.json' 과 공통 탭 '기본 세팅' 이 둘 다 ⚙️ 였다.
+    """
+    from core.console import add_standard_tabs
+    from core.webui import load_console
+
+    built = add_standard_tabs(load_console(Registry().require(program_id), {}),
+                              Registry().require(program_id))
+    icons = [tab.icon for tab in built.tabs if tab.icon]
+    dupes = {icon for icon in icons if icons.count(icon) > 1}
+    assert not dupes, f"{program_id} 의 메뉴에 같은 아이콘이 둘 있습니다: {dupes}"

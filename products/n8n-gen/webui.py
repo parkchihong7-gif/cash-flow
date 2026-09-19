@@ -81,7 +81,7 @@ def console(program, ctx) -> Console:
     return generator_console(
         program, build(program, ctx),
         input_label="자동화 요구 적기", input_icon="🔌",
-        output_label="workflow.json", output_icon="⚙️",
+        output_label="workflow.json", output_icon="🧾",
         output_intro="n8n 에 **그대로 가져올 수 있는** JSON 이 나옵니다.",
         make_label="워크플로우 만들기",
         todos=[
