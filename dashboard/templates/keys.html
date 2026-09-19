@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block body %}
+
+{% if saved %}<div class="note ok">{{ saved }}</div>{% endif %}
+{% if error %}<div class="note bad"><strong>{{ error }}</strong></div>{% endif %}
+
+<h1>접속키</h1>
+<p class="lead">
+  프로그램을 파시면 <strong>산 사람에게 키를 만들어 보냅니다.</strong>
+  키가 있어야 그 사람이 자기 화면에 들어올 수 있습니다.
+</p>
+
+<div class="tiles">
+  <span class="tile"><span class="tlabel">키를 받은 사람</span>
+    <span class="tvalue">{{ counts.holders }}<small>명</small></span>
+    <span class="thint">16종을 통틀어</span></span>
+  <span class="tile"><span class="tlabel">1차키</span>
+    <span class="tvalue">{{ counts.primary }}<small>개</small></span>
+    <span class="thint">사람 한 명당 하나</span></span>
+  <span class="tile"><span class="tlabel">2차키</span>
+    <span class="tvalue">{{ counts.secondary }}<small>개</small></span>
+    <span class="thint">PC·노트북·휴대폰</span></span>
+  <span class="tile {{ 'warn' if counts.suspended else '' }}"><span class="tlabel">사용중지</span>
+    <span class="tvalue">{{ counts.suspended }}<small>개</small></span></span>
+  <span class="tile"><span class="tlabel">지금 접속</span>
+    <span class="tvalue">{{ live }}<small>명</small></span></span>
+</div>
+
+{# ─── 키를 만드는 자리로 가는 길 ─── #}
+<div class="card">
+  <h3>어느 프로그램의 키를 만드시겠습니까</h3>
+  <p class="muted">
+    키는 <strong>프로그램마다 따로</strong>입니다. 13번 키로 14번에 들어갈 수 없습니다 —
+    한 프로그램을 산 사람이 나머지 열다섯까지 열면 안 되기 때문입니다.
+  </p>
+  <table>
+    <tr><th></th><th>프로그램</th><th>받은 사람</th><th>2차키</th><th>지금 접속</th><th></th></tr>
+    {% for row in rows %}
+    <tr>
+      <td class="muted">{{ row.program.number }}</td>
+      <td>
+        <a href="/programs/{{ row.program.id }}">{{ row.program.name }}</a>
+        <div class="muted">{{ row.program.tagline }}</div>
+      </td>
+      <td class="num">{{ row.holders or '—' }}</td>
+      <td class="num">{{ row.secondary or '—' }}</td>
+      <td class="num">{{ row.live or '—' }}</td>
+      <td>
+        <a class="btn small primary" href="/apps/{{ row.program.id }}/admin/t/keys">키 만들기 →</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <h3>키를 만들면 이렇게 됩니다</h3>
+  <ol class="howto">
+    <li><strong>이름과 이메일</strong>만 넣고 [발급하고 안내문 만들기] 를 누릅니다</li>
+    <li><strong>키 네 개</strong>가 한 번에 나옵니다 —
+      1차키 1개(사람) + 2차키 3개(PC·노트북·휴대폰)</li>
+    <li>보낼 <strong>안내문이 같이 만들어집니다.</strong> [전체 복사] 로 복사해
+      카톡이나 메일로 보내시면 됩니다</li>
+    <li>고객은 안내문의 주소(<code>/c/&lt;프로그램&gt;</code>)로 들어옵니다.
+      <strong>제 대시보드 접속 코드는 필요 없습니다</strong></li>
+  </ol>
+  <p class="help">
+    화면을 벗어나면 키는 <strong>다시 볼 수 없습니다</strong>(목록에는 남습니다).
+    먼저 복사하거나 메일을 보내세요.
+  </p>
+</div>
+
+{% if counts.primary %}
+<div class="card danger">
+  <h3>전체 초기화</h3>
+  <p>
+    <strong>16종의 접속키를 모두 지웁니다.</strong> 쓰고 있는 사람도 전부 끊깁니다.
+    되돌릴 수 없습니다. <strong>아직 아무에게도 키를 나눠 주지 않으셨을 때만</strong> 쓰세요.
+  </p>
+  <p class="help">
+    프로그램 하나만 비우시려면 그 프로그램의 접속키 화면에서 하시면 됩니다.
+  </p>
+  <form method="post" action="/keys/reset" class="rowform">
+    <label><span class="ltext">확인을 위해 <strong>초기화</strong> 라고 적어 주세요</span>
+      <input type="text" name="confirm" data-typeword="초기화" data-arms="#reset-all-btn"
+             placeholder="초기화" autocomplete="off">
+    </label>
+    <button class="btn danger" id="reset-all-btn" type="submit" disabled>전부 지우기</button>
+  </form>
+</div>
+{% endif %}
+
+<script>
+document.querySelectorAll("[data-typeword]").forEach(function (input) {
+  var want = input.dataset.typeword;
+  var btn = document.querySelector(input.dataset.arms);
+  function sync() { if (btn) { btn.disabled = input.value.trim() !== want; } }
+  input.addEventListener("input", sync); sync();
+});
+</script>
+{% endblock %}

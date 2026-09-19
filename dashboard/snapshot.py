@@ -61,6 +61,7 @@ MAX_PAGES = 900
 FOLLOW_PREFIXES = (
     "/", "/programs/", "/manual", "/members", "/settings", "/config",
     "/rules", "/revenue", "/schedule", "/access", "/runs", "/search", "/preview",
+    "/keys",
     # 상품별 운영 콘솔. 탭마다 주소가 따로 있어, 씨앗으로 두 모드만 넣어도
     # 왼쪽 메뉴를 따라가며 나머지 탭이 전부 걸린다.
     "/apps/",
@@ -166,7 +167,7 @@ class Snapshot:
 def _seeds(registry: Registry) -> list[str]:
     """반드시 담을 화면. 링크를 따라가면 대부분 걸리지만 순서를 고정한다."""
     urls = ["/", "/config", "/rules", "/access", "/schedule", "/revenue", "/runs",
-            "/members",
+            "/members", "/keys",
             "/settings",
             "/manual",
             "/manual/admin", "/manual/client"]

@@ -33,6 +33,8 @@
       <div class="group">관리</div>
       <a class="item {% if request.url.path.startswith('/runs') %}on{% endif %}" href="/runs">📋 실행 이력</a>
       <a class="item {% if request.url.path.startswith('/members') %}on{% endif %}" href="/members">👥 회원관리</a>
+      {# 🔑 은 '권한·환경' 이 이미 쓴다. 같은 그림이 둘이면 메뉴를 못 훑는다. #}
+      <a class="item {% if request.url.path.startswith('/keys') %}on{% endif %}" href="/keys">🎟 접속키</a>
       <a class="item {% if request.url.path.startswith('/revenue') %}on{% endif %}" href="/revenue">💰 수입 현황</a>
       <a class="item {% if request.url.path.startswith('/schedule') %}on{% endif %}" href="/schedule">🗓 정기 실행</a>
       <a class="item {% if request.url.path.startswith('/access') %}on{% endif %}" href="/access">🔑 권한·환경</a>

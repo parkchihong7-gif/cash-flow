@@ -284,19 +284,56 @@ def test_16종_모두_문이_있다(guest):
 # 프로그램마다 들어가 지우면 열여섯 번이다. 아직 아무것도 안 파셨을 때
 # 한 번에 정리하시라고 설정 화면에 따로 두었다.
 
+def test_통합_대시보드에서_키_만드는_자리를_찾을_수_있다(owner):
+    """발급은 프로그램 안에 있다. 그게 맞는 자리인데, 통합 대시보드에 아무
+    흔적이 없으면 **거기 있는 줄을 모른다.** 실제로 못 찾으셨다.
+    """
+    home = owner.get("/").text
+    assert 'href="/keys"' in home, "왼쪽 메뉴에 접속키가 없다"
+
+    body = owner.get("/keys").text
+    for program in Registry().programs:
+        assert f"/apps/{program.id}/admin/t/keys" in body, (
+            f"{program.id} 의 키 만드는 자리로 가는 길이 없다")
+
+
+def test_접속키_화면이_16종_현황을_보여_준다(owner):
+    owner.post(f"/apps/{PROGRAM}/admin/keys/issue",
+               data={"name": "박구매", "email": "buy@example.com"},
+               follow_redirects=False)
+    body = owner.get("/keys").text
+
+    assert '<span class="tvalue">1<small>명' in body, "받은 사람 수가 안 올라간다"
+    assert "전체 초기화" in body, "키가 있으면 비우는 자리가 나와야 한다"
+
+
+def test_키가_없으면_초기화_자리를_그리지_않는다(owner):
+    """지울 것이 없는데 빨간 상자를 띄워 놓을 이유가 없다."""
+    assert "전부 지우기" not in owner.get("/keys").text
+
+
+def test_초기화_자리가_두_군데_있지_않다(owner):
+    """같은 일을 두 곳에 두면 한쪽만 고치게 된다."""
+    assert "전부 지우기" not in owner.get("/settings").text
+    assert 'href="/keys"' in owner.get("/settings").text, "가는 길은 알려 준다"
+
+
 def test_16종_키를_한_번에_비운다(owner):
+    # 이메일을 서로 다르게 준다. '받은 사람' 은 이메일로 세기 때문에, 같은
+    # 주소로 세 번 주면 세 프로그램을 산 한 사람으로 잡힌다 — 그게 맞다.
     for program_id in (PROGRAM, "exam-drill", "naver-blog"):
         owner.post(f"/apps/{program_id}/admin/keys/issue",
-                   data={"name": f"{program_id}님", "email": "a@example.com"},
+                   data={"name": f"{program_id}님",
+                         "email": f"{program_id}@example.com"},
                    follow_redirects=False)
-    assert "3명분" in owner.get("/settings").text
+    assert '<span class="tvalue">3<small>명' in owner.get("/keys").text
 
-    response = owner.post("/settings/keys/reset",
+    response = owner.post("/keys/reset",
                           data={"confirm": "초기화"}, follow_redirects=False)
     assert "error=" not in response.headers["location"]
 
     body = owner.get(response.headers["location"]).text
-    assert "0명분" in body
+    assert '<span class="tvalue">0<small>명' in body
     for program_id in (PROGRAM, "exam-drill", "naver-blog"):
         assert f"{program_id}님" not in owner.get(
             f"/apps/{program_id}/admin/t/keys").text
@@ -307,7 +344,7 @@ def test_전체_초기화도_글자를_정확히_쳐야_한다(owner):
                data={"name": "안지워질사람", "email": "a@example.com"},
                follow_redirects=False)
 
-    response = owner.post("/settings/keys/reset",
+    response = owner.post("/keys/reset",
                           data={"confirm": "지워줘"}, follow_redirects=False)
     assert "error=" in response.headers["location"]
     assert "안지워질사람" in owner.get(f"/apps/{PROGRAM}/admin/t/keys").text
@@ -318,7 +355,7 @@ def test_지웠는데_저장했다고_하지_않는다(owner):
     owner.post(f"/apps/{PROGRAM}/admin/keys/issue",
                data={"name": "홍길동", "email": "a@example.com"},
                follow_redirects=False)
-    response = owner.post("/settings/keys/reset",
+    response = owner.post("/keys/reset",
                           data={"confirm": "초기화"}, follow_redirects=False)
 
     body = owner.get(response.headers["location"]).text
@@ -328,9 +365,32 @@ def test_지웠는데_저장했다고_하지_않는다(owner):
 
 def test_초기화_실패는_빨갛게_뜬다(owner):
     """실패를 saved 로 보내면 '저장했습니다' 옆에 실패 사유가 붙는다."""
-    response = owner.post("/settings/keys/reset",
+    response = owner.post("/keys/reset",
                           data={"confirm": ""}, follow_redirects=False)
     body = owner.get(response.headers["location"]).text
 
     assert "note bad" in body
     assert "저장했습니다" not in body
+
+
+def test_예전_초기화_주소도_계속_통한다(owner):
+    """`/settings/keys/reset` 을 눌러 두신 분이 있을 수 있다."""
+    owner.post(f"/apps/{PROGRAM}/admin/keys/issue",
+               data={"name": "옛주소", "email": "a@example.com"},
+               follow_redirects=False)
+
+    response = owner.post("/settings/keys/reset", data={"confirm": "초기화"})
+    assert response.status_code == 200
+    assert "옛주소" not in owner.get(f"/apps/{PROGRAM}/admin/t/keys").text
+
+
+def test_같은_사람이_여러_프로그램을_사면_한_명으로_센다(owner):
+    """'받은 사람' 은 이메일로 센다. 세 개를 산 한 사람이 세 명이 되면 안 된다."""
+    for program_id in (PROGRAM, "exam-drill", "naver-blog"):
+        owner.post(f"/apps/{program_id}/admin/keys/issue",
+                   data={"name": "박구매", "email": "buy@example.com"},
+                   follow_redirects=False)
+
+    body = owner.get("/keys").text
+    assert '<span class="tvalue">1<small>명' in body, "한 사람이 여러 명으로 세어진다"
+    assert '<span class="tvalue">3<small>개' in body, "1차키는 프로그램마다 따로다"

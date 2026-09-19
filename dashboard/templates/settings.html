@@ -61,37 +61,8 @@
 <h2>접속키</h2>
 <div class="card">
   <p>
-    지금 <strong>16종을 통틀어 {{ key_counts.primary }}명분</strong>의 1차키와
-    {{ key_counts.secondary }}개의 2차키가 있습니다.
-    {% if live_sessions %}<strong>{{ live_sessions }}명</strong>이 접속해 있습니다.{% endif %}
-  </p>
-  <p class="help">
-    프로그램 하나만 비우시려면 그 프로그램의
-    <strong>🔑 접속키</strong> 탭에서 하시면 됩니다. 여기는 <strong>16종 전부</strong>입니다.
+    16종을 통틀어 <strong>{{ key_counts.holders }}명</strong>에게 키를 주셨습니다.
+    발급·회수·초기화는 <a href="/keys">🎟 접속키</a> 화면에 모아 두었습니다.
   </p>
 </div>
-
-<div class="card danger">
-  <h3>접속키 전체 초기화</h3>
-  <p>
-    <strong>16종의 접속키를 모두 지웁니다.</strong> 쓰고 있는 사람도 전부 끊깁니다.
-    되돌릴 수 없습니다. 아직 아무에게도 키를 나눠 주지 않으셨을 때만 쓰세요.
-  </p>
-  <form method="post" action="/settings/keys/reset" class="rowform">
-    <label><span class="ltext">확인을 위해 <strong>초기화</strong> 라고 적어 주세요</span>
-      <input type="text" name="confirm" data-typeword="초기화" data-arms="#reset-all-btn"
-             placeholder="초기화" autocomplete="off">
-    </label>
-    <button class="btn danger" id="reset-all-btn" type="submit" disabled>전부 지우기</button>
-  </form>
-</div>
-
-<script>
-document.querySelectorAll("[data-typeword]").forEach(function (input) {
-  var want = input.dataset.typeword;
-  var btn = document.querySelector(input.dataset.arms);
-  function sync() { if (btn) { btn.disabled = input.value.trim() !== want; } }
-  input.addEventListener("input", sync); sync();
-});
-</script>
 {% endblock %}

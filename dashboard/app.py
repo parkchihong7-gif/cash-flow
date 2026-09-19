@@ -48,7 +48,7 @@ from core.registry import Registry
 from core.schedule import collect as collect_schedule, summarize as schedule_summary
 from core.runner import RunError, run_program
 from dashboard.charts import monthly_chart, program_chart
-from core.keyauth import KeyAuth, KeyError_
+from core.keyauth import KIND_PRIMARY, KIND_SECONDARY, KeyAuth, KeyError_
 from dashboard.clientdoor import DOOR_PREFIX
 from dashboard.clientdoor import register as register_door
 from dashboard.webapp import register as register_apps
@@ -584,22 +584,52 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
                 db().set_setting(item["key"], str(form[item["key"]]))
         return RedirectResponse("/settings?saved=1", status_code=303)
 
-    @app.post("/settings/keys/reset")
-    async def settings_keys_reset(request: Request):
+    @app.get("/keys", response_class=HTMLResponse)
+    def keys_overview(request: Request, saved: str = "", error: str = ""):
+        """16종 접속키 한눈에 — **키를 만드는 자리로 가는 길.**
+
+        키 발급은 프로그램 안(`/apps/<상품>/admin/t/keys`)에 있다. 프로그램마다
+        키가 따로라서 그게 맞는 자리인데, 통합 대시보드 왼쪽에 아무 흔적이
+        없으면 **거기 있는 줄을 모른다.** 실제로 못 찾으셨다. 그래서 낸다.
+        """
+        keys = KeyAuth(db().path)
+        rows = []
+        for program in registry().programs:
+            primary = keys.list_keys(kind=KIND_PRIMARY, program_id=program.id)
+            rows.append({
+                "program": program,
+                "holders": len({row.holder_email for row in primary if row.holder_email}),
+                "secondary": len(keys.list_keys(kind=KIND_SECONDARY,
+                                                program_id=program.id)),
+                "live": keys.live_sessions(program_id=program.id),
+            })
+        return page(request, "keys.html", title="접속키",
+                    rows=rows, counts=keys.counts(), live=keys.live_sessions(),
+                    saved=saved, error=error)
+
+    @app.post("/keys/reset")
+    async def keys_reset_all(request: Request):
         """16종의 접속키를 한 번에 비운다.
 
         프로그램마다 들어가 지우면 열여섯 번이다. 아직 아무것도 안 파셨을 때
         한 번에 정리하시라고 둔다. 프로그램 하나만 비우는 것은 그 프로그램의
-        접속키 탭에 따로 있다.
+        접속키 화면에 따로 있다.
         """
         form = await request.form()
         try:
             count = KeyAuth(db().path).reset_all(str(form.get("confirm") or ""))
         except KeyError_ as exc:
-            # 실패를 saved 로 보내면 '저장했습니다' 옆에 실패 사유가 붙는다.
-            return RedirectResponse(f"/settings?error={exc}", status_code=303)
+            return RedirectResponse(f"/keys?error={exc}", status_code=303)
         return RedirectResponse(
-            f"/settings?saved=접속키 {count}개를 모두 지웠습니다", status_code=303)
+            f"/keys?saved=접속키 {count}개를 모두 지웠습니다", status_code=303)
+
+    @app.post("/settings/keys/reset")
+    async def settings_keys_reset(request: Request):
+        """예전 주소. 접속키는 /keys 로 옮겼다."""
+        # 예전 주소. 접속키 이야기는 전부 /keys 로 모았다.
+        # 307 은 POST 를 그대로 넘기므로 받는 쪽도 POST 자리여야 한다.
+        # /keys 로 보내면 그쪽은 GET 전용이라 405 가 난다.
+        return RedirectResponse("/keys/reset", status_code=307)
 
     # ---------------------------------------------------- 설정 한눈에
     @app.get("/config", response_class=HTMLResponse)
