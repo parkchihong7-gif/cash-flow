@@ -57,10 +57,18 @@ def test_탭마다_주소가_따로_있다(client, program_id):
 
 
 def test_없는_탭을_치면_첫_화면으로(client):
-    """주소를 잘못 쳐도 빈 화면이 아니라 쓸 수 있는 자리로 보낸다."""
+    """주소를 잘못 쳐도 빈 화면이 아니라 쓸 수 있는 자리로 보낸다.
+
+    첫 탭 이름은 상품마다 다르므로(문항 채우기·기획 수치·키워드 수요…)
+    이름으로 보지 않고 **그 상품의 첫 탭과 같은 것이 떴는지**로 본다.
+    """
+    from core.webui import load_console
+
+    first = load_console(Registry().require("exam-drill"), {}).tabs[0]
     response = client.get("/apps/exam-drill/admin/t/그런탭없음")
+
     assert response.status_code == 200
-    assert "작업" in response.text
+    assert first.label in response.text, "첫 탭으로 보내지 않았다"
 
 
 # ─────────────────────────────────── 클라이언트는 관리자 자리에 못 닿는다

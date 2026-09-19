@@ -40,6 +40,15 @@ DASHBOARD_PAGES = (
     ("06_runs", "/runs", "실행 이력"),
 )
 
+#: 상품마다 찍을 공통 탭. 16종이 다 갖고 있어 교육자료에서 한 번만 설명하면 된다.
+#: (탭 key, 파일 꼬리표, 설명)
+SHARED_TABS = (
+    ("hand", "hand", "손으로 할 일 — 프로그램이 대신 못 하는 일과 그 이유"),
+    ("keys", "keys", "접속키 — 1차키·2차키를 발급하고 회수한다"),
+    ("presets", "presets", "기본 세팅 — 검증값과 다른 값이 노랗게 뜬다"),
+    ("trouble", "trouble", "문제 해결 — 증상을 찾아 그 줄대로"),
+)
+
 
 def _free_port(start: int = 8811) -> int:
     for port in range(start, start + 50):
@@ -102,6 +111,32 @@ async def _shoot(out_dir: Path, port: int, only: str) -> list[tuple[str, str]]:
                 await page.screenshot(path=str(path), full_page=True)
                 made.append((path.name, f"{program.number}. {program.name} — {label}"))
                 print(f"  ✓ {path.name}")
+
+            # 공통 탭. 상품마다 내용이 달라 한 장씩 찍어 둔다.
+            for tab_key, suffix, caption in SHARED_TABS:
+                response = await page.goto(
+                    f"{base}/apps/{program.id}/admin/t/{tab_key}")
+                if response is None or response.status != 200:
+                    continue
+                body = await page.inner_text("body")
+                # 그 상품에 없는 탭이면 첫 화면이 대신 뜬다. 같은 그림을
+                # 이름만 바꿔 여러 장 넣으면 교육자료가 지저분해진다.
+                if "아직 아무것도 없습니다" in body:
+                    continue
+                await page.wait_for_timeout(300)
+                path = out_dir / f"{program.number:02d}_{program.id}_{suffix}.png"
+                await page.screenshot(path=str(path), full_page=True)
+                made.append((path.name,
+                             f"{program.number}. {program.name} — {caption}"))
+
+            # 고객이 들어오는 문. 대시보드 코드 없이 열리는 유일한 화면이다.
+            door = await page.goto(f"{base}/c/{program.id}")
+            if door is not None and door.status == 200:
+                await page.wait_for_timeout(250)
+                path = out_dir / f"{program.number:02d}_{program.id}_door.png"
+                await page.screenshot(path=str(path))
+                made.append((path.name,
+                             f"{program.number}. {program.name} — 고객이 들어오는 문"))
 
             # 상세 페이지(두 모드 버튼이 보이는 화면)도 한 장
             await page.goto(f"{base}/programs/{program.id}")

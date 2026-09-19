@@ -223,3 +223,57 @@ def test_안내문의_주소는_문이지_관리자_화면이_아니다(owner):
     assert f"/c/{PROGRAM}" in mail
     assert f"/apps/{PROGRAM}/client" not in mail, (
         "고객에게 대시보드 코드가 필요한 주소를 보내고 있다")
+
+
+# ──────────────────────────────────────────── 세 층이 정말로 갈리는가
+#
+# 사용자가 못 박은 것: "통합 관리자 대시보드는 메인 관리자이며 하부 프로그램을
+# 판매하게 되면 그 담당자가 또 관리자 / 클라이언트가 되기 때문에 실제 메인
+# 관리자 / 프로그램 관리자는 다른 점을 인지하고 완전히 다르게 제작."
+#
+#     메인 관리자    /                    접속 코드. 16종을 다 본다
+#     프로그램 관리자 /apps/<상품>/admin   자기 것의 키를 발급한다
+#     클라이언트     /c/<상품>            이중키. 결과만 본다
+
+
+def test_프로그램_화면에는_다른_상품_메뉴가_없다(owner):
+    """산 사람에게 내가 파는 다른 물건 목록을 보여 줄 이유가 없다."""
+    body = owner.get(f"/apps/{PROGRAM}/admin").text
+    for other in ("/programs/exam-drill", "/members", "/revenue"):
+        assert other not in body, f"프로그램 화면에 {other} 가 있다"
+
+
+def test_문_안에는_회원_매출_메뉴가_없다(guest, issued):
+    primary, pc, _n, _p = issued
+    guest.post(f"/c/{PROGRAM}", data={"primary": primary, "secondary": pc})
+    body = guest.get(f"/c/{PROGRAM}/t/home").text
+
+    for leaked in ("/members", "/revenue", "/settings", "/runs", "/config"):
+        assert leaked not in body, f"고객 화면에 {leaked} 가 새어 나갔다"
+
+
+def test_통합_대시보드는_접속_코드가_있어야_한다(guest):
+    """문이 열렸다고 대시보드까지 열리면 안 된다."""
+    for path in ("/", "/members", "/revenue", "/config"):
+        response = guest.get(path, follow_redirects=False)
+        assert response.status_code == 303, path
+        assert "/login" in response.headers["location"], path
+
+
+def test_고객이_다른_상품의_문을_열_수_없다(owner, guest, issued):
+    """한 프로그램을 샀다고 나머지 열다섯이 열리면 안 된다."""
+    primary, pc, _n, _p = issued
+    guest.post(f"/c/{PROGRAM}", data={"primary": primary, "secondary": pc})
+    assert guest.get(f"/c/{PROGRAM}/t/home").status_code == 200
+
+    for other in ("exam-drill", "naver-blog", "funnel-builder"):
+        response = guest.get(f"/c/{other}/t/home")
+        assert response.status_code == 401, f"{other} 가 열렸다"
+
+
+def test_16종_모두_문이_있다(guest):
+    """어느 상품을 팔든 고객이 들어올 자리가 있어야 한다."""
+    for program in Registry().programs:
+        response = guest.get(f"/c/{program.id}")
+        assert response.status_code == 200, program.id
+        assert "1차 인증키" in response.text, program.id

@@ -16,14 +16,22 @@
   <span class="badge {{ program.status }}">{{ program.status_label }}</span></h1>
 <p class="muted">{{ program.tagline }} · v{{ program.version }} · <code>{{ program.id }}</code></p>
 
-{# 웹 화면 두 벌. 새 창에서 열어 실제로 만져 볼 수 있다. #}
+{# 세 층이 서로 다른 문으로 들어간다. 그래서 링크도 셋이다.
+   메인 관리자(나) / 프로그램 관리자(이 프로그램을 산 사람) / 클라이언트(그 사람의 고객).
+   맨 오른쪽 '고객이 들어오는 문' 만 대시보드 접속 코드 없이 열린다. #}
 <div class="modelinks">
   <span class="lbl">웹 화면으로 직접 테스트</span>
   <a class="btn primary" href="/apps/{{ program.id }}/admin" target="_blank" rel="noopener">
     관리자 모드 ↗</a>
   <a class="btn" href="/apps/{{ program.id }}/client" target="_blank" rel="noopener">
     클라이언트 모드 ↗</a>
-  <span class="help">새 창에서 열립니다. 값을 바꿔 가며 눌러 보세요.</span>
+  <a class="btn" href="/c/{{ program.id }}" target="_blank" rel="noopener"
+     title="고객에게 보내는 주소입니다. 대시보드 접속 코드 없이 접속키만으로 열립니다.">
+    🔑 고객이 들어오는 문 ↗</a>
+  <span class="help">
+    앞의 둘은 내가 보는 화면입니다. <strong>세 번째가 고객에게 보내는 주소</strong>로,
+    <a href="/apps/{{ program.id }}/admin/t/keys">접속키</a>를 발급해 드려야 열립니다.
+  </span>
 </div>
 
 <nav class="tabs">
