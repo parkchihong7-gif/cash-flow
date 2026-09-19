@@ -31,7 +31,8 @@ from senior_video.rates import RateError, load_rates             # noqa: E402
 from senior_video.savings import suggest                         # noqa: E402
 from senior_video.senior import RULES, SPEC_SUMMARY, check_plan, grade  # noqa: E402
 from senior_video.upload import (                                # noqa: E402
-    AUDIT_NOTE, MAX_UPLOADS_PER_DAY, Queue, QueueError, UPLOAD_UNITS, uploads_possible,
+    AUDIT_NOTE, DAILY_UNITS, MAX_UPLOADS_PER_DAY, Queue, QueueError, UPLOAD_UNITS,
+    uploads_possible,
 )
 
 PLAN = BASE_DIR / "plan.yaml"
@@ -361,3 +362,197 @@ def _approve(form: dict) -> str:
     except QueueError as exc:
         return f"error={exc}"
     return f"saved={item.title} 을 {item.approved_by} 님이 승인했습니다"
+
+
+# ══════════════════════════════════════════════════════════ 운영 콘솔
+#
+# 탭은 **어르신 대상 영상 채널을 돌리는 일**에서 나온다. 컨퍼런스 관리자의
+# 탭을 베끼지 않는다. 이 사람이 하는 일은 이렇다.
+#
+#     한 달에 몇 편 만들지 정한다 → 비용이 얼마인지 본다 → 줄일 곳을 찾는다
+#     → 어르신이 볼 수 있는 규격인지 본다 → 사람이 보고 승인한다 → 올린다
+#
+# '손으로 할 일' 표는 사용자가 이미 쓰고 있는 유튜브 자동 제작 관리자
+# (`admin\MANUAL.html`) 의 「스튜디오에서 직접 할 일」 을 그대로 옮겼다.
+# 지어낸 것이 아니라 실제로 API 가 못 하는 일들이다.
+
+from core.console import Console, FileLoc, ManualTask, Stat, Tab, Todo, Trouble  # noqa: E402
+
+
+def _stats(plan, rates) -> list[Stat]:
+    """위쪽 타일. **달마다 나가는 돈**이 맨 앞이다.
+
+    이 프로그램을 여는 이유가 그것이기 때문이다. 조회수나 편수를 앞에 두면
+    정작 볼 것을 못 본다.
+    """
+    est = estimate(plan, rates)
+    savings = suggest(est, rates)
+    findings = check_plan(_current_raw())
+    # 'warn' 은 권장값을 벗어난 것이다. 어르신이 못 보는 설정이라 여기서는
+    # 경고가 아니라 **막아야 할 것**으로 센다. 돈보다 이게 먼저다.
+    blocking = [item for item in findings if item.warn]
+    possible = uploads_possible(plan.monthly_videos)
+
+    tiles = [
+        Stat("달마다", _won(est.per_month), "",
+             hint=f"{plan.monthly_videos}편 기준", tab="estimate"),
+        Stat("한 편에", _won(est.per_video), "", tab="estimate"),
+    ]
+    if savings:
+        top = max(savings, key=lambda s: s.monthly_won)
+        tiles.append(Stat(
+            "줄일 수 있는 돈", _won(sum(s.monthly_won for s in savings)), "",
+            tone="ok", hint=f"가장 큰 줄: {top.title}", tab="savings"))
+    tiles.append(Stat(
+        "시니어 규격", "통과" if not blocking else f"{len(blocking)}곳",
+        tone="ok" if not blocking else "bad",
+        hint="어르신이 못 보는 설정이 있습니다" if blocking else "권장값 안에 있습니다",
+        tab="spec"))
+    tiles.append(Stat(
+        "하루 업로드 한도", str(MAX_UPLOADS_PER_DAY), "편",
+        tone="warn" if not possible else "",
+        hint="쿼터를 넘습니다 — 다음 날로 넘어갑니다" if not possible
+             else f"하루 {DAILY_UNITS:,} 유닛",
+        tab="quota"))
+    return tiles
+
+
+def console(program, ctx) -> Console:
+    """14번 운영 콘솔."""
+    try:
+        rates = load_rates(RATES)
+    except RateError as exc:
+        return Console(
+            program_id=program.id, title=program.name,
+            tabs=[Tab(key="broken", label="단가표", icon="⚠",
+                      panels=[Panel(key="broken", title="단가표를 읽지 못했습니다",
+                                    note=str(exc), tone="bad")])],
+            troubles=[Trouble("단가표를 못 읽는다",
+                              "`data/unit_costs.yaml` 를 고치셨다면 되돌리거나, "
+                              "**기본 세팅** 탭에서 검증값으로 돌리세요.")],
+        )
+
+    plan = _plan()
+    est = estimate(plan, rates)
+
+    tabs = [
+        Tab(key="plan", label="기획 수치", icon="📐", group="정하는 자리",
+            intro="여기서 바꾼 값이 **모든 탭의 계산을 바꿉니다.**",
+            panels=[Panel(key="plan", title="기획 수치",
+                          intro="값을 바꾸고 저장하면 바로 다시 계산됩니다.",
+                          fields=_plan_fields(plan, rates),
+                          action="do:plan", action_label="저장하고 다시 계산")]),
+        Tab(key="estimate", label="견적", icon="💰", group="보는 자리",
+            intro="무엇에 얼마가 드는지 **줄마다** 나눠 적었습니다.",
+            panels=[_estimate_panel(plan, rates)]),
+        Tab(key="savings", label="줄이기", icon="✂️", group="보는 자리",
+            intro="줄이는 데에는 **대가가 있습니다.** 무엇을 내주는지 같이 적었습니다.",
+            panels=[_savings_panel(plan, rates)]),
+        Tab(key="spec", label="시니어 규격", icon="👓", group="보는 자리",
+            intro="어르신이 **볼 수 있는지**를 봅니다. 돈보다 이게 먼저입니다.",
+            panels=[_spec_panel(plan)],
+            common_buttons=f"권장값 — {SPEC_SUMMARY}"),
+        Tab(key="quota", label="업로드 한도", icon="📊", group="올리는 자리",
+            intro="유튜브 API 는 하루 쓸 수 있는 양이 정해져 있습니다.",
+            panels=[_quota_panel(plan)]),
+        Tab(key="queue", label="승인 대기열", icon="✅", group="올리는 자리",
+            intro="**사람이 보고 승인해야** 올라갑니다. 이 단계는 뺄 수 없습니다.",
+            panels=[_queue_panel("admin"), _approve_panel()],
+            admin_only=True),
+        Tab(key="report", label="견적서", icon="📄", group="내보내기",
+            panels=[Panel(key="run", title="견적서 파일로 받기",
+                          intro="`outputs/` 에 마크다운으로 저장합니다. 비용 0원입니다.",
+                          action="run", action_label="견적서 만들기", run_mode="dry")]),
+    ]
+
+    return Console(
+        program_id=program.id,
+        title=program.name,
+        subtitle=program.tagline,
+        tabs=tabs,
+        stats=_stats(plan, rates),
+        todos=[
+            Todo("어젯밤 만들어진 편이 있으면 **직접 보고** 승인하기", tab="queue",
+                 by_hand=True, admin_only=True,
+                 detail="승인에는 이름이 들어갑니다. 누가 봤는지 남아야 합니다."),
+            Todo("시니어 규격에 걸린 곳이 있는지 보기", tab="spec",
+                 detail="자막이 작거나 말이 빠르면 어르신은 그냥 나갑니다."),
+            Todo("이번 달 비용이 예상과 맞는지 보기", tab="estimate"),
+            Todo("유튜브 스튜디오에서 공개 예약하기", by_hand=True,
+                 detail="API 로는 **비공개까지만** 올라갑니다. 아래 '손으로 할 일' 참고."),
+        ],
+        # 아래 표는 사용자의 유튜브 자동 제작 관리자 매뉴얼 「스튜디오에서
+        # 직접 할 일」 을 그대로 옮긴 것이다. 실제로 API 가 못 하는 일들이다.
+        manual_tasks=[
+            ManualTask(
+                task="공개·예약 설정",
+                where="YouTube 스튜디오 → 콘텐츠 → 영상 → 공개 상태 → 예약",
+                why=AUDIT_NOTE,
+                someday="구글 API 감사를 통과하면 예약 공개까지 자동으로 할 수 "
+                        "있습니다. 신청부터 답까지 며칠에서 몇 주 걸립니다."),
+            ManualTask(
+                task="숏폼의 '관련 동영상' 로 롱폼 지정",
+                where="스튜디오 → 숏폼 → 세부정보 → 관련 동영상",
+                why="**API 가 지원하지 않습니다.** 게다가 Shorts 는 댓글·설명의 "
+                    "링크가 눌리지 않아(2023-08-31 정책), 숏폼에서 롱폼으로 가는 "
+                    "**유일한 길**이 이 버튼입니다. 빠뜨리면 숏폼 조회수가 롱폼으로 "
+                    "이어지지 않습니다."),
+            ManualTask(
+                task="댓글 고정",
+                where="영상 → 댓글 → ⋮ → 고정",
+                why="댓글을 **다는 것**은 API 로 되지만 **고정**은 안 됩니다."),
+            ManualTask(
+                task="최종 화면·카드 편집",
+                where="스튜디오 → 편집기 → 최종 화면 / 카드",
+                why="API 미지원입니다.",
+                someday="한 번 만들어 두고 '동영상에서 가져오기' 로 복사하면 "
+                        "두 번째부터는 몇 초면 됩니다."),
+            ManualTask(
+                task="배너·워터마크·채널 홈 배치",
+                where="스튜디오 → 맞춤설정",
+                why="파일은 만들어 드릴 수 있지만 **등록은 손으로** 해야 합니다."),
+            ManualTask(
+                task="만든 영상을 직접 보고 승인",
+                where="승인 대기열 탭",
+                why="유튜브 2025-07 **양산형(비진정성) 콘텐츠** 정책 때문입니다. "
+                    "사람이 안 본 영상을 대량으로 올리면 채널 전체가 수익화에서 "
+                    "빠집니다. 이 단계는 기능이 아니라 **안전장치**라 뺄 수 없습니다."),
+        ],
+        troubles=[
+            Trouble("견적이 생각보다 비싸다",
+                    "**줄이기** 탭을 보세요. 가장 큰 줄은 보통 음성 엔진입니다. "
+                    "다만 값싼 엔진은 어르신이 알아듣기 어려울 수 있어, 바꾸기 전에 "
+                    "**시니어 적합도**를 같이 보세요."),
+            Trouble("어제 만든 편이 공개가 안 됐다",
+                    "API 로 올린 영상은 **비공개로 잠깁니다**(구글 API 감사 전). "
+                    "스튜디오에서 직접 공개로 바꾸셔야 합니다. 위 '손으로 할 일' 참고."),
+            Trouble("하루에 세 편밖에 못 올렸다",
+                    f"업로드 한 번에 {UPLOAD_UNITS:,} 유닛이 들고 하루 한도가 "
+                    f"{DAILY_UNITS:,} 유닛이라 **하루 {MAX_UPLOADS_PER_DAY}편**이 "
+                    "상한입니다. 넘는 분량은 다음 날로 넘어갑니다. 쿼터는 기다리는 "
+                    "것이 맞고, 재시도하면 더 깎입니다."),
+            Trouble("자막이 잘려 보인다",
+                    "한 줄 16자를 넘기면 어르신 화면에서 잘립니다. **시니어 규격** "
+                    "탭에서 경고가 떴는지 보세요."),
+            Trouble("어르신이 '말이 빠르다' 고 한다",
+                    "분당 300음절을 넘겼을 때입니다. 대본을 줄이거나 음성 속도를 "
+                    "낮추세요. 규격 탭에 지금 값이 나옵니다."),
+            Trouble("승인 버튼이 안 먹는다",
+                    "**이름을 적어야** 승인됩니다. 누가 보고 넘겼는지 남기지 않으면 "
+                    "나중에 문제가 생겼을 때 확인할 방법이 없습니다."),
+        ],
+        files=[
+            FileLoc("기획 수치", "products/senior-video/plan.yaml",
+                    "모든 계산이 이 파일에서 나옵니다."),
+            FileLoc("단가표", "products/senior-video/data/unit_costs.yaml",
+                    "외부 요금이 바뀌면 여기를 고칩니다. 바꾸시면 **기본 세팅** "
+                    "탭이 노랗게 뜹니다."),
+            FileLoc("승인 대기열", "products/senior-video/data/queue.db"),
+            FileLoc("견적서", "products/senior-video/outputs/"),
+        ],
+        admin_intro=f"한 달 **{_won(est.per_month)}** 이 드는 계획입니다. "
+                    f"값을 바꿔 가며 어디서 새는지 보세요.",
+        client_intro="어르신 대상 영상의 **비용과 규격**을 봐 드립니다. "
+                     "이 화면에서 영상을 올리지는 않습니다.",
+        custom=True,
+    )

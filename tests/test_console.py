@@ -258,3 +258,50 @@ def test_프로그램마다_키가_따로_논다(client):
 
     assert "naver-blog씨" in client.get("/apps/naver-blog/admin/t/keys").text
     assert "exam-drill씨" not in client.get("/apps/exam-drill/admin/t/keys").text
+
+
+# ───────────────────────────────────── 전용 콘솔이 조용히 죽지 않는가
+#
+# `load_console()` 은 상품 코드가 깨져도 화면이 뜨도록 기본 화면으로 갈아끼운다.
+# 그 덕에 대시보드가 안 죽지만, **깨진 줄 모르고 지나갈 수 있다.** 실제로
+# 14번 콘솔을 쓰다가 속성 이름을 세 번 잘못 짚었는데(level·monthly_won·
+# DAILY_UNITS) 화면은 200 으로 멀쩡히 떴다. 그래서 따로 본다.
+
+CUSTOM = ["exam-drill", "senior-video"]
+
+
+@pytest.mark.parametrize("program_id", CUSTOM)
+def test_전용_콘솔이_기본_화면으로_떨어지지_않는다(program_id):
+    from core.webui import load_console
+
+    program = Registry().require(program_id)
+    built = load_console(program, {})
+
+    assert built is not None, f"{program_id} 에 console() 이 없다"
+    assert built.custom is True, (
+        f"{program_id} 의 console() 이 오류로 기본 화면으로 떨어졌다. "
+        f"첫 패널: {built.tabs[0].panels[0].note if built.tabs[0].panels else '?'}")
+    assert len(built.tabs) >= 3, f"{program_id} 탭이 너무 적다"
+
+
+@pytest.mark.parametrize("program_id", CUSTOM)
+def test_전용_콘솔에는_손으로_할_일과_문제_해결이_있다(program_id):
+    """팔 물건이다. '왜 자동이 아니냐', '이럴 땐 어쩌냐' 는 반드시 온다."""
+    from core.webui import load_console
+
+    built = load_console(Registry().require(program_id), {})
+    assert built.manual_tasks, f"{program_id} 에 손으로 할 일이 비어 있다"
+    assert built.troubles, f"{program_id} 에 문제 해결이 비어 있다"
+    for task in built.manual_tasks:
+        assert task.why.strip(), f"{program_id}: '{task.task}' 에 이유가 없다"
+
+
+@pytest.mark.parametrize("program_id", CUSTOM)
+def test_전용_콘솔의_탭이_저마다_다르다(program_id):
+    """컨퍼런스 탭을 그대로 복사해 붙이지 않았는지."""
+    from core.webui import load_console
+
+    labels = [tab.label for tab in load_console(Registry().require(program_id), {}).tabs]
+    assert len(labels) == len(set(labels)), f"{program_id} 에 같은 이름의 탭이 있다"
+    assert "초청 현황" not in labels and "비자" not in labels, (
+        "컨퍼런스 관리자의 탭을 그대로 옮겨 왔다")
