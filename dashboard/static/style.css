@@ -535,8 +535,9 @@ a.tile:hover { border-color: var(--accent); text-decoration: none; }
 /* 오늘 할 일 */
 .card.todo ol { margin: 0; padding-left: 22px; }
 .card.todo li { margin-bottom: 10px; }
-.card.todo li.byhand { list-style: none; margin-left: -22px; padding-left: 22px; position: relative; }
-.card.todo li.byhand::before { content: "✋"; position: absolute; left: 0; }
+/* 손으로 하는 일도 번호를 뗄 수 없다. 번호를 없애면 '✋ / 2. / ✋' 가 되어
+   순서가 아예 안 읽힌다. 표시는 줄 끝의 '손으로' 딱지 하나로 충분하다. */
+.card.todo li.byhand { color: var(--ink); }
 .card.todo .tdetail { display: block; font-size: 13px; color: var(--ink-soft); }
 .pill {
   display: inline-block; padding: 1px 7px; border-radius: 999px;
