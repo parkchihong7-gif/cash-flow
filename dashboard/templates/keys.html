@@ -10,13 +10,39 @@
   키가 있어야 그 사람이 자기 화면에 들어올 수 있습니다.
 </p>
 
+<div class="card">
+  <h3>키는 두 종류입니다</h3>
+  <table class="hand">
+    <tr><th>무슨 키</th><th>누가 받나</th><th>무엇이 열리나</th></tr>
+    <tr>
+      <td><span class="badge sold">판매</span></td>
+      <td><strong>내가 판 사람</strong> (그 프로그램의 관리자)</td>
+      <td>관리자 화면. <strong>그 안에서 자기 고객에게 줄 키를 직접 발급</strong>합니다.
+        학원에 파시면 학원장이 수강생 키를 직접 만듭니다.</td>
+    </tr>
+    <tr>
+      <td><span class="badge">고객용</span></td>
+      <td>산 사람의 고객, 또는 내가 직접 쓰게 할 분</td>
+      <td>쓰는 화면만. 발급 자리는 없습니다.</td>
+    </tr>
+  </table>
+  <p class="help">
+    산 사람은 <strong>자기가 발급한 키만</strong> 봅니다 — 제 키도, 옆 사람의 키도
+    보이지 않습니다. 그리고 <strong>관리자키는 만들 수 없습니다.</strong>
+    파는 것은 저만 합니다.
+  </p>
+</div>
+
 <div class="tiles">
+  <span class="tile"><span class="tlabel">판 것</span>
+    <span class="tvalue">{{ counts.admins }}<small>건</small></span>
+    <span class="thint">받은 분이 그 프로그램의 관리자가 됩니다</span></span>
+  <span class="tile"><span class="tlabel">그 아래 고객</span>
+    <span class="tvalue">{{ counts.clients }}<small>명</small></span>
+    <span class="thint">산 분들이 직접 발급한 키</span></span>
   <span class="tile"><span class="tlabel">키를 받은 사람</span>
     <span class="tvalue">{{ counts.holders }}<small>명</small></span>
     <span class="thint">16종을 통틀어</span></span>
-  <span class="tile"><span class="tlabel">1차키</span>
-    <span class="tvalue">{{ counts.primary }}<small>개</small></span>
-    <span class="thint">사람 한 명당 하나</span></span>
   <span class="tile"><span class="tlabel">2차키</span>
     <span class="tvalue">{{ counts.secondary }}<small>개</small></span>
     <span class="thint">PC·노트북·휴대폰</span></span>
@@ -34,7 +60,7 @@
     한 프로그램을 산 사람이 나머지 열다섯까지 열면 안 되기 때문입니다.
   </p>
   <table>
-    <tr><th></th><th>프로그램</th><th>받은 사람</th><th>2차키</th><th>지금 접속</th><th></th></tr>
+    <tr><th></th><th>프로그램</th><th>판 것</th><th>그 아래 고객</th><th>지금 접속</th><th></th></tr>
     {% for row in rows %}
     <tr>
       <td class="muted">{{ row.program.number }}</td>
@@ -42,8 +68,8 @@
         <a href="/programs/{{ row.program.id }}">{{ row.program.name }}</a>
         <div class="muted">{{ row.program.tagline }}</div>
       </td>
-      <td class="num">{{ row.holders or '—' }}</td>
-      <td class="num">{{ row.secondary or '—' }}</td>
+      <td class="num">{{ row.sold or '—' }}</td>
+      <td class="num">{{ row.clients or '—' }}</td>
       <td class="num">{{ row.live or '—' }}</td>
       <td>
         <a class="btn small primary" href="/apps/{{ row.program.id }}/admin/t/keys">키 만들기 →</a>
@@ -56,6 +82,7 @@
 <div class="card">
   <h3>키를 만들면 이렇게 됩니다</h3>
   <ol class="howto">
+    <li><strong>판매</strong>인지 <strong>고객용</strong>인지 고릅니다 (위 표 참고)</li>
     <li><strong>이름과 이메일</strong>만 넣고 [발급하고 안내문 만들기] 를 누릅니다</li>
     <li><strong>키 네 개</strong>가 한 번에 나옵니다 —
       1차키 1개(사람) + 2차키 3개(PC·노트북·휴대폰)</li>

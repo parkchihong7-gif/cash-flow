@@ -39,6 +39,7 @@ from pathlib import Path
 __all__ = [
     "KeyAuth", "KeyError_", "IssuedSet", "KeyRow", "SessionRow",
     "DEVICES", "KIND_PRIMARY", "KIND_SECONDARY", "KIND_LEGACY",
+    "ROLE_ADMIN", "ROLE_CLIENT", "ROLE_LABEL",
     "RESET_WORD", "MAX_BULK", "format_key", "normalize",
 ]
 
@@ -48,6 +49,12 @@ DEVICES: tuple[str, ...] = ("PC", "노트북", "휴대폰")
 KIND_PRIMARY = "primary"
 KIND_SECONDARY = "secondary"
 KIND_LEGACY = "legacy"
+
+#: 이 키로 무엇이 열리는가.
+ROLE_ADMIN = "admin"      # 프로그램 관리자 — 산 사람. 자기 고객에게 키를 준다
+ROLE_CLIENT = "client"    # 클라이언트 — 그 관리자의 고객. 쓰는 화면만
+
+ROLE_LABEL = {ROLE_ADMIN: "관리자", ROLE_CLIENT: "클라이언트"}
 
 #: 전체 초기화를 실행하려면 이 글자를 정확히 쳐야 한다.
 RESET_WORD = "초기화"
@@ -72,6 +79,8 @@ CREATE TABLE IF NOT EXISTS auth_keys (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     program_id   TEXT NOT NULL DEFAULT '',   -- '' 면 전 프로그램 공용
     kind         TEXT NOT NULL,              -- primary | secondary | legacy
+    role         TEXT NOT NULL DEFAULT 'client',  -- admin | client
+    issued_by    INTEGER,                    -- 발급한 관리자의 1차키. 비면 내가 준 것
     code         TEXT NOT NULL,
     parent_id    INTEGER,                    -- 2차키가 딸린 1차키
     device       TEXT NOT NULL DEFAULT '',   -- 2차키만
@@ -99,6 +108,12 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_key ON auth_sessions(key_id);
+"""
+
+#: 새로 더한 칸을 쓰는 인덱스. **표를 고친 뒤에** 만든다.
+LATE_INDEXES = """
+CREATE INDEX IF NOT EXISTS idx_auth_keys_issuer ON auth_keys(issued_by);
+CREATE INDEX IF NOT EXISTS idx_auth_keys_role ON auth_keys(program_id, role);
 """
 
 REVOKED_MESSAGE = "다른 기기에서 로그인되어 세션이 종료되었습니다"
@@ -137,6 +152,8 @@ class KeyRow:
     id: int
     program_id: str
     kind: str
+    role: str
+    issued_by: int | None
     code: str
     parent_id: int | None
     device: str
@@ -173,6 +190,20 @@ class KeyRow:
         return {KIND_PRIMARY: "1차키", KIND_SECONDARY: "2차키",
                 KIND_LEGACY: "레거시"}.get(self.kind, self.kind)
 
+    @property
+    def role_label(self) -> str:
+        return ROLE_LABEL.get(self.role, self.role)
+
+    @property
+    def is_admin(self) -> bool:
+        """이 키로 관리자 화면이 열리는가."""
+        return self.role == ROLE_ADMIN
+
+    @property
+    def mine(self) -> bool:
+        """내가(메인 관리자가) 직접 준 키인가."""
+        return self.issued_by is None
+
 
 @dataclass
 class SessionRow:
@@ -199,6 +230,12 @@ class IssuedSet:
     secondary: dict[str, str]      # 기기 → 키
     program_id: str = ""
     service_url: str = ""
+    role: str = ROLE_CLIENT
+    primary_id: int = 0
+
+    @property
+    def for_admin(self) -> bool:
+        return self.role == ROLE_ADMIN
 
     def mail_subject(self, product: str) -> str:
         return f"[{product}] 접속 안내"
@@ -207,7 +244,9 @@ class IssuedSet:
         """매뉴얼의 메일 문구를 그대로 따른다."""
         lines = [
             f"{self.holder_name}님, 아래 링크로 접속하시면 1차, 2차 인증 후 "
-            f"이용 가능합니다.",
+            f"이용 가능합니다."
+            + (" 관리자 화면이 열리며, 고객께 드릴 키를 직접 발급하실 수 "
+               "있습니다." if self.for_admin else ""),
             "",
             self.service_url or "(서비스 주소)",
             "",
@@ -232,6 +271,24 @@ class KeyAuth:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self._conn() as conn:
             conn.executescript(SCHEMA)
+            # 칸을 먼저 더하고 인덱스를 만든다. 순서가 바뀌면 예전 파일에서
+            # '없는 칸에 인덱스' 라며 통째로 죽는다 — 열려 있던 DB 가 못 열린다.
+            self._add_missing_columns(conn)
+            conn.executescript(LATE_INDEXES)
+
+    @staticmethod
+    def _add_missing_columns(conn) -> None:
+        """예전에 만든 파일에 새 칸을 더한다.
+
+        `CREATE TABLE IF NOT EXISTS` 는 이미 있는 표를 건드리지 않는다.
+        키를 새로 발급받게 하지 않으려면 여기서 채워 넣어야 한다.
+        """
+        have = {row["name"] for row in conn.execute("PRAGMA table_info(auth_keys)")}
+        if "role" not in have:
+            conn.execute("ALTER TABLE auth_keys ADD COLUMN "
+                         "role TEXT NOT NULL DEFAULT 'client'")
+        if "issued_by" not in have:
+            conn.execute("ALTER TABLE auth_keys ADD COLUMN issued_by INTEGER")
 
     def _conn(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path)
@@ -242,11 +299,25 @@ class KeyAuth:
     # ────────────────────────────────────────────────────────── 발급
     def issue_set(self, name: str, email: str, program_id: str = "",
                   service_url: str = "", expires_days: int | None = None,
-                  note: str = "") -> IssuedSet:
+                  note: str = "", role: str = ROLE_CLIENT,
+                  issued_by: int | None = None) -> IssuedSet:
         """한 사람에게 1차키 1개 + 2차키 3개를 한 번에.
 
         매뉴얼의 '이메일로 배포' 가 하는 일이다. 이름과 이메일만 받는다.
+
+        Args:
+            role: `admin` 이면 그 사람이 **그 프로그램의 관리자**가 되어
+                자기 고객에게 키를 발급할 수 있다. 파는 키다.
+            issued_by: 발급한 관리자의 1차키 id. 비우면 내가 준 것.
+
+        Raises:
+            KeyError_: 관리자키를 관리자가 만들려 할 때. **파는 것은 나만** 한다.
         """
+        if role not in (ROLE_ADMIN, ROLE_CLIENT):
+            raise KeyError_(f"모르는 역할입니다: {role}")
+        if role == ROLE_ADMIN and issued_by is not None:
+            # 이걸 허용하면 산 사람이 관리자를 찍어 내며 재판매할 수 있다.
+            raise KeyError_("관리자키는 발급하실 수 없습니다. 고객용 키만 만드실 수 있습니다")
         name = (name or "").strip()
         email = (email or "").strip()
         if not name:
@@ -258,17 +329,22 @@ class KeyAuth:
         with self._conn() as conn:
             primary = self._insert(conn, program_id, KIND_PRIMARY,
                                    holder_name=name, holder_email=email,
-                                   expires_at=expires, note=note)
+                                   expires_at=expires, note=note,
+                                   role=role, issued_by=issued_by)
             secondary: dict[str, str] = {}
             for device in DEVICES:
+                # 역할과 발급자를 2차키에도 그대로 적는다. 2차키만 보고도
+                # 무엇이 열리는지 알 수 있어야 한다.
                 code = self._insert(conn, program_id, KIND_SECONDARY,
                                     parent_id=primary[0], device=device,
                                     holder_name=name, holder_email=email,
-                                    expires_at=expires, note=note)[1]
+                                    expires_at=expires, note=note,
+                                    role=role, issued_by=issued_by)[1]
                 secondary[device] = code
         return IssuedSet(holder_name=name, holder_email=email,
                          primary=primary[1], secondary=secondary,
-                         program_id=program_id, service_url=service_url)
+                         program_id=program_id, service_url=service_url,
+                         role=role, primary_id=primary[0])
 
     def bulk_legacy(self, count: int = DEFAULT_BULK, program_id: str = "",
                     expires_days: int | None = None) -> list[str]:
@@ -298,16 +374,18 @@ class KeyAuth:
 
     def _insert(self, conn, program_id: str, kind: str, *, parent_id: int | None = None,
                 device: str = "", holder_name: str = "", holder_email: str = "",
-                expires_at: str = "", note: str = "") -> tuple[int, str]:
+                expires_at: str = "", note: str = "", role: str = ROLE_CLIENT,
+                issued_by: int | None = None) -> tuple[int, str]:
         """키 하나를 넣는다. 코드가 겹치면 다시 뽑는다."""
         for _ in range(12):
             code = format_key()
             try:
                 cursor = conn.execute(
-                    "INSERT INTO auth_keys (program_id, kind, code, parent_id, device,"
-                    " holder_name, holder_email, expires_at, note, created_at)"
-                    " VALUES (?,?,?,?,?,?,?,?,?,?)",
-                    (program_id, kind, code, parent_id, device,
+                    "INSERT INTO auth_keys (program_id, kind, role, issued_by, code,"
+                    " parent_id, device, holder_name, holder_email, expires_at,"
+                    " note, created_at)"
+                    " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (program_id, kind, role, issued_by, code, parent_id, device,
                      holder_name, holder_email, expires_at, note, _now()))
                 return int(cursor.lastrowid), code
             except sqlite3.IntegrityError:
@@ -334,8 +412,19 @@ class KeyAuth:
                 (wanted, program_id, program_id)).fetchone()
         return self._row(row) if row else None
 
+    #: `issued_by` 를 안 넘겼다는 뜻. None 은 '내가 준 것만' 이라는 뜻이라
+    #: 기본값으로 쓸 수 없어 따로 둔다.
+    ANY_ISSUER = object()
+
     def list_keys(self, kind: str = "", program_id: str | None = None,
-                  parent_id: int | None = None) -> list[KeyRow]:
+                  parent_id: int | None = None, role: str = "",
+                  issued_by=ANY_ISSUER) -> list[KeyRow]:
+        """키 목록.
+
+        Args:
+            issued_by: 넘기면 **그 사람이 발급한 것만.** `None` 은 내가 준 것만.
+                안 넘기면 전부 — 메인 관리자 화면에서만 쓴다.
+        """
         sql = "SELECT * FROM auth_keys WHERE 1=1"
         params: list = []
         if kind:
@@ -347,26 +436,51 @@ class KeyAuth:
         if parent_id is not None:
             sql += " AND parent_id = ?"
             params.append(parent_id)
+        if role:
+            sql += " AND role = ?"
+            params.append(role)
+        if issued_by is not self.ANY_ISSUER:
+            if issued_by is None:
+                sql += " AND issued_by IS NULL"
+            else:
+                sql += " AND issued_by = ?"
+                params.append(issued_by)
         sql += " ORDER BY id DESC"
         with self._conn() as conn:
             return [self._row(row) for row in conn.execute(sql, params)]
 
-    def counts(self, program_id: str | None = None) -> dict[str, int]:
-        rows = self.list_keys(program_id=program_id)
+    def owns(self, key_id: int, issuer_id: int) -> bool:
+        """`issuer_id` 관리자가 이 키를 건드려도 되는가.
+
+        옆 학원의 수강생 키를 정지시키거나 지울 수 있으면 안 된다. 화면에서
+        안 그리는 것과 별개로, 손대는 길마다 여기를 지난다.
+        """
+        try:
+            row = self.get(key_id)
+        except KeyError_:
+            return False
+        return row.issued_by == issuer_id
+
+    def counts(self, program_id: str | None = None,
+               issued_by=ANY_ISSUER) -> dict[str, int]:
+        rows = self.list_keys(program_id=program_id, issued_by=issued_by)
+        primary = [row for row in rows if row.kind == KIND_PRIMARY]
         return {
-            "primary": sum(1 for row in rows if row.kind == KIND_PRIMARY),
+            "primary": len(primary),
             "secondary": sum(1 for row in rows if row.kind == KIND_SECONDARY),
             "legacy": sum(1 for row in rows if row.kind == KIND_LEGACY),
             "suspended": sum(1 for row in rows if row.status == "suspended"),
             "expired": sum(1 for row in rows if row.expired),
-            "holders": len({row.holder_email for row in rows
-                            if row.kind == KIND_PRIMARY and row.holder_email}),
+            "holders": len({row.holder_email for row in primary if row.holder_email}),
+            "admins": sum(1 for row in primary if row.is_admin),
+            "clients": sum(1 for row in primary if not row.is_admin),
         }
 
     @staticmethod
     def _row(row: sqlite3.Row) -> KeyRow:
         return KeyRow(
             id=row["id"], program_id=row["program_id"], kind=row["kind"],
+            role=row["role"], issued_by=row["issued_by"],
             code=row["code"], parent_id=row["parent_id"], device=row["device"],
             holder_name=row["holder_name"], holder_email=row["holder_email"],
             status=row["status"], expires_at=row["expires_at"], note=row["note"],
@@ -417,30 +531,29 @@ class KeyAuth:
             conn.execute(f"DELETE FROM auth_keys WHERE id IN ({marks})", ids)
         return len(ids)
 
-    def reset_all(self, confirm: str, program_id: str | None = None) -> int:
+    def reset_all(self, confirm: str, program_id: str | None = None,
+                  issued_by=ANY_ISSUER) -> int:
         """전부 지운다. **'초기화' 를 정확히 쳐야 한다.**
 
         Args:
             program_id: 비우면 **16종 전부.** 프로그램을 주면 그것만.
+            issued_by: 넘기면 **그 사람이 발급한 것만.** 프로그램 관리자가
+                자기 고객 키를 정리할 때 쓴다. 안 넘기면 전부 — 나만 한다.
         """
         if (confirm or "").strip() != RESET_WORD:
             raise KeyError_(
                 f"전체 초기화를 하려면 '{RESET_WORD}' 라고 정확히 적어 주세요. "
                 f"되돌릴 수 없습니다")
+
+        rows = self.list_keys(program_id=program_id, issued_by=issued_by)
+        ids = [row.id for row in rows]
+        if not ids:
+            return 0
         with self._conn() as conn:
-            if program_id is None:
-                count = conn.execute("SELECT COUNT(*) c FROM auth_keys").fetchone()["c"]
-                conn.execute("DELETE FROM auth_sessions")
-                conn.execute("DELETE FROM auth_keys")
-            else:
-                ids = [row["id"] for row in conn.execute(
-                    "SELECT id FROM auth_keys WHERE program_id = ?", (program_id,))]
-                count = len(ids)
-                if ids:
-                    marks = ",".join("?" * len(ids))
-                    conn.execute(f"DELETE FROM auth_sessions WHERE key_id IN ({marks})", ids)
-                    conn.execute(f"DELETE FROM auth_keys WHERE id IN ({marks})", ids)
-        return count
+            marks = ",".join("?" * len(ids))
+            conn.execute(f"DELETE FROM auth_sessions WHERE key_id IN ({marks})", ids)
+            conn.execute(f"DELETE FROM auth_keys WHERE id IN ({marks})", ids)
+        return len(ids)
 
     # ────────────────────────────────────────────────────────── 인증
     def authenticate(self, primary_code: str, secondary_code: str = "",

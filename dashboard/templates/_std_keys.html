@@ -3,7 +3,7 @@
    고객에게 배포한 안내문과 동작이 어긋나면 안 된다. #}
 
 <div class="card">
-  <h3>이 프로그램의 접속키</h3>
+  <h3>{% if through_door %}고객에게 드릴 접속키{% else %}이 프로그램의 접속키{% endif %}</h3>
   <div class="tiles small">
     <span class="tile"><span class="tlabel">받은 사람</span><span class="tvalue">{{ key_counts.holders }}<small>명</small></span></span>
     <span class="tile"><span class="tlabel">1차키</span><span class="tvalue">{{ key_counts.primary }}<small>개</small></span></span>
@@ -12,10 +12,16 @@
     <span class="tile {{ 'bad' if key_counts.expired else '' }}"><span class="tlabel">만료</span><span class="tvalue">{{ key_counts.expired }}<small>개</small></span></span>
     <span class="tile"><span class="tlabel">지금 접속</span><span class="tvalue">{{ live_sessions }}<small>명</small></span></span>
   </div>
+  {% if through_door %}
+  <p class="help">
+    여기 보이는 것은 <strong>고객님께서 발급하신 키만</strong>입니다.
+    다른 분이 발급한 키는 보이지 않습니다.
+  </p>
+  {% endif %}
   <p class="doorurl">
     고객이 들어오는 주소 —
     <code>{{ request.base_url|string|trim('/') }}/c/{{ program.id }}</code>
-    <a class="btn small" href="/c/{{ program.id }}" target="_blank">새 창으로 열어 보기</a>
+    {% if not through_door %}<a class="btn small" href="/c/{{ program.id }}" target="_blank">새 창으로 열어 보기</a>{% endif %}
   </p>
   <p class="help">
     이 주소에는 <strong>대시보드 접속 코드가 필요 없습니다.</strong> 키만 있으면
@@ -33,7 +39,25 @@
 <div class="card">
   <h3>사람에게 키 주기</h3>
   <p class="muted">이름과 이메일만 넣으면 <strong>1차키 1개 + 2차키 3개</strong>를 한 번에 만들고, 그대로 보낼 안내문까지 만듭니다.</p>
-  <form method="post" action="/apps/{{ program.id }}/admin/keys/issue" class="rowform">
+  {% if not through_door %}
+  <p class="help">
+    <strong>판매</strong> 키를 받으신 분은 <strong>관리자 화면</strong>이 열리고,
+    그 안에서 <strong>자기 고객에게 줄 키를 직접 발급</strong>하실 수 있습니다.
+    학원에 파시면 학원장이 수강생 키를 직접 만드는 식입니다.<br>
+    <strong>고객용</strong> 키는 쓰는 화면만 열립니다. 제가 직접 한 분께 드릴 때 씁니다.
+  </p>
+  {% endif %}
+  <form method="post" action="{% if through_door %}{{ door_base }}/keys/issue{% else %}/apps/{{ program.id }}/admin/keys/issue{% endif %}" class="rowform">
+    {% if not through_door %}
+    {# 파는 키인지 쓰는 키인지. 이걸 안 고르면 산 사람이 자기 고객에게
+       키를 줄 수가 없다. #}
+    <label><span class="ltext">무슨 키</span>
+      <select name="role">
+        <option value="admin">판매 — 이 프로그램을 산 분 (관리자)</option>
+        <option value="client">고객용 — 내가 직접 쓰게 할 분</option>
+      </select>
+    </label>
+    {% endif %}
     <label><span class="ltext">이름</span> <input type="text" name="name" required placeholder="홍길동"></label>
     <label><span class="ltext">이메일</span> <input type="email" name="email" required placeholder="hong@example.com"></label>
     <label><span class="ltext">유효기간</span> <input type="number" name="expires_days" min="0" placeholder="비우면 무제한 (일)"></label>
@@ -61,9 +85,9 @@
   <h3>발급한 키</h3>
   <nav class="subtabs">
     <a class="sub {% if key_tab != 'secondary' %}on{% endif %}"
-       href="/apps/{{ program.id }}/admin/t/keys?k=primary">1차키</a>
+       href="{% if through_door %}{{ door_base }}/t/keys?k=primary{% else %}/apps/{{ program.id }}/admin/t/keys?k=primary{% endif %}">1차키</a>
     <a class="sub {% if key_tab == 'secondary' %}on{% endif %}"
-       href="/apps/{{ program.id }}/admin/t/keys?k=secondary">2차키</a>
+       href="{% if through_door %}{{ door_base }}/t/keys?k=secondary{% else %}/apps/{{ program.id }}/admin/t/keys?k=secondary{% endif %}">2차키</a>
   </nav>
 
   {% if key_rows %}
@@ -71,12 +95,17 @@
     <tr>
       <th>키</th>
       {% if key_tab == 'secondary' %}<th>기기</th>{% endif %}
+      {% if not through_door %}<th>무슨 키</th>{% endif %}
       <th>받은 사람</th><th>상태</th><th>마지막 사용</th><th></th>
     </tr>
     {% for k in key_rows %}
     <tr class="{{ k.tone if k.tone is defined else '' }}">
       <td><code>{{ k.code }}</code></td>
       {% if key_tab == 'secondary' %}<td>{{ k.device }}</td>{% endif %}
+      {% if not through_door %}
+      <td><span class="badge {{ 'sold' if k.is_admin else '' }}">{{ '판매' if k.is_admin else '고객용' }}</span>
+        {% if not k.mine %}<div class="muted">산 분이 발급</div>{% endif %}</td>
+      {% endif %}
       <td>{{ k.holder_name or '—' }}<div class="muted">{{ k.holder_email }}</div></td>
       <td>
         <span class="badge {{ 'ok' if k.state == 'active' else ('warn' if k.state == 'suspended' else 'bad') }}">{{ k.state_label }}</span>
@@ -84,10 +113,10 @@
       </td>
       <td class="muted">{{ k.last_used_at[:16].replace('T', ' ') or '아직 없음' }}</td>
       <td class="keyacts">
-        <form method="post" action="/apps/{{ program.id }}/admin/keys/{{ k.id }}/toggle">
+        <form method="post" action="{% if through_door %}{{ door_base }}/keys/{{ k.id }}/toggle{% else %}/apps/{{ program.id }}/admin/keys/{{ k.id }}/toggle{% endif %}">
           <button class="btn small" type="submit">{{ '▶ 사용재개' if k.status == 'suspended' else '⏸ 사용중지' }}</button>
         </form>
-        <form method="post" action="/apps/{{ program.id }}/admin/keys/{{ k.id }}/delete">
+        <form method="post" action="{% if through_door %}{{ door_base }}/keys/{{ k.id }}/delete{% else %}/apps/{{ program.id }}/admin/keys/{{ k.id }}/delete{% endif %}">
           <button class="btn small danger" type="submit" data-twice="정말 삭제?">🗑 삭제</button>
         </form>
       </td>
@@ -104,7 +133,8 @@
   {% endif %}
 </div>
 
-{# ─── 일괄 생성 ─── #}
+{# ─── 일괄 생성 — 내 자리에만. 산 사람에게는 이름 없는 키가 필요 없다 ─── #}
+{% if not through_door %}
 <div class="card">
   <h3>이름 없이 미리 만들어 두기</h3>
   <p class="muted">현장에서 종이로 나눠 줄 때 씁니다. 1차·2차 구분 없는 단독 키입니다.</p>
@@ -119,14 +149,21 @@
   {% endif %}
 </div>
 
+{% endif %}
+
 {# ─── 전체 초기화 ─── #}
 <div class="card danger">
-  <h3>전체 초기화</h3>
+  <h3>{% if through_door %}고객 키 전체 초기화{% else %}전체 초기화{% endif %}</h3>
   <p>
+    {% if through_door %}
+    <strong>고객님께서 발급하신 키를 모두 지웁니다.</strong> 쓰고 있는 고객도
+    전부 끊깁니다. 고객님 본인의 접속키는 그대로 남습니다.
+    {% else %}
     이 프로그램의 <strong>키를 모두 지웁니다.</strong> 쓰고 있는 사람도 전부 끊깁니다.
+    {% endif %}
     되돌릴 수 없습니다.
   </p>
-  <form method="post" action="/apps/{{ program.id }}/admin/keys/reset" class="rowform">
+  <form method="post" action="{% if through_door %}{{ door_base }}/keys/reset{% else %}/apps/{{ program.id }}/admin/keys/reset{% endif %}" class="rowform">
     <label><span class="ltext">확인을 위해 <strong>초기화</strong> 라고 적어 주세요</span>
       <input type="text" name="confirm" data-typeword="초기화" data-arms="#reset-btn"
              placeholder="초기화" autocomplete="off">

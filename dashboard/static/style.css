@@ -633,3 +633,6 @@ table.trouble td:first-child { width: 34%; }
   font-size: 13px; margin-bottom: 10px;
 }
 .doorurl code { background: var(--bg); }
+
+/* 파는 키와 쓰는 키를 한눈에 가른다 */
+.badge.sold { background: var(--accent-soft); color: var(--accent); font-weight: 700; }

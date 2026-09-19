@@ -37,9 +37,14 @@ def owner(tmp_path):
 
 @pytest.fixture
 def issued(owner):
-    """발급된 키 한 벌 (1차키, PC, 노트북, 휴대폰)."""
+    """발급된 **고객용** 키 한 벌 (1차키, PC, 노트북, 휴대폰).
+
+    대시보드에서 발급하면 기본이 '판매'(관리자) 라, 고객 화면을 보려면
+    역할을 적어 줘야 한다. 파는 쪽은 tests/test_resale.py 에서 본다.
+    """
     response = owner.post(f"/apps/{PROGRAM}/admin/keys/issue",
-                          data={"name": "박고객", "email": "guest@example.com"},
+                          data={"name": "박고객", "email": "guest@example.com",
+                                "role": "client"},
                           follow_redirects=False)
     body = owner.get(response.headers["location"]).text
     codes = KEY.findall(body)
@@ -393,4 +398,4 @@ def test_같은_사람이_여러_프로그램을_사면_한_명으로_센다(own
 
     body = owner.get("/keys").text
     assert '<span class="tvalue">1<small>명' in body, "한 사람이 여러 명으로 세어진다"
-    assert '<span class="tvalue">3<small>개' in body, "1차키는 프로그램마다 따로다"
+    assert '<span class="tvalue">3<small>건' in body, "판 것은 프로그램마다 따로 센다"

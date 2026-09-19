@@ -39,7 +39,8 @@ from core import presets as presets_mod
 from core import schedule as schedule_mod
 from core.db import Database
 from core.keyauth import (
-    DEFAULT_BULK, KIND_LEGACY, KIND_PRIMARY, KIND_SECONDARY, KeyAuth, KeyError_,
+    DEFAULT_BULK, KIND_LEGACY, KIND_PRIMARY, KIND_SECONDARY, ROLE_ADMIN,
+    KeyAuth, KeyError_,
 )
 from core.manifest import ProgramManifest
 from core.registry import Registry
@@ -350,6 +351,8 @@ def register(app, page, registry, db, program_or_404):
                 service_url=str(request.base_url).rstrip("/")
                             + f"{DOOR_PREFIX}/{program.id}",
                 expires_days=int(days) if days else None,
+                # 판매 키는 산 사람을 그 프로그램의 관리자로 만든다.
+                role=str(form.get("role") or ROLE_ADMIN),
             )
         except (KeyError_, ValueError) as exc:
             return RedirectResponse(_keys_back(program_id, error=str(exc)),
@@ -372,6 +375,8 @@ def register(app, page, registry, db, program_or_404):
                 count=int(form.get("count") or DEFAULT_BULK),
                 program_id=program.id,
                 expires_days=int(days) if days else None,
+                # 판매 키는 산 사람을 그 프로그램의 관리자로 만든다.
+                role=str(form.get("role") or ROLE_ADMIN),
             )
         except (KeyError_, ValueError) as exc:
             return RedirectResponse(_keys_back(program_id, error=str(exc)),

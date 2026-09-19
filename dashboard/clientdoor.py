@@ -21,6 +21,23 @@
 * **프로그램 관리자** — 그 프로그램을 산 사람. 자기 것의 키를 발급한다
 * **클라이언트** — 산 사람의 고객. 이 문으로 들어와 결과만 본다
 
+**아래 둘이 같은 문으로 들어온다.** 무엇이 열리는지는 키가 정한다.
+
+    role="admin"    관리자 화면 + 자기 고객에게 키를 주는 자리
+    role="client"   쓰는 화면만
+
+산 사람에게 내 대시보드 코드를 줄 수는 없는데, 그 사람도 자기 고객에게 키를
+줘야 한다. 학원에 팔면 학원장이 수강생 쉰 명에게 나눠 줘야 하고, 내가 그
+쉰 명을 대신 발급해 줄 수는 없다. 그래서 **문 안에 발급 자리를 둔다.**
+
+무엇을 막아 두었나
+------------------
+
+* 관리자는 **자기가 발급한 키만** 본다. 내 키도, 옆 관리자의 키도 안 보인다
+* 관리자는 **관리자키를 못 만든다.** 파는 것은 나만 한다 — 허용하면 산 사람이
+  관리자를 찍어 내며 재판매한다
+* 손대는 길마다 `owns()` 를 지난다. 화면에서 안 그리는 것만으로는 부족하다
+
 무엇을 주의했는가
 -----------------
 
@@ -34,12 +51,15 @@
 
 from __future__ import annotations
 
+import secrets
 from typing import Any
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from core.keyauth import KeyAuth, KeyError_
+from core.keyauth import (
+    KIND_PRIMARY, KIND_SECONDARY, ROLE_ADMIN, ROLE_CLIENT, KeyAuth, KeyError_,
+)
 from core.webui import load_handler
 
 __all__ = ["register", "DOOR_PREFIX", "COOKIE_PREFIX"]
@@ -57,7 +77,7 @@ def cookie_name(program_id: str) -> str:
     return COOKIE_PREFIX + program_id.replace("-", "_")
 
 
-def register(app, templates, registry, db, program_or_404, console_for) -> None:
+def register(app, templates, registry, db, program_or_404, console_for) -> None:  # noqa: C901
     """통합 대시보드 앱에 클라이언트 문을 붙인다.
 
     Args:
@@ -67,6 +87,17 @@ def register(app, templates, registry, db, program_or_404, console_for) -> None:
 
     def _keys() -> KeyAuth:
         return KeyAuth(db().path)
+
+    #: 방금 발급한 키를 한 번 보여 주려고 잠깐 들고 있는 자리.
+    #: 키를 주소에 실으면 브라우저 기록과 서버 로그에 그대로 남는다.
+    _fresh: dict[str, Any] = {}
+
+    def _stash(value: Any) -> str:
+        token = secrets.token_urlsafe(8)
+        _fresh[token] = value
+        while len(_fresh) > 64:
+            _fresh.pop(next(iter(_fresh)))
+        return token
 
     def _door(request: Request, program, error: str = "", notice: str = "",
               status: int = 200) -> HTMLResponse:
@@ -83,6 +114,22 @@ def register(app, templates, registry, db, program_or_404, console_for) -> None:
             return "", ""
         alive, why = _keys().check_session(token)
         return (token, "") if alive else ("", why)
+
+    def _who(token: str):
+        """이 세션이 누구인가. (역할, 그 사람의 1차키 id).
+
+        2차키로 들어왔어도 **1차키가 그 사람**이다. 발급한 키를 1차키 id 로
+        묶어 두었으므로 여기서 거슬러 올라간다.
+        """
+        keys = _keys()
+        with keys._conn() as conn:
+            row = conn.execute(
+                "SELECT k.role AS role, k.id AS id, k.parent_id AS parent_id"
+                " FROM auth_sessions s JOIN auth_keys k ON k.id = s.key_id"
+                " WHERE s.token = ?", (token,)).fetchone()
+        if row is None:
+            return ROLE_CLIENT, 0
+        return row["role"], (row["parent_id"] or row["id"])
 
     # ------------------------------------------------------------ 열쇠 넣기
     @app.get(DOOR_PREFIX + "/{program_id}", response_class=HTMLResponse)
@@ -138,19 +185,49 @@ def register(app, templates, registry, db, program_or_404, console_for) -> None:
         if not token:
             return _door(request, program, notice=why, status=401)
 
+        role, issuer_id = _who(token)
         database = db()
-        full = console_for(program, database, "client")
-        shown = full.for_mode("client")
+
+        # 산 사람(관리자키)에게는 관리자 화면을 연다. 그 사람은 이 프로그램의
+        # 주인이고, 자기 고객에게 키를 줘야 한다.
+        mode = "admin" if role == ROLE_ADMIN else "client"
+        full = console_for(program, database, mode)
+        shown = full.for_mode(mode)
+
+        if role == ROLE_ADMIN:
+            # 관리자 전용 탭 중 **내 것**만 남긴다. 기본 세팅과 파일 위치는
+            # 내(메인 관리자) 자리라 산 사람에게 열지 않는다.
+            shown.tabs = [tab for tab in shown.tabs
+                          if tab.key not in ("presets", "files")]
+
         current = shown.tab("" if tab_key == "home" else tab_key) or shown.first_tab()
+
+        extra: dict[str, Any] = {}
+        if current is not None and current.render == "keys":
+            keys = _keys()
+            want = str(request.query_params.get("k") or "primary")
+            kind = KIND_SECONDARY if want == "secondary" else KIND_PRIMARY
+            extra = {
+                "key_tab": want,
+                # 자기가 발급한 것만. 옆 학원 수강생 명단이 보이면 안 된다.
+                "key_rows": keys.list_keys(kind=kind, program_id=program.id,
+                                           issued_by=issuer_id),
+                "key_counts": keys.counts(program_id=program.id,
+                                          issued_by=issuer_id),
+                "live_sessions": 0,
+                "issued": _fresh.pop(
+                    str(request.query_params.get("issued") or ""), None),
+                "bulk_codes": None,
+            }
 
         return templates.TemplateResponse(
             request, "console.html",
             {
                 "program": program,
-                "mode": "client",
-                "mode_label": "클라이언트 모드",
-                "other_mode": "client",
-                "other_label": "클라이언트 모드",
+                "mode": mode,
+                "mode_label": "관리자 모드" if role == ROLE_ADMIN else "클라이언트 모드",
+                "other_mode": mode,
+                "other_label": "",
                 "console": shown,
                 "current": current,
                 "is_home": bool(current and current is shown.first_tab()),
@@ -163,7 +240,9 @@ def register(app, templates, registry, db, program_or_404, console_for) -> None:
                 # 이 문으로 들어온 사람에게는 통합 대시보드로 가는 길을 그리지 않는다.
                 "through_door": True,
                 "door_base": f"{DOOR_PREFIX}/{program.id}",
+                "door_role": role,
                 "programs": [], "load_errors": [],
+                **extra,
             })
 
     # ------------------------------------------------- 문 안에서 누르는 버튼
@@ -213,4 +292,119 @@ def register(app, templates, registry, db, program_or_404, console_for) -> None:
         return RedirectResponse(
             f"{DOOR_PREFIX}/{program_id}/t/home"
             f"?error=이 화면에서는 실행하지 않습니다. 파신 분께 문의해 주세요",
+            status_code=303)
+
+    # ══════════════════════════ 산 사람이 자기 고객에게 키를 준다
+    #
+    # 이 아래는 **관리자키로 들어온 사람만** 지난다. 손대는 키마다 `owns()`
+    # 를 확인한다 — 화면에서 안 그리는 것만으로는 부족하고, 주소를 직접 쳐서
+    # 옆 학원 수강생 키를 정지시키는 길까지 닫아야 한다.
+
+    def _as_admin(request: Request, program_id: str):
+        """(토큰, 발급자 id, 막혔을 때 돌려줄 응답)."""
+        token, why = _session(request, program_id)
+        if not token:
+            return "", 0, _door(request, program_or_404(program_id),
+                                notice=why, status=401)
+        role, issuer_id = _who(token)
+        if role != ROLE_ADMIN:
+            return "", 0, RedirectResponse(
+                f"{DOOR_PREFIX}/{program_id}/t/home"
+                f"?error=이 화면에서는 키를 만들 수 없습니다", status_code=303)
+        return token, issuer_id, None
+
+    def _back(program_id: str, tab: str = "primary", **extra) -> str:
+        parts = [f"k={tab}"] + [f"{k}={v}" for k, v in extra.items() if v]
+        return f"{DOOR_PREFIX}/{program_id}/t/keys?" + "&".join(parts)
+
+    @app.post(DOOR_PREFIX + "/{program_id}/keys/issue")
+    async def door_keys_issue(request: Request, program_id: str):
+        """산 사람이 자기 고객에게 키 한 벌을 준다."""
+        program = program_or_404(program_id)
+        _token, issuer_id, blocked = _as_admin(request, program_id)
+        if blocked is not None:
+            return blocked
+
+        form = await request.form()
+        days = str(form.get("expires_days") or "").strip()
+        try:
+            issued = _keys().issue_set(
+                name=str(form.get("name") or ""),
+                email=str(form.get("email") or ""),
+                program_id=program.id,
+                service_url=str(request.base_url).rstrip("/")
+                            + f"{DOOR_PREFIX}/{program.id}",
+                expires_days=int(days) if days else None,
+                role=ROLE_CLIENT,          # 관리자키는 나만 만든다
+                issued_by=issuer_id,
+            )
+        except (KeyError_, ValueError) as exc:
+            return RedirectResponse(_back(program_id, error=str(exc)),
+                                    status_code=303)
+        return RedirectResponse(_back(program_id, issued=_stash(issued)),
+                                status_code=303)
+
+    @app.post(DOOR_PREFIX + "/{program_id}/keys/{key_id}/toggle")
+    async def door_keys_toggle(request: Request, program_id: str, key_id: int):
+        program_or_404(program_id)
+        _token, issuer_id, blocked = _as_admin(request, program_id)
+        if blocked is not None:
+            return blocked
+
+        keys = _keys()
+        if not keys.owns(key_id, issuer_id):
+            # 내가 준 키가 아니다. 있는지 없는지도 알려 주지 않는다.
+            return RedirectResponse(
+                _back(program_id, error="그 키는 고객님 것이 아닙니다"),
+                status_code=303)
+        row = keys.get(key_id)
+        if row.status == "suspended":
+            keys.resume(key_id)
+            msg = f"{row.code} 를 다시 쓸 수 있게 했습니다."
+        else:
+            keys.suspend(key_id)
+            msg = f"{row.code} 를 사용중지했습니다. 접속해 있던 기기도 끊었습니다."
+        tab = "secondary" if row.kind == KIND_SECONDARY else "primary"
+        return RedirectResponse(_back(program_id, tab, flash=msg), status_code=303)
+
+    @app.post(DOOR_PREFIX + "/{program_id}/keys/{key_id}/delete")
+    async def door_keys_delete(request: Request, program_id: str, key_id: int):
+        program_or_404(program_id)
+        _token, issuer_id, blocked = _as_admin(request, program_id)
+        if blocked is not None:
+            return blocked
+
+        keys = _keys()
+        if not keys.owns(key_id, issuer_id):
+            return RedirectResponse(
+                _back(program_id, error="그 키는 고객님 것이 아닙니다"),
+                status_code=303)
+        row = keys.get(key_id)
+        removed = keys.delete(key_id)
+        extra = f" (딸린 2차키 {removed - 1}개 포함)" if removed > 1 else ""
+        tab = "secondary" if row.kind == KIND_SECONDARY else "primary"
+        return RedirectResponse(
+            _back(program_id, tab,
+                  flash=f"{row.code} 를 지웠습니다{extra}.", flash_tone="warn"),
+            status_code=303)
+
+    @app.post(DOOR_PREFIX + "/{program_id}/keys/reset")
+    async def door_keys_reset(request: Request, program_id: str):
+        """자기가 발급한 키만 비운다. 내 키는 건드리지 못한다."""
+        program = program_or_404(program_id)
+        _token, issuer_id, blocked = _as_admin(request, program_id)
+        if blocked is not None:
+            return blocked
+
+        form = await request.form()
+        try:
+            count = _keys().reset_all(str(form.get("confirm") or ""),
+                                      program_id=program.id,
+                                      issued_by=issuer_id)
+        except KeyError_ as exc:
+            return RedirectResponse(_back(program_id, error=str(exc)),
+                                    status_code=303)
+        return RedirectResponse(
+            _back(program_id, flash=f"고객 키 {count}개를 모두 지웠습니다.",
+                  flash_tone="warn"),
             status_code=303)

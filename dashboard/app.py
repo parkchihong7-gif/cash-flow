@@ -598,9 +598,9 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
             primary = keys.list_keys(kind=KIND_PRIMARY, program_id=program.id)
             rows.append({
                 "program": program,
-                "holders": len({row.holder_email for row in primary if row.holder_email}),
-                "secondary": len(keys.list_keys(kind=KIND_SECONDARY,
-                                                program_id=program.id)),
+                # 판 것과 산 사람들이 자기 고객에게 준 것을 갈라 센다.
+                "sold": sum(1 for row in primary if row.is_admin),
+                "clients": sum(1 for row in primary if not row.is_admin),
                 "live": keys.live_sessions(program_id=program.id),
             })
         return page(request, "keys.html", title="접속키",

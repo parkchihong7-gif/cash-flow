@@ -290,7 +290,9 @@ def test_집계는_사람_수를_이메일로_센다(auth):
     counts = auth.counts()
 
     assert counts == {"primary": 2, "secondary": 6, "legacy": 0,
-                      "suspended": 0, "expired": 0, "holders": 2}
+                      "suspended": 0, "expired": 0, "holders": 2,
+                      # 파는 키와 쓰는 키를 따로 센다. 기본은 쓰는 키다.
+                      "admins": 0, "clients": 2}
 
 
 # ───────────────────────────────────────────────────────── 마스터 토큰
