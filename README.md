@@ -19,9 +19,25 @@
 웹주소는 [Settings → Pages → Source 를 **GitHub Actions**](https://github.com/parkchihong7-gif/cash-flow/settings/pages) 로
 바꾸셔야 켜집니다. 그 전에는 아무 데도 안 올라갑니다.
 
-> **저장소가 공개입니다.** Pages 를 켜시면 그 화면도 공개가 됩니다.
-> 고객 자료는 저장소에 없어 올라가지 않지만, 상품 구성과 화면은 보입니다.
-> 비공개로 두시려면 저장소를 Private 로 바꾸세요 (Pages 는 유료 요금제 필요).
+### 웹주소는 잠겨 있습니다
+
+열면 **관리자 키**를 먼저 묻습니다. 내용은 그 키로 **덮여 있어서**, 키가 없으면
+소스를 열어도 못 읽습니다 — 자바스크립트로 암호를 물어보는 흉내가 아니라
+AES-GCM 으로 실제로 덮습니다.
+
+> **⚠ 기본 키 `redwind7` 은 이 README 에 적혀 있습니다.**
+> 저장소가 공개라 **누구나 읽을 수 있습니다.** 그대로 두시면 잠근 뜻이 없습니다.
+>
+> 바꾸시려면 [Settings → Secrets → Actions](https://github.com/parkchihong7-gif/cash-flow/settings/secrets/actions) 에서
+> `SNAPSHOT_KEY` 를 만들고 원하는 키를 넣으세요. 다음 올릴 때부터 그 키를 씁니다.
+> **저장소에는 안 남습니다.**
+
+잠기지 않은 채로는 올라가지 않습니다. 올리기 전에 덮였는지 확인하고,
+안 덮였으면 멈춥니다 (`.github/workflows/pages.yml`).
+
+남는 것 하나 — 왼쪽 메뉴의 **프로그램 이름**은 덮이지 않습니다.
+그 이름들은 `README`·`program.yaml` 에 이미 공개돼 있어서입니다.
+그것까지 감추시려면 저장소를 Private 로 바꾸셔야 합니다 (Pages 는 유료 요금제 필요).
 
 ## 밖에서 고치고 집에서 받기
 

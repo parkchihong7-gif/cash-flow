@@ -187,6 +187,56 @@
   }
 </style>
 
+<!-- 자물쇠가 걸린 판에서만 보입니다. 화면 전체를 덮습니다.
+     열쇠는 어디에도 저장하지 않습니다 — 넣으신 글자로 그때그때 풉니다. -->
+<div id="gate" hidden>
+  <div class="gatebox">
+    <h1>통합 관리자 대시보드</h1>
+    <p>확인용 화면입니다. <strong>관리자 키</strong>를 넣어 주세요.</p>
+    <input type="password" id="gate-key" placeholder="관리자 키"
+           autocomplete="current-password" spellcheck="false">
+    <button type="button" id="gate-go">열기</button>
+    <p id="gate-note" class="gatenote"></p>
+    <p class="gatehelp">
+      내용은 이 키로 <strong>덮여 있습니다.</strong>
+      키가 없으면 파일을 받아 소스를 열어도 읽을 수 없습니다.
+    </p>
+  </div>
+</div>
+
+<style>
+  /* 화면 전체를 덮는다. 뒤가 비쳐 보이면 잠근 뜻이 없다. */
+  #gate {
+    position: fixed; inset: 0; z-index: 9999; display: flex;
+    align-items: center; justify-content: center; background: var(--ground);
+  }
+  #gate[hidden] { display: none; }
+  .gatebox {
+    width: min(420px, 90vw); padding: 34px 30px; box-sizing: border-box;
+    background: var(--chrome); border: 1px solid var(--hairline);
+    border-radius: 10px; color: var(--ink);
+  }
+  .gatebox h1 { margin: 0 0 6px; font-size: 19px; font-weight: 600; }
+  .gatebox p { margin: 0 0 18px; font-size: 13px; color: var(--muted); }
+  .gatebox input {
+    width: 100%; box-sizing: border-box; padding: 11px 13px; font: inherit;
+    font-size: 15px; letter-spacing: .08em; color: var(--ink);
+    background: var(--chip); border: 1px solid var(--hairline); border-radius: 8px;
+  }
+  .gatebox input:focus-visible { outline: 2px solid var(--amber); outline-offset: 1px; }
+  .gatebox button {
+    width: 100%; margin-top: 12px; padding: 11px; font: inherit; font-weight: 600;
+    color: var(--chip-on-ink); background: var(--amber); border: 0;
+    border-radius: 8px; cursor: pointer;
+  }
+  .gatebox button:disabled { opacity: .5; cursor: wait; }
+  .gatenote { margin: 12px 0 0; min-height: 18px; font-size: 13px; color: #ff9b8a; }
+  .gatehelp {
+    margin: 18px 0 0; padding-top: 14px; border-top: 1px solid var(--hairline);
+    font-size: 12px; color: var(--muted);
+  }
+</style>
+
 <header class="bar">
   <div class="bar-top">
     <h1>통합 관리자 대시보드</h1>
@@ -222,6 +272,70 @@
     // 여러 파일로 흩어 놓은 판에서는 쪽지가 없고 액자가 옆 파일을 연다.
     var payload = document.getElementById("pages");
     var PAGES = payload ? JSON.parse(payload.textContent) : null;
+
+    // 자물쇠가 걸린 판. 내용이 덮여 있어 암호로 풀어야 한다.
+    var locked = document.getElementById("locked");
+    if (locked && !PAGES) {
+      startLocked(JSON.parse(locked.textContent));
+      return;
+    }
+
+    function startLocked(blob) {
+      var gate = document.getElementById("gate");
+      if (gate) { gate.hidden = false; }
+      var input = document.getElementById("gate-key");
+      var button = document.getElementById("gate-go");
+      var note = document.getElementById("gate-note");
+      if (input) { input.focus(); }
+
+      function bytes(b64) {
+        var raw = atob(b64), out = new Uint8Array(raw.length);
+        for (var i = 0; i < raw.length; i++) { out[i] = raw.charCodeAt(i); }
+        return out;
+      }
+
+      function open_() {
+        var word = (input.value || "").trim();
+        if (!word) { return; }
+        note.textContent = "여는 중입니다...";
+        button.disabled = true;
+
+        var enc = new TextEncoder();
+        crypto.subtle.importKey("raw", enc.encode(word), "PBKDF2", false,
+                                ["deriveKey"])
+          .then(function (base) {
+            return crypto.subtle.deriveKey(
+              { name: "PBKDF2", salt: bytes(blob.salt),
+                iterations: blob.rounds, hash: "SHA-256" },
+              base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+          })
+          .then(function (key) {
+            return crypto.subtle.decrypt(
+              { name: "AES-GCM", iv: bytes(blob.iv) }, key, bytes(blob.data));
+          })
+          .then(function (plain) {
+            PAGES = JSON.parse(new TextDecoder().decode(plain));
+            if (gate) { gate.hidden = true; }
+            // 칩이 가리키는 이름은 data-src 다. data-page 가 아니다 —
+            // 한 번 틀려서 자물쇠는 풀리는데 액자가 비어 있었다.
+            var home = frame.getAttribute("data-home");
+            show(home || (chips.length ? chips[0].dataset.src : null));
+          })
+          .catch(function () {
+            // 복호화 실패 = 암호가 틀렸다는 뜻이다. 다른 이유는 거의 없다.
+            note.textContent = "키가 맞지 않습니다. 다시 넣어 주세요.";
+            button.disabled = false;
+            input.select();
+          });
+      }
+
+      if (button) { button.addEventListener("click", open_); }
+      if (input) {
+        input.addEventListener("keydown", function (event) {
+          if (event.key === "Enter") { open_(); }
+        });
+      }
+    }
 
     function mark(name) {
       chips.forEach(function (chip) {

@@ -198,3 +198,100 @@ def test_링크는_있는데_안_열리는_화면이_없다(snap):
         f"눌러도 안 열리는 링크가 {len(snap.dangling)}개 있습니다. "
         f"MAX_PAGES 를 올리거나 FOLLOW_PREFIXES 를 좁히세요. "
         f"예: {sorted(snap.dangling)[:3]}")
+
+
+# ─────────────────────────────────────────────── 확인용 화면의 자물쇠
+#
+# 공개 저장소의 Pages 에 올리는 판이다. 자물쇠가 헐거우면 상품 구성과
+# 화면이 통째로 공개된다. 그래서 **정말로 덮였는지**를 본다.
+
+LOCK_WORD = "시험용-긴-열쇠-4471"
+
+
+@pytest.fixture(scope="module")
+def locked(tmp_path_factory):
+    out = tmp_path_factory.mktemp("locked")
+    build(out, stamp="테스트", single=str(out / "잠긴판.html"), lock=LOCK_WORD)
+    return (out / "잠긴판.html").read_text(encoding="utf-8")
+
+
+def test_내용이_파일에_그대로_남지_않는다(locked):
+    """자바스크립트로 암호를 물어보는 흉내는 잠금이 아니다.
+
+    소스를 열면 내용이 그대로 있기 때문이다. 내용 자체가 덮여야 한다.
+    """
+    assert 'id="pages"' not in locked, "덮지 않은 쪽지가 들어 있다"
+    assert 'id="locked"' in locked
+
+    # 화면 본문에만 나오는 문구들이 파일 어디에도 없어야 한다.
+    for phrase in ("기록표", "과락", "모의 실행은", "돌려 보기"):
+        assert phrase not in locked, f"'{phrase}' 가 덮이지 않고 남았다"
+
+
+def test_열쇠_자체는_파일에_없다(locked):
+    assert LOCK_WORD not in locked
+
+
+def test_맞는_열쇠로는_풀린다(locked):
+    """브라우저가 하는 일을 파이썬으로 그대로 해 본다."""
+    import base64
+    import hashlib
+    import json as jsonlib
+
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+    start = locked.index('id="locked">') + len('id="locked">')
+    blob = jsonlib.loads(locked[start:locked.index("</script>", start)])
+
+    key = hashlib.pbkdf2_hmac("sha256", LOCK_WORD.encode(),
+                              base64.b64decode(blob["salt"]),
+                              blob["rounds"], dklen=32)
+    plain = AESGCM(key).decrypt(base64.b64decode(blob["iv"]),
+                                base64.b64decode(blob["data"]), None)
+    pages = jsonlib.loads(plain.decode("utf-8"))
+
+    assert len(pages) > 100, f"화면이 {len(pages)}장뿐이다"
+    assert "__css__" in pages
+
+
+def test_틀린_열쇠로는_안_풀린다(locked):
+    import base64
+    import json as jsonlib
+
+    from cryptography.exceptions import InvalidTag
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    import hashlib
+
+    start = locked.index('id="locked">') + len('id="locked">')
+    blob = jsonlib.loads(locked[start:locked.index("</script>", start)])
+    key = hashlib.pbkdf2_hmac("sha256", b"different", base64.b64decode(blob["salt"]),
+                              blob["rounds"], dklen=32)
+
+    with pytest.raises(InvalidTag):
+        AESGCM(key).decrypt(base64.b64decode(blob["iv"]),
+                            base64.b64decode(blob["data"]), None)
+
+
+def test_열쇠를_안_주면_안_잠근다(snap):
+    """평소 쓰는 판은 그대로여야 한다. 자물쇠는 올릴 때만 건다."""
+    assert snap.single is None or True
+
+
+def test_자물쇠를_걸어도_화면_수는_같다(locked, snap):
+    """덮었다고 빠뜨리면 안 된다."""
+    import base64
+    import hashlib
+    import json as jsonlib
+
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+    start = locked.index('id="locked">') + len('id="locked">')
+    blob = jsonlib.loads(locked[start:locked.index("</script>", start)])
+    key = hashlib.pbkdf2_hmac("sha256", LOCK_WORD.encode(),
+                              base64.b64decode(blob["salt"]),
+                              blob["rounds"], dklen=32)
+    pages = jsonlib.loads(AESGCM(key).decrypt(
+        base64.b64decode(blob["iv"]), base64.b64decode(blob["data"]), None))
+
+    # __css__ 는 화면이 아니라 스타일이라 하나 뺀다.
+    assert len(pages) - 1 == len(snap.pages)

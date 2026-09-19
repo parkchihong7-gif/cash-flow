@@ -11,6 +11,9 @@ fastapi>=0.110.0
 uvicorn[standard]>=0.27.0
 python-multipart>=0.0.9
 markdown>=3.5
+#   확인용 화면에 자물쇠를 걸 때 씁니다 (python -m dashboard.snapshot --lock).
+#   자바스크립트로 암호를 물어보는 흉내가 아니라 내용 자체를 덮습니다.
+cryptography>=42.0.0
 
 # 11번 자동화 대행 납품 키트
 #   pandas      주간 보고서 집계 (숫자는 여기서만 나옵니다. Claude 는 해석만 씁니다)

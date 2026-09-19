@@ -28,6 +28,9 @@ import argparse
 import hashlib
 import json
 import re
+import base64
+import hashlib
+import secrets
 import shutil
 import sys
 import tempfile
@@ -69,6 +72,9 @@ FOLLOW_PREFIXES = (
 
 #: 따라가지 않는 주소. 스냅샷에서 뜻이 없거나 서버가 있어야만 되는 것들.
 SKIP_PATHS = {"/logout", "/reload", "/healthz", "/favicon.ico"}
+
+#: 암호에서 열쇠를 만들 때 몇 번 돌릴지. 느릴수록 무차별 대입이 비싸진다.
+PBKDF2_ROUNDS = 200_000
 
 LINK = re.compile(r'(href|src|action)="([^"]*)"')
 
@@ -215,7 +221,7 @@ def _rewrite(body: str, pages: dict[str, str], dangling: set[str],
 
 
 def _cover(snapshot: Snapshot, registry: Registry, stamp: str,
-           payload: str = "") -> str:
+           payload: str = "", locked: bool = False) -> str:
     """표지. 프로그램 목록에서 칩을 만들어 새 상품이 저절로 들어오게 한다."""
     def chip(url: str, label: str, num: str = "", current: bool = False) -> str:
         name = snapshot.pages.get(url)
@@ -293,8 +299,12 @@ def demo_runs(app) -> list[str]:
 
 
 def _payload(raw: dict[str, str], pages: dict[str, str], dangling: set[str],
-             banner: str, css: str) -> str:
-    """화면 전부를 표지 안에 넣을 쪽지 하나로 만든다."""
+             banner: str, css: str, lock: str = "") -> str:
+    """화면 전부를 표지 안에 넣을 쪽지 하나로 만든다.
+
+    Args:
+        lock: 넣으면 **자물쇠를 건다.** 이 글자를 모르면 못 읽는다.
+    """
     bundle = {}
     for url, body in raw.items():
         body = _rewrite(body, pages, dangling, single=True)
@@ -302,14 +312,50 @@ def _payload(raw: dict[str, str], pages: dict[str, str], dangling: set[str],
         body = body.replace("</body>", FREEZE + "\n</body>", 1)
         bundle[pages[url]] = body
     bundle["__css__"] = css
+    text = json.dumps(bundle, ensure_ascii=False)
+
+    if lock:
+        return _locked_payload(text, lock)
+
     # </script> 가 글자 그대로 들어가면 쪽지가 거기서 끊긴다.
-    text = json.dumps(bundle, ensure_ascii=False).replace("</", "<\\/")
-    return f'<script type="application/json" id="pages">{text}</script>'
+    return ('<script type="application/json" id="pages">'
+            + text.replace("</", "<\\/") + "</script>")
+
+
+def _locked_payload(text: str, password: str) -> str:
+    """화면을 **정말로 잠근다.**
+
+    자바스크립트로 "암호가 맞나" 를 물어보는 흉내는 잠금이 아니다. 소스를
+    열면 내용이 그대로 있다. 그래서 내용 자체를 AES-GCM 으로 덮는다.
+    암호를 모르면 손에 쥐는 것은 **알아볼 수 없는 바이트 덩어리**다.
+
+    암호는 어디에도 저장하지 않는다. 브라우저가 입력받은 글자로 열쇠를 다시
+    만들어 풀어 본다. 틀리면 복호화가 실패하고, 그게 곧 '틀렸다' 는 뜻이다.
+
+    한계는 분명히 해 둔다. **암호가 약하면 이 잠금도 약하다.** 파일을 받아
+    두고 느긋하게 대입해 볼 수 있어서다. 그래서 PBKDF2 를 20만 번 돌려
+    한 번 시도하는 값을 비싸게 만들어 두었지만, 짧은 암호는 여전히 위험하다.
+    """
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+    salt = secrets.token_bytes(16)
+    nonce = secrets.token_bytes(12)
+    key = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt,
+                              PBKDF2_ROUNDS, dklen=32)
+    sealed = AESGCM(key).encrypt(nonce, text.encode("utf-8"), None)
+
+    blob = json.dumps({
+        "salt": base64.b64encode(salt).decode(),
+        "iv": base64.b64encode(nonce).decode(),
+        "data": base64.b64encode(sealed).decode(),
+        "rounds": PBKDF2_ROUNDS,
+    })
+    return f'<script type="application/json" id="locked">{blob}</script>'
 
 
 def build(out_dir: str | Path, db_path: str | Path | None = None,
           products_dir: Path | None = None, stamp: str = "",
-          demo: bool = False, single: str = "") -> Snapshot:
+          demo: bool = False, single: str = "", lock: str = "") -> Snapshot:
     """화면을 떠서 `out_dir` 아래에 static HTML 묶음을 만든다.
 
     Args:
@@ -387,11 +433,13 @@ def build(out_dir: str | Path, db_path: str | Path | None = None,
         snapshot.index.write_text(_cover(snapshot, registry, stamp), encoding="utf-8")
 
         if single:
-            payload = _payload(raw, snapshot.pages, snapshot.dangling, banner, css)
+            payload = _payload(raw, snapshot.pages, snapshot.dangling, banner, css,
+                               lock=lock)
             snapshot.single = Path(single)
             snapshot.single.parent.mkdir(parents=True, exist_ok=True)
             snapshot.single.write_text(
-                _cover(snapshot, registry, stamp, payload=payload), encoding="utf-8")
+                _cover(snapshot, registry, stamp, payload=payload,
+                       locked=bool(lock)), encoding="utf-8")
         return snapshot
     finally:
         if temp_dir is not None:
@@ -408,6 +456,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--stamp", default="", help="표지에 적을 날짜")
     parser.add_argument("--demo", action="store_true",
                         help="모의 실행을 한 번씩 돌려 실행 이력·산출물 화면까지 담습니다")
+    parser.add_argument(
+        "--lock", default="",
+        help="확인용 한 장에 자물쇠를 겁니다. 이 글자를 모르면 못 읽습니다. "
+             "흉내가 아니라 내용을 AES-GCM 으로 덮습니다. --single 과 같이 쓰세요.")
     parser.add_argument("--single", nargs="?", const="auto", default="",
                         help="화면 전부를 담은 HTML 파일 하나도 만듭니다")
     parser.add_argument("--zip", action="store_true", help="폴더를 zip 으로도 묶습니다")
@@ -420,7 +472,8 @@ def main(argv: list[str] | None = None) -> int:
     if single == "auto":
         single = str(Path(args.out) / "통합-관리자-대시보드.html")
     snapshot = build(args.out, Path(args.db) if args.db else None,
-                     stamp=args.stamp, demo=args.demo, single=single)
+                     stamp=args.stamp, demo=args.demo, single=single,
+                     lock=args.lock)
     print(f"화면 {snapshot.count}개 → {snapshot.index}")
     if snapshot.single:
         size = snapshot.single.stat().st_size / 1_000_000
