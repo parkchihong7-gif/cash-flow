@@ -69,6 +69,22 @@ jobs:
             || { echo "::error::표지가 ${size} 바이트나 됩니다"; exit 1; }
           echo "표지 ${size}B · 자료 $(stat -c%s _site/data.bin)B"
 
+      - name: 접속키 관리자 화면 싣기
+        # 스냅샷(사진)과 달리 **진짜로 도는 화면**이다. 구글 앱스 스크립트
+        # 키 서버에 붙어 발급·정지·초기화를 실제로 한다.
+        #   https://<사용자>.github.io/cash-flow/keys/
+        # 비밀은 안 들어간다 — 서버 주소와 비밀번호는 쓰는 사람이 넣는다.
+        run: |
+          python -m tools.gen_programs_js
+          mkdir -p _site/keys
+          cp web/admin.html _site/keys/index.html
+          cp web/programs.js _site/keys/programs.js
+          test -f _site/keys/index.html
+          # 실수로 주소나 비밀번호를 박아 두면 여기서 막는다.
+          grep -q 'script.google.com/macros/s/AKfyc' _site/keys/index.html \
+            && { echo "::error::키 서버 주소가 박혀 있습니다."; exit 1; }
+          echo "관리자 화면 $(stat -c%s _site/keys/index.html)B"
+
       - name: 검색 엔진이 긁어가지 않게
         # 저장소가 공개라도 검색 결과에까지 뜰 이유는 없다.
         # 따옴표 안의 ':' 가 YAML 을 깨뜨려 블록으로 쓴다.
