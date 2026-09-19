@@ -418,7 +418,11 @@ class KeyAuth:
         return len(ids)
 
     def reset_all(self, confirm: str, program_id: str | None = None) -> int:
-        """전부 지운다. **'초기화' 를 정확히 쳐야 한다.**"""
+        """전부 지운다. **'초기화' 를 정확히 쳐야 한다.**
+
+        Args:
+            program_id: 비우면 **16종 전부.** 프로그램을 주면 그것만.
+        """
         if (confirm or "").strip() != RESET_WORD:
             raise KeyError_(
                 f"전체 초기화를 하려면 '{RESET_WORD}' 라고 정확히 적어 주세요. "

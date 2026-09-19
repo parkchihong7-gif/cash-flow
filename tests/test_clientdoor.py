@@ -277,3 +277,60 @@ def test_16종_모두_문이_있다(guest):
         response = guest.get(f"/c/{program.id}")
         assert response.status_code == 200, program.id
         assert "1차 인증키" in response.text, program.id
+
+
+# ──────────────────────────────────────────── 16종 접속키 전체 초기화
+#
+# 프로그램마다 들어가 지우면 열여섯 번이다. 아직 아무것도 안 파셨을 때
+# 한 번에 정리하시라고 설정 화면에 따로 두었다.
+
+def test_16종_키를_한_번에_비운다(owner):
+    for program_id in (PROGRAM, "exam-drill", "naver-blog"):
+        owner.post(f"/apps/{program_id}/admin/keys/issue",
+                   data={"name": f"{program_id}님", "email": "a@example.com"},
+                   follow_redirects=False)
+    assert "3명분" in owner.get("/settings").text
+
+    response = owner.post("/settings/keys/reset",
+                          data={"confirm": "초기화"}, follow_redirects=False)
+    assert "error=" not in response.headers["location"]
+
+    body = owner.get(response.headers["location"]).text
+    assert "0명분" in body
+    for program_id in (PROGRAM, "exam-drill", "naver-blog"):
+        assert f"{program_id}님" not in owner.get(
+            f"/apps/{program_id}/admin/t/keys").text
+
+
+def test_전체_초기화도_글자를_정확히_쳐야_한다(owner):
+    owner.post(f"/apps/{PROGRAM}/admin/keys/issue",
+               data={"name": "안지워질사람", "email": "a@example.com"},
+               follow_redirects=False)
+
+    response = owner.post("/settings/keys/reset",
+                          data={"confirm": "지워줘"}, follow_redirects=False)
+    assert "error=" in response.headers["location"]
+    assert "안지워질사람" in owner.get(f"/apps/{PROGRAM}/admin/t/keys").text
+
+
+def test_지웠는데_저장했다고_하지_않는다(owner):
+    """저장과 삭제는 다른 일이다. 키를 지우고 '저장했습니다' 라고 하면 안 된다."""
+    owner.post(f"/apps/{PROGRAM}/admin/keys/issue",
+               data={"name": "홍길동", "email": "a@example.com"},
+               follow_redirects=False)
+    response = owner.post("/settings/keys/reset",
+                          data={"confirm": "초기화"}, follow_redirects=False)
+
+    body = owner.get(response.headers["location"]).text
+    assert "모두 지웠습니다" in body
+    assert "저장했습니다" not in body
+
+
+def test_초기화_실패는_빨갛게_뜬다(owner):
+    """실패를 saved 로 보내면 '저장했습니다' 옆에 실패 사유가 붙는다."""
+    response = owner.post("/settings/keys/reset",
+                          data={"confirm": ""}, follow_redirects=False)
+    body = owner.get(response.headers["location"]).text
+
+    assert "note bad" in body
+    assert "저장했습니다" not in body

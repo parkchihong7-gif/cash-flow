@@ -48,6 +48,7 @@ from core.registry import Registry
 from core.schedule import collect as collect_schedule, summarize as schedule_summary
 from core.runner import RunError, run_program
 from dashboard.charts import monthly_chart, program_chart
+from core.keyauth import KeyAuth, KeyError_
 from dashboard.clientdoor import DOOR_PREFIX
 from dashboard.clientdoor import register as register_door
 from dashboard.webapp import register as register_apps
@@ -561,13 +562,16 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
 
     # ------------------------------------------------------------ 기타 설정
     @app.get("/settings", response_class=HTMLResponse)
-    def settings_view(request: Request, saved: str = ""):
+    def settings_view(request: Request, saved: str = "", error: str = ""):
         values = {item["key"]: item["default"] for item in GLOBAL_SETTINGS}
         values.update(db().all_settings())
         return page(
             request, "settings.html",
             title="기타 설정", specs=GLOBAL_SETTINGS, values=values,
-            banned=banned_phrases.BANNED, db_path=str(db().path), saved=saved,
+            banned=banned_phrases.BANNED, db_path=str(db().path),
+            saved=saved, error=error,
+            key_counts=KeyAuth(db().path).counts(),
+            live_sessions=KeyAuth(db().path).live_sessions(),
         )
 
     @app.post("/settings")
@@ -579,6 +583,23 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
             elif item["key"] in form:
                 db().set_setting(item["key"], str(form[item["key"]]))
         return RedirectResponse("/settings?saved=1", status_code=303)
+
+    @app.post("/settings/keys/reset")
+    async def settings_keys_reset(request: Request):
+        """16종의 접속키를 한 번에 비운다.
+
+        프로그램마다 들어가 지우면 열여섯 번이다. 아직 아무것도 안 파셨을 때
+        한 번에 정리하시라고 둔다. 프로그램 하나만 비우는 것은 그 프로그램의
+        접속키 탭에 따로 있다.
+        """
+        form = await request.form()
+        try:
+            count = KeyAuth(db().path).reset_all(str(form.get("confirm") or ""))
+        except KeyError_ as exc:
+            # 실패를 saved 로 보내면 '저장했습니다' 옆에 실패 사유가 붙는다.
+            return RedirectResponse(f"/settings?error={exc}", status_code=303)
+        return RedirectResponse(
+            f"/settings?saved=접속키 {count}개를 모두 지웠습니다", status_code=303)
 
     # ---------------------------------------------------- 설정 한눈에
     @app.get("/config", response_class=HTMLResponse)
