@@ -6,10 +6,6 @@
 <meta name="robots" content="noindex, nofollow">
 <title>통합 관리자 대시보드</title>
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
-
 <style>
   :root {
     --ground:      #e9edf2;
@@ -40,8 +36,12 @@
     margin: 0;
     background: var(--ground);
     color: var(--ink);
-    font-family: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic",
-                 system-ui, sans-serif;
+    /* 바깥에서 글꼴을 받아 오지 않는다. 머리말의 <link rel=stylesheet> 는
+       화면을 막아 세우고, 아래 <script> 도 그게 끝나야 돈다. 구글 폰트가
+       느리거나 막히면 자물쇠 화면조차 안 뜨고 콘솔에는 아무것도 안 남는다.
+       사장님 화면에서 실제로 그 일이 났다. */
+    font-family: "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕",
+                 "Noto Sans KR", system-ui, sans-serif;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -197,7 +197,7 @@
 
 <!-- 자물쇠가 걸린 판에서만 보입니다. 화면 전체를 덮습니다.
      열쇠는 어디에도 저장하지 않습니다 — 넣으신 글자로 그때그때 풉니다. -->
-<div id="gate" hidden>
+<div id="gate"{{GATE_HIDDEN}}>
   <div class="gatebox">
     <h1>통합 관리자 대시보드</h1>
     <p>확인용 화면입니다. <strong>관리자 키</strong>를 넣어 주세요.</p>
@@ -291,7 +291,6 @@
 
     function startLocked(blob) {
       var gate = document.getElementById("gate");
-      if (gate) { gate.hidden = false; }
       var input = document.getElementById("gate-key");
       var button = document.getElementById("gate-go");
       var note = document.getElementById("gate-note");

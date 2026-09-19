@@ -331,3 +331,36 @@ def test_눌러서_보낸다(locked):
     assert blob.get("gzip") is True, "누르지 않고 덮었다"
     # 화면 769장이 1.5MB 안쪽이어야 한다. 안 누르면 13MB 가 된다.
     assert len(locked) < 4_000_000, f"{len(locked) / 1e6:.1f}MB 나 된다"
+
+
+def test_바깥에서_받아_오는_것이_없다(locked):
+    """머리말의 바깥 스타일시트는 **화면을 막아 세운다.**
+
+    그리고 그 뒤의 <script> 는 스타일시트가 끝나야 돈다. 구글 폰트가 느리거나
+    막히면 자물쇠 화면조차 안 뜨고 콘솔에는 아무것도 안 남는다 — 사장님
+    화면에서 실제로 그 일이 났다. 인터넷 없이 열리는 파일이기도 해서,
+    바깥을 쳐다보는 것이 하나라도 있으면 안 된다.
+    """
+    assert "fonts.googleapis.com" not in locked
+    assert "fonts.gstatic.com" not in locked
+    assert "https://" not in locked, "바깥에서 받아 오는 것이 남아 있다"
+
+
+def test_자바스크립트가_안_돌아도_잠금_화면은_보인다(locked):
+    """`hidden` 을 자바스크립트가 벗기는 구조면, 스크립트가 안 돌 때 영영
+    안 보인다. 빈 화면 앞에서는 무엇이 잘못됐는지 알 길이 없다.
+    """
+    start = locked.index('<div id="gate"')
+    tag = locked[start:locked.index(">", start) + 1]
+
+    assert "hidden" not in tag, f"잠금 화면이 숨어서 나간다: {tag}"
+
+
+def test_안_잠근_판에서는_잠금_화면이_숨는다(snap, tmp_path):
+    """평소 쓰는 판에 열쇠 상자가 떠 있으면 안 된다."""
+    out = tmp_path / "plain"
+    build(out, stamp="테스트", single=str(out / "그냥.html"))
+    page = (out / "그냥.html").read_text(encoding="utf-8")
+
+    start = page.index('<div id="gate"')
+    assert "hidden" in page[start:page.index(">", start) + 1]

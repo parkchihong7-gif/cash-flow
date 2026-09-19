@@ -262,6 +262,10 @@ def _cover(snapshot: Snapshot, registry: Registry, stamp: str,
             .replace("{{CHIPS}}", chips.rstrip())
             .replace("{{COUNT}}", str(snapshot.count))
             .replace("{{STAMP}}", stamp))
+    # 잠금 화면은 **HTML 에서 이미 보이는 채로** 나간다. 자바스크립트가
+    # `hidden` 을 벗기는 구조였는데, 스크립트가 안 돌면 영영 안 보인다.
+    page = page.replace("{{GATE_HIDDEN}}", "" if locked else " hidden")
+
     if payload:
         page = (page
                 .replace("{{HOME_SRC}}", "about:blank")
