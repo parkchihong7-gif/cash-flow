@@ -248,6 +248,9 @@ def test_맞는_열쇠로는_풀린다(locked):
                               blob["rounds"], dklen=32)
     plain = AESGCM(key).decrypt(base64.b64decode(blob["iv"]),
                                 base64.b64decode(blob["data"]), None)
+    if blob.get("gzip"):
+        import gzip as gziplib
+        plain = gziplib.decompress(plain)
     pages = jsonlib.loads(plain.decode("utf-8"))
 
     assert len(pages) > 100, f"화면이 {len(pages)}장뿐이다"
@@ -290,8 +293,41 @@ def test_자물쇠를_걸어도_화면_수는_같다(locked, snap):
     key = hashlib.pbkdf2_hmac("sha256", LOCK_WORD.encode(),
                               base64.b64decode(blob["salt"]),
                               blob["rounds"], dklen=32)
-    pages = jsonlib.loads(AESGCM(key).decrypt(
-        base64.b64decode(blob["iv"]), base64.b64decode(blob["data"]), None))
+    import gzip as gziplib
+
+    raw = AESGCM(key).decrypt(base64.b64decode(blob["iv"]),
+                              base64.b64decode(blob["data"]), None)
+    pages = jsonlib.loads(gziplib.decompress(raw) if blob.get("gzip") else raw)
 
     # __css__ 는 화면이 아니라 스타일이라 하나 뺀다.
     assert len(pages) - 1 == len(snap.pages)
+
+
+def test_표지에_문서_머리가_있다(locked):
+    """`<meta charset>` 이 없으면 서버가 인코딩을 안 알려 줄 때 한글이 깨진다.
+
+    실제로 `file://` 로 열 때는 브라우저가 알아서 짐작해 멀쩡해 보였고,
+    웹주소에 올리고 나서야 '여는 중입니다' 가 'ì—¬ëŠ” ì¤‘' 으로 나왔다.
+    """
+    head = locked[:400]
+    assert head.lstrip().startswith("<!DOCTYPE html>"), "DOCTYPE 이 없다"
+    assert 'charset="utf-8"' in head, "charset 선언이 없다"
+    assert "<html" in head and "<head>" in head
+    assert locked.rstrip().endswith("</html>")
+
+
+def test_한글이_그대로_들어간다(locked):
+    assert "통합 관리자 대시보드" in locked
+    assert "관리자 키" in locked
+
+
+def test_눌러서_보낸다(locked):
+    """덮고 나면 안 줄어든다. 덮기 전에 눌러야 집 인터넷으로 받을 만해진다."""
+    import json as jsonlib
+
+    start = locked.index('id="locked">') + len('id="locked">')
+    blob = jsonlib.loads(locked[start:locked.index("</script>", start)])
+
+    assert blob.get("gzip") is True, "누르지 않고 덮었다"
+    # 화면 769장이 1.5MB 안쪽이어야 한다. 안 누르면 13MB 가 된다.
+    assert len(locked) < 4_000_000, f"{len(locked) / 1e6:.1f}MB 나 된다"

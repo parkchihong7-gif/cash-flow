@@ -25,6 +25,7 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import hashlib
 import json
 import re
@@ -267,8 +268,13 @@ def _cover(snapshot: Snapshot, registry: Registry, stamp: str,
                 .replace("{{HOME}}", home)
                 .replace("{{FALLBACK}}",
                          "화면이 안 보이면 브라우저를 최신 것으로 열어 보세요."))
-        # 표지에는 </body> 가 없다. 쪽지는 맨 끝에 붙인다.
-        page = page.rstrip() + "\n\n" + payload + "\n"
+
+        # 쪽지는 </body> **안**에 들어가야 한다. 뒤에 붙이면 문서가 한 번
+        # 닫힌 뒤에 태그가 더 나와, 브라우저가 고쳐 읽느라 자리를 옮긴다.
+        closing = "\n</body>\n</html>\n"
+        if page.rstrip().endswith("</html>"):
+            page = page.rstrip()[: -len(closing.strip())].rstrip()
+        page = page.rstrip() + "\n\n" + payload + closing
     else:
         page = (page
                 .replace("{{HOME_SRC}}", f"{PAGE_DIR}/{home}")
@@ -335,20 +341,26 @@ def _locked_payload(text: str, password: str) -> str:
     한계는 분명히 해 둔다. **암호가 약하면 이 잠금도 약하다.** 파일을 받아
     두고 느긋하게 대입해 볼 수 있어서다. 그래서 PBKDF2 를 20만 번 돌려
     한 번 시도하는 값을 비싸게 만들어 두었지만, 짧은 암호는 여전히 위험하다.
+
+    덮기 전에 **눌러 둔다.** 덮고 나면 무작위에 가까워져 아무리 눌러도 안
+    줄고, 주고받을 때도 안 줄어든다. 눌러 두면 13MB 가 2MB 가 된다 —
+    집 인터넷으로 받는 시간이 여섯 배 짧아진다.
     """
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+    packed = gzip.compress(text.encode("utf-8"), compresslevel=9)
     salt = secrets.token_bytes(16)
     nonce = secrets.token_bytes(12)
     key = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt,
                               PBKDF2_ROUNDS, dklen=32)
-    sealed = AESGCM(key).encrypt(nonce, text.encode("utf-8"), None)
+    sealed = AESGCM(key).encrypt(nonce, packed, None)
 
     blob = json.dumps({
         "salt": base64.b64encode(salt).decode(),
         "iv": base64.b64encode(nonce).decode(),
         "data": base64.b64encode(sealed).decode(),
         "rounds": PBKDF2_ROUNDS,
+        "gzip": True,
     })
     return f'<script type="application/json" id="locked">{blob}</script>'
 

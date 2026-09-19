@@ -1,3 +1,9 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
 <title>통합 관리자 대시보드</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -186,6 +192,8 @@
     * { transition: none !important; }
   }
 </style>
+</head>
+<body>
 
 <!-- 자물쇠가 걸린 판에서만 보입니다. 화면 전체를 덮습니다.
      열쇠는 어디에도 저장하지 않습니다 — 넣으신 글자로 그때그때 풉니다. -->
@@ -231,6 +239,7 @@
   }
   .gatebox button:disabled { opacity: .5; cursor: wait; }
   .gatenote { margin: 12px 0 0; min-height: 18px; font-size: 13px; color: #ff9b8a; }
+  .gatenote.working { color: var(--muted); }
   .gatehelp {
     margin: 18px 0 0; padding-top: 14px; border-top: 1px solid var(--hairline);
     font-size: 12px; color: var(--muted);
@@ -288,33 +297,59 @@
       var note = document.getElementById("gate-note");
       if (input) { input.focus(); }
 
+      // 13MB 를 한 글자씩 훑으면 천삼백만 번을 돈다. 브라우저가 멈춘 듯이
+      // 보인다. fetch 로 data: 주소를 읽으면 브라우저가 알아서 풀어 준다.
       function bytes(b64) {
-        var raw = atob(b64), out = new Uint8Array(raw.length);
-        for (var i = 0; i < raw.length; i++) { out[i] = raw.charCodeAt(i); }
-        return out;
+        return fetch("data:application/octet-stream;base64," + b64)
+          .then(function (r) { return r.arrayBuffer(); })
+          .then(function (buf) { return new Uint8Array(buf); });
+      }
+
+      // 덮기 전에 눌러 두었다. 그대로 풀면 13MB 가 2MB 로 줄어 든다.
+      function unzip(buf) {
+        if (typeof DecompressionStream === "undefined") {
+          return Promise.reject(new Error("이 브라우저는 압축을 못 풉니다"));
+        }
+        var stream = new Blob([buf]).stream()
+          .pipeThrough(new DecompressionStream("gzip"));
+        return new Response(stream).text();
       }
 
       function open_() {
         var word = (input.value || "").trim();
         if (!word) { return; }
-        note.textContent = "여는 중입니다...";
         button.disabled = true;
+        // 화면이 몇 초 멈춘 듯 보이는 구간이 있다. 어디쯤인지 알려 준다.
+        function say(text) { note.className = "gatenote working";
+                             note.textContent = text; }
+        say("열쇠를 만드는 중입니다...");
 
         var enc = new TextEncoder();
-        crypto.subtle.importKey("raw", enc.encode(word), "PBKDF2", false,
-                                ["deriveKey"])
+        var parts = {};
+        Promise.all([bytes(blob.salt), bytes(blob.iv), bytes(blob.data)])
+          .then(function (got) {
+            parts.salt = got[0]; parts.iv = got[1]; parts.data = got[2];
+            return crypto.subtle.importKey("raw", enc.encode(word), "PBKDF2",
+                                           false, ["deriveKey"]);
+          })
           .then(function (base) {
             return crypto.subtle.deriveKey(
-              { name: "PBKDF2", salt: bytes(blob.salt),
+              { name: "PBKDF2", salt: parts.salt,
                 iterations: blob.rounds, hash: "SHA-256" },
               base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
           })
           .then(function (key) {
+            say("화면을 여는 중입니다...");
             return crypto.subtle.decrypt(
-              { name: "AES-GCM", iv: bytes(blob.iv) }, key, bytes(blob.data));
+              { name: "AES-GCM", iv: parts.iv }, key, parts.data);
           })
           .then(function (plain) {
-            PAGES = JSON.parse(new TextDecoder().decode(plain));
+            say("거의 다 됐습니다...");
+            return blob.gzip ? unzip(plain)
+                             : new TextDecoder().decode(plain);
+          })
+          .then(function (text) {
+            PAGES = JSON.parse(text);
             if (gate) { gate.hidden = true; }
             // 칩이 가리키는 이름은 data-src 다. data-page 가 아니다 —
             // 한 번 틀려서 자물쇠는 풀리는데 액자가 비어 있었다.
@@ -382,3 +417,6 @@
     if (PAGES) { show(frame.dataset.home); }
   });
 </script>
+
+</body>
+</html>
