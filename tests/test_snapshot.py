@@ -20,7 +20,7 @@ import pytest
 
 from core.db import Database
 from core.registry import Registry
-from dashboard.snapshot import PAGE_DIR, build, local_name, should_follow
+from dashboard.snapshot import FREEZE, PAGE_DIR, build, local_name, should_follow
 
 
 @pytest.fixture(scope="module")
@@ -447,3 +447,37 @@ def test_잠근_표지는_빈_칸으로_눌러도_말을_한다(tmp_path):
     build(tmp_path / "b", single=str(single), lock="비밀")
     js = single.read_text(encoding="utf-8")
     assert "키를 넣어 주세요." in js
+
+
+def test_폼마다_사진이라고_미리_말한다():
+    """흐릿한 버튼만으로는 모른다. 키 발급 화면은 진짜처럼 보인다.
+
+    눌러 보고 나서 경고창을 받으면, 프로그램이 고장난 줄 알게 된다.
+    """
+    assert "snapshot-nope" in FREEZE
+    assert "이 화면은 사진입니다." in FREEZE
+    assert "form.insertBefore(note, form.firstChild)" in FREEZE
+
+
+def test_안내문의_역슬래시가_자바스크립트에서_안_먹힌다():
+    """JS 에서 \\h 는 없는 이스케이프라 역슬래시가 조용히 사라진다.
+
+    그러면 `tools\\home\\대시보드_열기.bat` 가 `toolshome대시보드_열기.bat`
+    으로 나와, 사장님이 찾을 수 없는 경로를 알려 주게 된다.
+    """
+    # FREEZE 가 곧 JS 소스다. 역슬래시가 두 개씩 들어 있어야 한 개로 나온다.
+    assert "tools\\\\home\\\\대시보드_열기.bat" in FREEZE
+    assert "tools\\home\\대시보드" not in FREEZE.replace("\\\\", "")
+
+
+def test_떠_온_화면마다_안내문_스크립트가_실려_나간다(tmp_path):
+    """폼이 있는 화면을 하나 집어, 안내문을 붙이는 코드가 들어 있는지 본다."""
+    out = tmp_path / "b"
+    build(out)
+    pages = list((out / PAGE_DIR).glob("*.html"))
+    assert pages, "뜬 화면이 없습니다"
+    폼있는화면 = [f for f in pages if "<form" in f.read_text(encoding="utf-8")]
+    assert 폼있는화면, "폼이 있는 화면이 하나도 없습니다"
+    for f in 폼있는화면[:5]:
+        글 = f.read_text(encoding="utf-8")
+        assert "snapshot-nope" in 글, f"{f.name} 에 안내문 코드가 없습니다"

@@ -96,6 +96,16 @@ FREEZE = """<style>
 .snapshot-bar b { font-weight: 500; }
 .snapshot-bar span { margin-left: auto; opacity: .6; font-size: 12px; }
 .snapshot-dead { opacity: .45; cursor: not-allowed; }
+/* 폼마다 붙는다. 눌러 보고 나서야 아는 일이 없게, 누르기 전에 말한다. */
+.snapshot-nope {
+  margin: 0 0 12px; padding: 9px 12px; border-radius: 7px;
+  background: #3a2a12; border: 1px solid #6b4e1f; color: #f0d9a8;
+  font: 13px/1.55 "Apple SD Gothic Neo", system-ui, sans-serif;
+}
+.snapshot-nope b { color: #ffc96b; }
+.snapshot-nope code {
+  background: #241a0b; padding: 1px 5px; border-radius: 4px; font-size: 12px;
+}
 </style>
 <script>
 // 서버가 없으니 보내 봐야 소용없다. 눌러 보고 고장난 줄 아는 편이 더 나쁘다.
@@ -112,6 +122,20 @@ document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll("form button, form input[type=submit]").forEach(function (el) {
     el.classList.add("snapshot-dead");
     el.title = "정적 스냅샷에서는 눌러도 아무 일도 일어나지 않습니다";
+  });
+  // 흐릿한 버튼만으로는 모른다. 키 발급 화면은 진짜처럼 보여서, 눌러 놓고
+  // 프로그램이 고장난 줄 알게 된다. 폼마다 누르기 전에 말해 둔다.
+  document.querySelectorAll("form").forEach(function (form) {
+    if (!form.querySelector("button, input[type=submit]")) { return; }
+    if (form.querySelector(".snapshot-nope")) { return; }
+    var note = document.createElement("p");
+    note.className = "snapshot-nope";
+    note.innerHTML =
+      "<b>이 화면은 사진입니다.</b> 여기서 키를 발급하거나 값을 저장하실 수는 " +
+      "없습니다 \u2014 웹주소에는 서버가 없어 저장할 곳이 없습니다.<br>" +
+      "실제 발급\u00B7저장은 <b>집 컴퓨터</b>에서 " +
+      "<code>tools\\\\home\\\\대시보드_열기.bat</code> 을 눌러 여신 화면에서 하십니다.";
+    form.insertBefore(note, form.firstChild);
   });
 });
 // 한 파일로 묶은 판에는 주소가 없다. 어느 화면으로 가고 싶은지 표지에 알려 준다.
