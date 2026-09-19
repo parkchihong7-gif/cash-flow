@@ -10,21 +10,29 @@
   키가 있어야 그 사람이 자기 화면에 들어올 수 있습니다.
 </p>
 
-{# 장부가 둘이 되면 어디서 발급했는지 헷갈려 고객이 못 들어온다.
-   여기가 어느 장부인지 먼저 말해 둔다. #}
+{# 발급한 키가 어디에 남는지를 먼저 말한다. 이것을 모르면
+   "어제 산 키가 안 먹는다" 가 되고, 어디를 봐야 할지도 모르게 된다. #}
+{% if keyserver_on %}
+<div class="note ok">
+  <strong>키 서버에 이어져 있습니다.</strong>
+  여기서 발급하시면 <strong>구글 시트에 먼저 올라가고</strong> 그 다음 이
+  화면에 적힙니다. 시트는 24시간 켜져 있어, 이 컴퓨터를 끄셔도 고객이
+  키로 들어옵니다.
+  <br>
+  시트에 못 올라가면 <strong>이 화면에도 안 적힙니다.</strong> 고객에게
+  안 먹는 키를 보내는 일이 없게 그렇게 해 두었습니다.
+</div>
+{% else %}
 <div class="note warn">
   <strong>여기는 이 컴퓨터의 장부입니다.</strong>
   여기서 만든 키는 <strong>이 컴퓨터가 켜져 있을 때만</strong> 먹습니다.
   <br>
-  밖에서도(고객이 아무 때나) 들어오게 하시려면
-  <strong>무료 키 서버</strong>에서 발급하세요 —
-  <code>web/admin.html</code> 또는
-  <a href="https://parkchihong7-gif.github.io/cash-flow/keys/">웹 관리자 화면</a>.
+  고객이 아무 때나 들어오게 하시려면 <code>.env</code> 에 두 줄을 넣으세요 —
+  <code>KEYSERVER_URL</code>, <code>KEYSERVER_PASSWORD</code>.
+  그러면 여기서 발급한 키가 구글 시트에 자동으로 함께 올라갑니다.
   만드는 법은 <code>server/README.md</code> 에 있습니다.
-  <br>
-  <strong>두 곳에서 섞어 발급하지 마세요.</strong> 장부가 갈라져
-  "어제 산 키가 안 먹는다" 가 됩니다.
 </div>
+{% endif %}
 
 <div class="card">
   <h3>키는 두 종류입니다</h3>

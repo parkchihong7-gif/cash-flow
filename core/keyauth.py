@@ -346,6 +346,50 @@ class KeyAuth:
                          program_id=program_id, service_url=service_url,
                          role=role, primary_id=primary[0])
 
+    def adopt_set(self, *, primary_code: str, secondary: dict[str, str],
+                  name: str, email: str, program_id: str = "",
+                  service_url: str = "", expires_days: int | None = None,
+                  note: str = "", role: str = ROLE_CLIENT,
+                  issued_by: int | None = None) -> IssuedSet:
+        """**다른 곳에서 만든** 한 벌을 그대로 이 장부에 받아 적는다.
+
+        키 서버(구글 시트)가 만든 코드를 대시보드 목록에도 보이게 하려고
+        둔다. 코드를 여기서 새로 뽑으면 **고객이 받은 키와 달라져** 그
+        자리에서 못 들어온다. 그래서 받은 코드를 그대로 쓴다.
+
+        Args:
+            primary_code: 서버가 만든 1차키.
+            secondary: 기기 이름 → 서버가 만든 2차키.
+
+        Raises:
+            KeyError_: 같은 코드가 이미 있을 때. 두 번 적으면 목록이 겹친다.
+        """
+        if not primary_code:
+            raise KeyError_("받아 적을 1차키가 없습니다")
+        expires = self._expiry(expires_days)
+        with self._conn() as conn:
+            try:
+                cursor = conn.execute(
+                    "INSERT INTO auth_keys (program_id, kind, role, issued_by, code,"
+                    " parent_id, device, holder_name, holder_email, expires_at,"
+                    " note, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (program_id, KIND_PRIMARY, role, issued_by, primary_code,
+                     None, "", name, email, expires, note, _now()))
+                primary_id = int(cursor.lastrowid)
+                for device, code in secondary.items():
+                    conn.execute(
+                        "INSERT INTO auth_keys (program_id, kind, role, issued_by, code,"
+                        " parent_id, device, holder_name, holder_email, expires_at,"
+                        " note, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                        (program_id, KIND_SECONDARY, role, issued_by, code,
+                         primary_id, device, name, email, expires, note, _now()))
+            except sqlite3.IntegrityError as exc:
+                raise KeyError_("이미 적혀 있는 키입니다") from exc
+        return IssuedSet(holder_name=name, holder_email=email,
+                         primary=primary_code, secondary=dict(secondary),
+                         program_id=program_id, service_url=service_url,
+                         role=role, primary_id=primary_id)
+
     def bulk_legacy(self, count: int = DEFAULT_BULK, program_id: str = "",
                     expires_days: int | None = None) -> list[str]:
         """이름 없이 코드만 미리 찍어 둔다 (매뉴얼의 '키 일괄 생성').

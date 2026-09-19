@@ -43,6 +43,7 @@ from core import auth
 from core.db import Database, DEFAULT_DB_PATH
 from core.access import collect as collect_access, summarize as access_summary
 from core.backup import backup_name, copy_db
+from core import keyclient
 from core.compliance import audit as compliance_audit, RULES as COMPLIANCE_RULES
 from core.health import checklist
 from core.search import search as search_index
@@ -607,7 +608,11 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
                 "clients": sum(1 for row in primary if not row.is_admin),
                 "live": keys.live_sessions(program_id=program.id),
             })
+        # 발급한 키가 어디에 남는지가 화면마다 달라 보이면 안 된다.
+        # 지금 키 서버가 붙어 있는지 그대로 넘겨 화면이 말하게 한다.
+        server = keyclient.from_env()
         return page(request, "keys.html", title="접속키",
+                    keyserver_on=server is not None,
                     rows=rows, counts=keys.counts(), live=keys.live_sessions(),
                     saved=saved, error=error)
 

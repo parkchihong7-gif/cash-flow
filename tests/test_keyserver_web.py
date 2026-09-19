@@ -205,12 +205,21 @@ def test_관리자_화면을_눌러서_끝까지_돈다(시험서버):
             browser.close()
 
 
-def test_대시보드_접속키_화면이_어느_장부인지_말한다(tmp_path):
-    """장부가 둘(이 컴퓨터 / 구글 시트)이라, 섞어 쓰면 고객이 못 들어온다.
+def test_접속키_화면이_어디에_남는지_말한다(tmp_path, monkeypatch):
+    """이것을 안 말해 주면 "어제 산 키가 안 먹는다" 가 되고,
+    사장님은 어디를 봐야 할지도 모르게 된다."""
+    monkeypatch.delenv("KEYSERVER_URL", raising=False)
+    monkeypatch.delenv("KEYSERVER_PASSWORD", raising=False)
+    page = 대시보드(tmp_path, monkeypatch).get("/keys").text
+    assert "이 컴퓨터의 장부입니다" in page
+    assert "켜져 있을 때만" in page
+    assert "KEYSERVER_URL" in page, "어떻게 고치라는 말이 없습니다"
+    assert "키 서버에 이어져 있습니다" not in page
 
-    여기서 만든 키는 이 컴퓨터가 켜져 있을 때만 먹는다는 것을 화면이
-    먼저 말해 주어야 한다.
-    """
+
+def test_키서버가_붙으면_화면이_그렇게_말한다(tmp_path, monkeypatch):
+    monkeypatch.setenv("KEYSERVER_URL", "https://example.test/exec")
+    monkeypatch.setenv("KEYSERVER_PASSWORD", "x")
     from fastapi.testclient import TestClient
     from core import auth
     from dashboard.app import create_app
@@ -218,7 +227,115 @@ def test_대시보드_접속키_화면이_어느_장부인지_말한다(tmp_path
     client = TestClient(create_app(tmp_path / "app.db"))
     client.post("/login", data={"code": auth.access_code()})
     page = client.get("/keys").text
+    assert "키 서버에 이어져 있습니다" in page
+    assert "구글 시트에 먼저 올라가고" in page
+    assert "이 컴퓨터의 장부입니다" not in page
+    # 비밀번호나 주소가 화면에 찍히면 안 된다.
+    assert "example.test" not in page
 
-    assert "이 컴퓨터의 장부입니다" in page
-    assert "섞어 발급하지 마세요" in page
-    assert "server/README.md" in page
+
+# ── 대시보드 → 키 서버 잇기 ─────────────────────────────────────────
+#
+# 사장님은 대시보드 한 곳에서만 발급하신다. 만든 키는 구글 시트에 함께
+# 올라가고, 고객은 집 컴퓨터가 꺼져 있어도 그 시트에 물어 들어온다.
+
+def 대시보드(tmp_path, monkeypatch, 서버주소=None, 비밀번호="주인비밀번호7"):
+    """접속 코드까지 넣은 대시보드 클라이언트를 만든다."""
+    from fastapi.testclient import TestClient
+    from core import auth
+    from dashboard.app import create_app
+
+    if 서버주소:
+        monkeypatch.setenv("KEYSERVER_URL", 서버주소 + "/exec")
+        monkeypatch.setenv("KEYSERVER_PASSWORD", 비밀번호)
+    else:
+        monkeypatch.delenv("KEYSERVER_URL", raising=False)
+        monkeypatch.delenv("KEYSERVER_PASSWORD", raising=False)
+
+    client = TestClient(create_app(tmp_path / "app.db"))
+    client.post("/login", data={"code": auth.access_code()})
+    return client
+
+
+def 발급하기(client, program="agency-kit", **extra):
+    data = {"name": "김학원장", "email": "kim@example.com",
+            "role": "admin", "expires_days": ""}
+    data.update(extra)
+    return client.post(f"/apps/{program}/admin/keys/issue", data=data,
+                       follow_redirects=False)
+
+
+def test_키서버를_안_쓰면_지금까지처럼_이_컴퓨터에만_적는다(tmp_path, monkeypatch):
+    from core.keyauth import KeyAuth
+
+    client = 대시보드(tmp_path, monkeypatch)
+    답 = 발급하기(client)
+    assert 답.status_code == 303
+    assert "error" not in 답.headers["location"], 답.headers["location"]
+    assert len(KeyAuth(tmp_path / "app.db").list_keys(program_id="agency-kit")) == 4
+
+
+def test_키서버를_쓰면_시트와_대시보드에_같은_코드가_남는다(tmp_path, monkeypatch, 시험서버):
+    """코드가 다르면 고객이 받은 키로 문이 안 열린다. 같아야 한다."""
+    from core.keyauth import KeyAuth
+
+    client = 대시보드(tmp_path, monkeypatch, 시험서버)
+    답 = 발급하기(client)
+    assert 답.status_code == 303
+    assert "error" not in 답.headers["location"], 답.headers["location"]
+
+    이쪽 = KeyAuth(tmp_path / "app.db").list_keys(program_id="agency-kit")
+    로그인 = 부르기(시험서버, {"action": "adminLogin", "password": "주인비밀번호7"})
+    저쪽 = 부르기(시험서버, {"action": "adminList", "token": 로그인["token"],
+                            "program": "agency-kit"})["rows"]
+
+    assert len(이쪽) == 4 and len(저쪽) == 4
+    assert {row.code for row in 이쪽} == {row["key"] for row in 저쪽}, \
+        "대시보드와 시트에 적힌 키가 다릅니다 — 고객이 못 들어옵니다"
+
+
+def test_시트에_넣은_키로_고객이_실제로_들어온다(tmp_path, monkeypatch, 시험서버):
+    """집 컴퓨터를 꺼도 되는지가 여기서 갈린다."""
+    from core.keyauth import KeyAuth
+
+    client = 대시보드(tmp_path, monkeypatch, 시험서버)
+    발급하기(client)
+    rows = KeyAuth(tmp_path / "app.db").list_keys(program_id="agency-kit")
+    일차 = next(r.code for r in rows if r.kind == "primary")
+    이차 = next(r.code for r in rows if r.kind == "secondary")
+
+    열림 = 부르기(시험서버, {"action": "validateKeyPair", "program": "agency-kit",
+                            "key1": 일차, "key2": 이차})
+    assert 열림["ok"], 열림
+    assert 열림["sessionToken"]
+
+
+def test_시트에_못_넣으면_이_컴퓨터에도_안_적는다(tmp_path, monkeypatch):
+    """순서가 거꾸로면 시트에 없는 키를 고객에게 보내게 된다.
+
+    고객은 그 자리에서 '키가 틀렸다' 는 말을 듣고, 사장님 목록에는 멀쩡히
+    있어서 무엇이 잘못됐는지 알 수가 없다.
+    """
+    from core.keyauth import KeyAuth
+
+    # 아무도 없는 주소를 키 서버로 준다.
+    죽은주소 = f"http://127.0.0.1:{free_port()}"
+    client = 대시보드(tmp_path, monkeypatch, 죽은주소)
+    답 = 발급하기(client)
+
+    assert 답.status_code == 303
+    assert "error" in 답.headers["location"], "실패했는데 성공처럼 돌아갔습니다"
+    assert not KeyAuth(tmp_path / "app.db").list_keys(program_id="agency-kit"), \
+        "시트에 못 넣었는데 이 컴퓨터에는 적혔습니다"
+
+
+def test_키서버_비밀번호가_틀리면_아무것도_안_만든다(tmp_path, monkeypatch, 시험서버):
+    from core.keyauth import KeyAuth
+
+    client = 대시보드(tmp_path, monkeypatch, 시험서버, 비밀번호="틀린것")
+    답 = 발급하기(client)
+    assert "error" in 답.headers["location"]
+    assert not KeyAuth(tmp_path / "app.db").list_keys(program_id="agency-kit")
+    로그인 = 부르기(시험서버, {"action": "adminLogin", "password": "주인비밀번호7"})
+    assert not 부르기(시험서버, {"action": "adminList", "token": 로그인["token"],
+                                "program": "agency-kit"})["rows"]

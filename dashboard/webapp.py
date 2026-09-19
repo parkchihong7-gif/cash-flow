@@ -38,6 +38,7 @@ from dashboard.clientdoor import DOOR_PREFIX
 from core import presets as presets_mod
 from core import schedule as schedule_mod
 from core.db import Database
+from core import keyclient
 from core.keyauth import (
     DEFAULT_BULK, KIND_LEGACY, KIND_PRIMARY, KIND_SECONDARY, ROLE_ADMIN,
     KeyAuth, KeyError_,
@@ -340,20 +341,43 @@ def register(app, page, registry, db, program_or_404):
         program = program_or_404(program_id)
         form = await request.form()
         days = str(form.get("expires_days") or "").strip()
+        name = str(form.get("name") or "")
+        email = str(form.get("email") or "")
+        # 고객에게 보내는 주소는 **문**이다. `/apps/.../client` 는 대시보드
+        # 접속 코드가 있어야 열려서, 그 주소를 적어 보내면 고객은 못 들어온다.
+        door = str(request.base_url).rstrip("/") + f"{DOOR_PREFIX}/{program.id}"
+        # 판매 키는 산 사람을 그 프로그램의 관리자로 만든다.
+        role = str(form.get("role") or ROLE_ADMIN)
         try:
-            issued = _keys().issue_set(
-                name=str(form.get("name") or ""),
-                email=str(form.get("email") or ""),
-                program_id=program.id,
-                # 고객에게 보내는 주소는 **문**이다. `/apps/.../client` 는
-                # 대시보드 접속 코드가 있어야 열려서, 그 주소를 적어 보내면
-                # 고객은 들어오지 못한다.
-                service_url=str(request.base_url).rstrip("/")
-                            + f"{DOOR_PREFIX}/{program.id}",
-                expires_days=int(days) if days else None,
-                # 판매 키는 산 사람을 그 프로그램의 관리자로 만든다.
-                role=str(form.get("role") or ROLE_ADMIN),
-            )
+            expires_days = int(days) if days else None
+        except ValueError:
+            return RedirectResponse(
+                _keys_back(program_id, error="유효기간은 숫자로 적어 주세요"),
+                status_code=303)
+
+        server = keyclient.from_env()
+        try:
+            if server is None:
+                # 키 서버를 안 쓰실 때. 이 컴퓨터가 켜져 있을 때만 먹는 키다.
+                issued = _keys().issue_set(
+                    name=name, email=email, program_id=program.id,
+                    service_url=door, expires_days=expires_days, role=role)
+            else:
+                # **시트에 먼저 넣는다.** 여기가 실패하면 아무것도 안 만든다.
+                # 반대 순서로 하면 시트에 없는 키를 고객에게 보내게 되고,
+                # 고객은 그 자리에서 "키가 틀렸다" 는 말을 듣는다.
+                answer = server.issue_set(
+                    program_id=program.id, name=name, email=email, role=role,
+                    expires_days=expires_days, base_url=door)
+                # 들어갔으니 이제 이쪽 목록에도 보이게 같은 코드로 적는다.
+                issued = _keys().adopt_set(
+                    primary_code=str(answer.get("primaryKey") or ""),
+                    secondary=dict(answer.get("secondaryKeys") or {}),
+                    name=name, email=email, program_id=program.id,
+                    service_url=door, expires_days=expires_days, role=role)
+        except keyclient.KeyServerError as exc:
+            return RedirectResponse(
+                _keys_back(program_id, error=f"키 서버: {exc}"), status_code=303)
         except (KeyError_, ValueError) as exc:
             return RedirectResponse(_keys_back(program_id, error=str(exc)),
                                     status_code=303)
