@@ -1,0 +1,30 @@
+{# 파일 위치 — 관리자 전용. 고객에게 내 폴더 구조를 보여 줄 이유가 없다. #}
+<div class="card">
+  <h3>무엇이 어디에 있는가</h3>
+  <table>
+    <tr><th>무엇</th><th>어디</th></tr>
+    {% for f in console.files %}
+    <tr>
+      <td>{{ f.what }}</td>
+      <td><code>{{ f.where }}</code>
+        {% if f.note %}<div class="muted">{{ f.note }}</div>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+{% if program.editable_files %}
+<div class="card">
+  <h3>결과를 좌우하는 파일</h3>
+  <p class="muted">프롬프트·단가표처럼 <strong>고치면 결과가 달라지는</strong> 파일입니다.</p>
+  <table>
+    {% for f in program.editable_files %}
+    <tr>
+      <td><code>{{ f.path }}</code></td>
+      <td class="muted">{{ f.label }}</td>
+      <td><a class="btn small" href="/apps/{{ program.id }}/admin/file?path={{ f.path }}">편집</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}

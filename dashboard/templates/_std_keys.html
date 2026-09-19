@@ -1,0 +1,146 @@
+{# 접속키 — 16종 공통 이중키.
+   규격은 공인중개사·maim 관리자 매뉴얼에서 그대로 가져왔다. 사용자가 이미
+   고객에게 배포한 안내문과 동작이 어긋나면 안 된다. #}
+
+<div class="card">
+  <h3>이 프로그램의 접속키</h3>
+  <div class="tiles small">
+    <span class="tile"><span class="tlabel">받은 사람</span><span class="tvalue">{{ key_counts.holders }}<small>명</small></span></span>
+    <span class="tile"><span class="tlabel">1차키</span><span class="tvalue">{{ key_counts.primary }}<small>개</small></span></span>
+    <span class="tile"><span class="tlabel">2차키</span><span class="tvalue">{{ key_counts.secondary }}<small>개</small></span></span>
+    <span class="tile {{ 'warn' if key_counts.suspended else '' }}"><span class="tlabel">사용중지</span><span class="tvalue">{{ key_counts.suspended }}<small>개</small></span></span>
+    <span class="tile {{ 'bad' if key_counts.expired else '' }}"><span class="tlabel">만료</span><span class="tvalue">{{ key_counts.expired }}<small>개</small></span></span>
+    <span class="tile"><span class="tlabel">지금 접속</span><span class="tvalue">{{ live_sessions }}<small>명</small></span></span>
+  </div>
+  <p class="help">
+    <strong>1차키</strong>는 사람 한 명당 하나, 동시 접속 수를 세지 않습니다.
+    <strong>2차키</strong>는 PC·노트북·휴대폰 세 개이고 <strong>기기당 한 세션</strong>입니다 —
+    같은 2차키로 다른 기기에서 들어오면 먼저 있던 기기가 잠깁니다.
+    키를 빌려줘도 기기 수만큼만 쓸 수 있게 하려는 구조입니다.
+  </p>
+</div>
+
+{# ─── 발급 ─── #}
+<div class="card">
+  <h3>사람에게 키 주기</h3>
+  <p class="muted">이름과 이메일만 넣으면 <strong>1차키 1개 + 2차키 3개</strong>를 한 번에 만들고, 그대로 보낼 안내문까지 만듭니다.</p>
+  <form method="post" action="/apps/{{ program.id }}/admin/keys/issue" class="rowform">
+    <label><span class="ltext">이름</span> <input type="text" name="name" required placeholder="홍길동"></label>
+    <label><span class="ltext">이메일</span> <input type="email" name="email" required placeholder="hong@example.com"></label>
+    <label><span class="ltext">유효기간</span> <input type="number" name="expires_days" min="0" placeholder="비우면 무제한 (일)"></label>
+    <button class="btn primary" type="submit">발급하고 안내문 만들기</button>
+  </form>
+
+  {% if issued %}
+  <div class="issued">
+    <h4>{{ issued.holder_name }}님께 보낼 안내문</h4>
+    <textarea id="issued-text" rows="12" readonly>{{ issued.copy_text(program.name) }}</textarea>
+    <div class="actions">
+      <button class="btn primary" type="button" data-copy="#issued-text">전체 복사</button>
+      <a class="btn" href="mailto:{{ issued.holder_email }}?subject={{ issued.mail_subject(program.name) | urlencode }}&body={{ issued.mail_body(program.name) | urlencode }}">메일 앱으로 열기</a>
+    </div>
+    <p class="help">
+      이 화면을 벗어나면 키는 <strong>다시 볼 수 없습니다</strong>(목록에는 남습니다).
+      먼저 복사하거나 메일을 보내세요.
+    </p>
+  </div>
+  {% endif %}
+</div>
+
+{# ─── 목록: 1차키 / 2차키 탭 ─── #}
+<div class="card">
+  <h3>발급한 키</h3>
+  <nav class="subtabs">
+    <a class="sub {% if key_tab != 'secondary' %}on{% endif %}"
+       href="/apps/{{ program.id }}/admin/t/keys?k=primary">1차키</a>
+    <a class="sub {% if key_tab == 'secondary' %}on{% endif %}"
+       href="/apps/{{ program.id }}/admin/t/keys?k=secondary">2차키</a>
+  </nav>
+
+  {% if key_rows %}
+  <table class="keys">
+    <tr>
+      <th>키</th>
+      {% if key_tab == 'secondary' %}<th>기기</th>{% endif %}
+      <th>받은 사람</th><th>상태</th><th>마지막 사용</th><th></th>
+    </tr>
+    {% for k in key_rows %}
+    <tr class="{{ k.tone if k.tone is defined else '' }}">
+      <td><code>{{ k.code }}</code></td>
+      {% if key_tab == 'secondary' %}<td>{{ k.device }}</td>{% endif %}
+      <td>{{ k.holder_name or '—' }}<div class="muted">{{ k.holder_email }}</div></td>
+      <td>
+        <span class="badge {{ 'ok' if k.state == 'active' else ('warn' if k.state == 'suspended' else 'bad') }}">{{ k.state_label }}</span>
+        {% if k.expires_at %}<div class="muted">{{ k.expires_at }}까지</div>{% endif %}
+      </td>
+      <td class="muted">{{ k.last_used_at[:16].replace('T', ' ') or '아직 없음' }}</td>
+      <td class="keyacts">
+        <form method="post" action="/apps/{{ program.id }}/admin/keys/{{ k.id }}/toggle">
+          <button class="btn small" type="submit">{{ '▶ 사용재개' if k.status == 'suspended' else '⏸ 사용중지' }}</button>
+        </form>
+        <form method="post" action="/apps/{{ program.id }}/admin/keys/{{ k.id }}/delete">
+          <button class="btn small danger" type="submit" data-twice="정말 삭제?">🗑 삭제</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="help">
+    <strong>사용중지</strong>는 되돌릴 수 있습니다 — 잠깐 막을 때 쓰세요.
+    <strong>삭제</strong>는 되돌릴 수 없어 두 번 눌러야 합니다.
+    1차키를 지우면 그 사람의 2차키도 같이 지워집니다.
+  </p>
+  {% else %}
+  <p class="muted">아직 발급한 {{ '2차키' if key_tab == 'secondary' else '1차키' }}가 없습니다.</p>
+  {% endif %}
+</div>
+
+{# ─── 일괄 생성 ─── #}
+<div class="card">
+  <h3>이름 없이 미리 만들어 두기</h3>
+  <p class="muted">현장에서 종이로 나눠 줄 때 씁니다. 1차·2차 구분 없는 단독 키입니다.</p>
+  <form method="post" action="/apps/{{ program.id }}/admin/keys/bulk" class="rowform">
+    <label><span class="ltext">개수</span> <input type="number" name="count" value="10" min="1" max="500"></label>
+    <label><span class="ltext">유효기간</span> <input type="number" name="expires_days" min="0" placeholder="비우면 무제한 (일)"></label>
+    <button class="btn" type="submit">만들기</button>
+  </form>
+  {% if bulk_codes %}
+  <textarea id="bulk-text" rows="8" readonly>{{ bulk_codes | join('\n') }}</textarea>
+  <div class="actions"><button class="btn" type="button" data-copy="#bulk-text">전체 복사</button></div>
+  {% endif %}
+</div>
+
+{# ─── 전체 초기화 ─── #}
+<div class="card danger">
+  <h3>전체 초기화</h3>
+  <p>
+    이 프로그램의 <strong>키를 모두 지웁니다.</strong> 쓰고 있는 사람도 전부 끊깁니다.
+    되돌릴 수 없습니다.
+  </p>
+  <form method="post" action="/apps/{{ program.id }}/admin/keys/reset" class="rowform">
+    <label><span class="ltext">확인을 위해 <strong>초기화</strong> 라고 적어 주세요</span>
+      <input type="text" name="confirm" data-typeword="초기화" data-arms="#reset-btn"
+             placeholder="초기화" autocomplete="off">
+    </label>
+    <button class="btn danger" id="reset-btn" type="submit" disabled>전부 지우기</button>
+  </form>
+</div>
+
+<script>
+document.querySelectorAll("[data-copy]").forEach(function (btn) {
+  btn.addEventListener("click", function () {
+    var box = document.querySelector(btn.dataset.copy);
+    if (!box) { return; }
+    box.select();
+    navigator.clipboard.writeText(box.value).then(function () {
+      var was = btn.textContent;
+      btn.textContent = "복사했습니다";
+      setTimeout(function () { btn.textContent = was; }, 1500);
+    }, function () {
+      // 클립보드 권한이 없는 브라우저도 있다. 그때는 이미 선택해 두었으니
+      // Ctrl+C 로 복사할 수 있다고 알려 준다.
+      btn.textContent = "Ctrl+C 를 누르세요";
+    });
+  });
+});
+</script>

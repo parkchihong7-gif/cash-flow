@@ -1,0 +1,45 @@
+{# 검증값 기본 세팅 — 유튜브 매뉴얼의 '☑ 기본 세팅(검증값) 사용' 을 그대로.
+   초록이면 지금 값이 검증값과 같고, 노랑이면 바꾼 상태. 되돌리는 버튼이 그 자리에. #}
+<div class="card preset {{ presets.tone }}">
+  <div class="presethead">
+    <span class="chk {{ presets.tone }}">{{ '☑' if presets.on_default else '☐' }}</span>
+    <div>
+      <h3>기본 세팅(검증값) 사용</h3>
+      <p class="muted">{{ presets.summary }}</p>
+    </div>
+    {% if not presets.on_default %}
+    <form method="post" action="/apps/{{ program.id }}/admin/presets/restore">
+      <button class="btn primary" type="submit">모든 값 기본 세팅으로</button>
+    </form>
+    {% endif %}
+  </div>
+
+  {% if presets.rows %}
+  <table class="presets">
+    <tr><th>설정</th><th>지금 값</th><th>검증값</th><th></th></tr>
+    {% for r in presets.rows %}
+    <tr class="{{ r.tone }}">
+      <td><strong>{{ r.label }}</strong>
+        {% if r.help %}<div class="muted">{{ r.help }}</div>{% endif %}</td>
+      <td><span class="badge {{ r.tone }}">{{ r.label_text }}</span> {{ r.shown_current }}</td>
+      <td class="muted">{{ r.shown_default }}</td>
+      <td>
+        {% if r.changed %}
+        <form method="post" action="/apps/{{ program.id }}/admin/presets/restore">
+          <input type="hidden" name="key" value="{{ r.key }}">
+          <button class="btn small" type="submit">되돌리기</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="help">
+    값은 <a href="/programs/{{ program.id }}/edit">설정 편집</a>에서 바꿉니다.
+    <strong>검증값은 상품을 만들 때 실제로 돌려 보고 정한 값</strong>입니다 —
+    적어도 그 값에서는 동작한다는 뜻이고, 그 이상은 보장하지 않습니다.
+  </p>
+  {% else %}
+  <p class="muted">이 프로그램은 바꿀 설정이 없습니다.</p>
+  {% endif %}
+</div>

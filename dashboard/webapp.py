@@ -9,21 +9,43 @@
 
 실행은 통합 대시보드와 같은 `core.runner` 를 쓴다. 화면이 둘이라고 실행이
 둘이면 "관리자에서는 되는데 클라이언트에서는 안 된다" 가 생긴다.
+
+탭마다 주소가 따로 있다
+-----------------------
+
+`/apps/<상품>/<모드>/t/<탭>` 이다. 이렇게 둔 이유는 세 가지다.
+
+1. **따로 열 수 있다.** 접속키 화면만 팝업으로 띄워 놓고 발급할 수 있다
+2. **자리를 가리킬 수 있다.** "접속키 탭 보세요" 대신 주소를 보내면 된다
+3. **뒤로가기가 맞는다.** 탭이 한 주소에 다 들어 있으면 브라우저 뒤로가기가
+   탭이 아니라 화면 전체를 되돌려 버린다
+
+주소가 곧 자리이므로, 나중에 프로그램을 팔아 남의 서버에 올려도 안내문에 적은
+주소가 그대로 살아 있다.
 """
 
 from __future__ import annotations
 
+import secrets
 from pathlib import Path
 from typing import Any
 
 from fastapi import Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from core import console as console_mod
+from core import presets as presets_mod
+from core import schedule as schedule_mod
 from core.db import Database
+from core.keyauth import (
+    DEFAULT_BULK, KIND_LEGACY, KIND_PRIMARY, KIND_SECONDARY, KeyAuth, KeyError_,
+)
 from core.manifest import ProgramManifest
 from core.registry import Registry
 from core.runner import RunError, run_program
-from core.webui import MODE_LABEL, MODES, load_handler, load_webui
+from core.webui import (
+    MODE_LABEL, MODES, load_console, load_handler, load_webui,
+)
 
 __all__ = ["register", "APPS_PREFIX"]
 
@@ -51,6 +73,9 @@ def register(app, page, registry, db, program_or_404) -> None:
         program_or_404: 상품 id 로 매니페스트를 찾는 함수.
     """
 
+    #: 방금 발급한 키를 한 번 보여 주려고 잠깐 들고 있는 자리.
+    _fresh: dict[str, Any] = {}
+
     def _ui(program: ProgramManifest, database: Database):
         stored = database.get_program_settings(program.id)
         return load_webui(program, {"settings": stored, "db": database})
@@ -75,20 +100,112 @@ def register(app, page, registry, db, program_or_404) -> None:
             **extra,
         }
 
+    # --------------------------------------------------------- 콘솔 만들기
+    def _console(program: ProgramManifest, database: Database, mode: str):
+        """이 프로그램의 운영 콘솔. 없으면 기존 화면을 감싸 만든다."""
+        stored = database.get_program_settings(program.id)
+        ctx = {"settings": stored, "db": database, "mode": mode}
+        built = load_console(program, ctx)
+        if built is None:
+            built = console_mod.from_webui(program, _ui(program, database), ctx)
+        console_mod.add_standard_tabs(built, program)
+        return built
+
+    def _keys() -> KeyAuth:
+        """접속키 저장소. 대시보드와 같은 SQLite 파일을 쓴다."""
+        return KeyAuth(db().path)
+
+    def _stash(value: Any) -> str:
+        """방금 만든 키를 **한 번만** 꺼내 볼 수 있게 넣어 둔다.
+
+        키를 주소에 실으면 브라우저 기록과 서버 접근 로그에 그대로 남는다.
+        발급 화면은 새로고침 한 번이면 지나가는 자리라 메모리에 두고, 꺼내는
+        순간 지운다. 서버를 다시 띄우면 사라지는데 그래도 된다 — 목록에는
+        남아 있고, 잃어버린 키는 다시 발급하는 것이 맞다.
+        """
+        token = secrets.token_urlsafe(8)
+        _fresh[token] = value
+        while len(_fresh) > 32:           # 안 꺼내 간 것이 쌓이지 않게
+            _fresh.pop(next(iter(_fresh)))
+        return token
+
+    def _console_context(request: Request, program: ProgramManifest, mode: str,
+                         tab_key: str = "", **extra: Any) -> dict:
+        database = db()
+        full = _console(program, database, mode)
+        shown = full.for_mode(mode)
+
+        current = shown.tab(tab_key) if tab_key else shown.first_tab()
+        if current is None:
+            current = shown.first_tab()
+
+        base = _context(request, program, mode, **extra)
+        base.update({
+            "console": shown,
+            "current": current,
+            "is_home": bool(current and current is shown.first_tab()),
+        })
+
+        # 공통 탭이 쓰는 재료. 그 탭을 열었을 때만 모은다 — 매 화면마다
+        # 일정·키를 다 긁으면 목록이 커질수록 화면이 느려진다.
+        render = current.render if current else ""
+        if render == "auto":
+            rows = schedule_mod.collect(registry(), database)
+            base["schedule_rows"] = [r for r in rows if r.id == program.id]
+        if render == "presets":
+            base["presets"] = presets_mod.collect(
+                program, database.get_program_settings(program.id))
+        if render == "keys":
+            keys = _keys()
+            base["issued"] = _fresh.pop(
+                str(request.query_params.get("issued") or ""), None)
+            base["bulk_codes"] = _fresh.pop(
+                str(request.query_params.get("bulk") or ""), None)
+            want = str(request.query_params.get("k") or "primary")
+            kind = KIND_SECONDARY if want == "secondary" else KIND_PRIMARY
+            rows = keys.list_keys(kind=kind, program_id=program.id)
+            if kind == KIND_PRIMARY:
+                rows += keys.list_keys(kind=KIND_LEGACY, program_id=program.id)
+            base.update({
+                "key_tab": want,
+                "key_rows": rows,
+                "key_counts": keys.counts(program_id=program.id),
+                "live_sessions": keys.live_sessions(program_id=program.id),
+            })
+        return base
+
     # ------------------------------------------------------------ 화면
     @app.get(APPS_PREFIX + "/{program_id}/{mode}", response_class=HTMLResponse)
     def app_view(request: Request, program_id: str, mode: str,
-                 run: int | None = None, saved: str = "", error: str = ""):
-        """상품 화면. 모드에 따라 보이는 것이 다르다."""
+                 run: int | None = None, saved: str = "", error: str = "",
+                 flash: str = "", flash_tone: str = ""):
+        """콘솔 첫 화면. 상태 타일과 오늘 할 일이 여기 있다."""
+        return _render_tab(request, program_id, mode, "",
+                           run=run, saved=saved, error=error,
+                           flash=flash, flash_tone=flash_tone)
+
+    @app.get(APPS_PREFIX + "/{program_id}/{mode}/t/{tab_key}",
+             response_class=HTMLResponse)
+    def app_tab(request: Request, program_id: str, mode: str, tab_key: str,
+                run: int | None = None, saved: str = "", error: str = "",
+                flash: str = "", flash_tone: str = ""):
+        """탭 하나. **주소가 따로 있어 팝업으로 열 수 있다.**"""
+        return _render_tab(request, program_id, mode, tab_key,
+                           run=run, saved=saved, error=error,
+                           flash=flash, flash_tone=flash_tone)
+
+    def _render_tab(request: Request, program_id: str, mode: str, tab_key: str,
+                    run: int | None = None, **extra: Any):
         program = program_or_404(program_id)
         mode = _mode_or_404(mode)
         outcome = db().get_run(run) if run else None
-        return page(
-            request, "app_shell.html",
-            title=f"{program.name} — {MODE_LABEL[mode]}",
-            **_context(request, program, mode,
-                       outcome=outcome, saved=saved, error=error),
-        )
+        ctx = _console_context(request, program, mode, tab_key,
+                               outcome=outcome, **extra)
+        current = ctx["current"]
+        title = f"{program.name} — {MODE_LABEL[mode]}"
+        if current and not ctx["is_home"]:
+            title = f"{current.label} · {title}"
+        return page(request, "console.html", title=title, **ctx)
 
     # ------------------------------------------------------------ 실행
     @app.post(APPS_PREFIX + "/{program_id}/{mode}/run")
@@ -200,3 +317,128 @@ def register(app, page, registry, db, program_or_404) -> None:
         target.write_text(content, encoding="utf-8")
         return RedirectResponse(
             f"{APPS_PREFIX}/{program_id}/admin/file?path={path}&saved=1", status_code=303)
+
+    # ══════════════════════════════════════════════════ 접속키 (관리자만)
+    #
+    # 이 아래는 전부 `/admin/` 아래에 둔다. 클라이언트 모드에서는 주소를
+    # 직접 쳐도 닿지 않는다 — 키를 발급하는 자리는 **판 사람의 것**이다.
+
+    def _keys_back(program_id: str, tab: str = "primary", **extra) -> str:
+        parts = [f"k={tab}"] + [f"{k}={v}" for k, v in extra.items() if v]
+        return f"{APPS_PREFIX}/{program_id}/admin/t/keys?" + "&".join(parts)
+
+    @app.post(APPS_PREFIX + "/{program_id}/admin/keys/issue")
+    async def keys_issue(request: Request, program_id: str):
+        """한 사람에게 1차키 1개 + 2차키 3개. 보낼 안내문까지 같이 만든다."""
+        program = program_or_404(program_id)
+        form = await request.form()
+        days = str(form.get("expires_days") or "").strip()
+        try:
+            issued = _keys().issue_set(
+                name=str(form.get("name") or ""),
+                email=str(form.get("email") or ""),
+                program_id=program.id,
+                service_url=str(request.base_url).rstrip("/")
+                            + f"{APPS_PREFIX}/{program.id}/client",
+                expires_days=int(days) if days else None,
+            )
+        except (KeyError_, ValueError) as exc:
+            return RedirectResponse(_keys_back(program_id, error=str(exc)),
+                                    status_code=303)
+
+        # 키 자체를 주소에 실어 보내면 브라우저 기록·서버 로그에 남는다.
+        # 한 번만 쓰는 쪽지에 넣어 두고 화면에서 꺼내 보여 준다.
+        token = _stash(issued)
+        return RedirectResponse(_keys_back(program_id, issued=token),
+                                status_code=303)
+
+    @app.post(APPS_PREFIX + "/{program_id}/admin/keys/bulk")
+    async def keys_bulk(request: Request, program_id: str):
+        """이름 없이 코드만 미리. 현장에서 종이로 나눠 줄 때."""
+        program = program_or_404(program_id)
+        form = await request.form()
+        days = str(form.get("expires_days") or "").strip()
+        try:
+            codes = _keys().bulk_legacy(
+                count=int(form.get("count") or DEFAULT_BULK),
+                program_id=program.id,
+                expires_days=int(days) if days else None,
+            )
+        except (KeyError_, ValueError) as exc:
+            return RedirectResponse(_keys_back(program_id, error=str(exc)),
+                                    status_code=303)
+        return RedirectResponse(_keys_back(program_id, bulk=_stash(codes)),
+                                status_code=303)
+
+    @app.post(APPS_PREFIX + "/{program_id}/admin/keys/{key_id}/toggle")
+    def keys_toggle(program_id: str, key_id: int):
+        """사용중지 ↔ 사용재개. **되돌릴 수 있는 쪽**이라 확인을 묻지 않는다."""
+        program_or_404(program_id)
+        keys = _keys()
+        try:
+            row = keys.get(key_id)
+            if row.status == "suspended":
+                keys.resume(key_id)
+                msg = f"{row.code} 를 다시 쓸 수 있게 했습니다."
+            else:
+                keys.suspend(key_id)
+                msg = f"{row.code} 를 사용중지했습니다. 접속해 있던 기기도 끊었습니다."
+        except KeyError_ as exc:
+            return RedirectResponse(_keys_back(program_id, error=str(exc)),
+                                    status_code=303)
+        tab = "secondary" if row.kind == KIND_SECONDARY else "primary"
+        return RedirectResponse(_keys_back(program_id, tab, flash=msg),
+                                status_code=303)
+
+    @app.post(APPS_PREFIX + "/{program_id}/admin/keys/{key_id}/delete")
+    def keys_delete(program_id: str, key_id: int):
+        """영구 삭제. 화면에서 두 번 눌러야 여기까지 온다."""
+        program_or_404(program_id)
+        keys = _keys()
+        try:
+            row = keys.get(key_id)
+            removed = keys.delete(key_id)
+        except KeyError_ as exc:
+            return RedirectResponse(_keys_back(program_id, error=str(exc)),
+                                    status_code=303)
+        extra = f" (딸린 2차키 {removed - 1}개 포함)" if removed > 1 else ""
+        tab = "secondary" if row.kind == KIND_SECONDARY else "primary"
+        return RedirectResponse(
+            _keys_back(program_id, tab,
+                       flash=f"{row.code} 를 지웠습니다{extra}.", flash_tone="warn"),
+            status_code=303)
+
+    @app.post(APPS_PREFIX + "/{program_id}/admin/keys/reset")
+    async def keys_reset(request: Request, program_id: str):
+        """전부 지우기. '초기화' 를 정확히 쳐야 통과한다."""
+        program = program_or_404(program_id)
+        form = await request.form()
+        try:
+            count = _keys().reset_all(str(form.get("confirm") or ""),
+                                      program_id=program.id)
+        except KeyError_ as exc:
+            return RedirectResponse(_keys_back(program_id, error=str(exc)),
+                                    status_code=303)
+        return RedirectResponse(
+            _keys_back(program_id,
+                       flash=f"키 {count}개를 모두 지웠습니다.", flash_tone="warn"),
+            status_code=303)
+
+    # ══════════════════════════════════════════ 검증값으로 되돌리기(관리자만)
+    @app.post(APPS_PREFIX + "/{program_id}/admin/presets/restore")
+    async def presets_restore(request: Request, program_id: str):
+        """검증값으로. 키를 주면 그 값만, 안 주면 전부."""
+        program = program_or_404(program_id)
+        form = await request.form()
+        wanted = form.getlist("key") if hasattr(form, "getlist") else []
+        values = presets_mod.restore_values(program, wanted or None)
+
+        database = db()
+        for key, value in values.items():
+            database.set_program_setting(program.id, key, value)
+
+        what = "모든 값을" if not wanted else f"{len(values)}개 값을"
+        return RedirectResponse(
+            f"{APPS_PREFIX}/{program_id}/admin/t/presets"
+            f"?flash={what} 검증값으로 되돌렸습니다.",
+            status_code=303)

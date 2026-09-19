@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ console.title }} — {{ mode_label }}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="console {{ mode }}">
+
+<div class="layout">
+
+  {# ─── 왼쪽: 이 프로그램의 일하는 자리들 ─── #}
+  <aside class="side conside">
+    <div class="brand">
+      <span class="idx">{{ program.number }}</span> {{ program.name }}
+      <small>{{ mode_label }}</small>
+    </div>
+
+    <nav>
+      {% for group, tabs in console.groups %}
+        {% if group %}<div class="group">{{ group }}</div>{% endif %}
+        {% for tab in tabs %}
+        <a class="item {% if tab.key == current.key %}on{% endif %}"
+           href="/apps/{{ program.id }}/{{ mode }}/t/{{ tab.key }}">
+          <span class="ticon">{{ tab.icon or '·' }}</span>{{ tab.label }}
+        </a>
+        {% endfor %}
+      {% endfor %}
+    </nav>
+
+    <div class="sidefoot">
+      <a class="back" href="/programs/{{ program.id }}" data-back>← 뒤로</a>
+      <a href="/programs/{{ program.id }}">통합 대시보드</a>
+    </div>
+  </aside>
+
+  <div class="conmain">
+
+    {# ─── 위: 누구의 화면인지 늘 보이게 ─── #}
+    <header class="conbar {{ mode }}">
+      <a class="back" href="/programs/{{ program.id }}" data-back>← 뒤로</a>
+      <span class="sep"></span>
+      <strong class="contitle">{{ current.title }}</strong>
+      <span class="modeflag {{ mode }}">{{ mode_label }}</span>
+      <span class="grow"></span>
+      <nav class="modeswitch">
+        <a class="mbtn {% if mode == 'admin' %}on{% endif %}"
+           href="/apps/{{ program.id }}/admin/t/{{ current.key }}">관리자 모드</a>
+        <a class="mbtn {% if mode == 'client' %}on{% endif %}"
+           href="/apps/{{ program.id }}/client/t/{{ current.key }}">클라이언트 모드</a>
+      </nav>
+    </header>
+
+    <main class="conbody">
+      {% block body %}{% endblock %}
+    </main>
+
+    <footer class="appfoot">
+      <a href="/programs/{{ program.id }}">← 통합 대시보드로 돌아가기</a>
+      <span class="dot">·</span>
+      <a href="/apps/{{ program.id }}/{{ other_mode }}/t/{{ current.key }}">{{ other_label }} 로 보기</a>
+      {% if program.manuals.client %}
+      <span class="dot">·</span>
+      <a href="/programs/{{ program.id }}/manual/{{ 'admin' if mode == 'admin' else 'client' }}">매뉴얼</a>
+      {% endif %}
+      <span class="dot">·</span>
+      <span class="muted">{{ program.name }} v{{ program.version }}</span>
+    </footer>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll("[data-back]").forEach(function (el) {
+  el.addEventListener("click", function (event) {
+    if (window.history.length > 1) { event.preventDefault(); window.history.back(); }
+  });
+});
+{# 삭제는 두 번 눌러야 한다. 되돌릴 수 없는 일은 손이 미끄러져도 안 되게. #}
+document.querySelectorAll("[data-twice]").forEach(function (btn) {
+  var original = btn.textContent, armed = false, timer = null;
+  btn.addEventListener("click", function (event) {
+    if (armed) { return; }
+    event.preventDefault();
+    armed = true;
+    btn.textContent = btn.dataset.twice || "정말 삭제?";
+    btn.classList.add("arm");
+    timer = setTimeout(function () {
+      armed = false; btn.textContent = original; btn.classList.remove("arm");
+    }, 3000);
+  });
+});
+{# 전체 초기화는 글자를 정확히 쳐야 버튼이 살아난다. #}
+document.querySelectorAll("[data-typeword]").forEach(function (input) {
+  var want = input.dataset.typeword;
+  var btn = document.querySelector(input.dataset.arms);
+  function sync() { if (btn) { btn.disabled = input.value.trim() !== want; } }
+  input.addEventListener("input", sync); sync();
+});
+</script>
+</body>
+</html>

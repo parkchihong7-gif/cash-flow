@@ -1,0 +1,80 @@
+{% extends "console_base.html" %}
+{% block body %}
+
+{% if error %}<div class="note bad"><strong>{{ error }}</strong></div>{% endif %}
+{% if saved %}<div class="note ok">저장했습니다{% if saved != '1' %} ({{ saved }}){% endif %}.</div>{% endif %}
+{% if flash %}<div class="note {{ flash_tone or 'ok' }}">{{ flash | md }}</div>{% endif %}
+
+{# ═══ 첫 탭에서만: 상태 타일 + 오늘 할 일 ═══ #}
+{% if is_home %}
+
+  {% if console.intro(mode) %}<p class="lead">{{ console.intro(mode) | md }}</p>{% endif %}
+
+  {% if console.stats %}
+  <div class="tiles">
+    {% for s in console.stats %}
+    <a class="tile {{ s.tone }}" {% if s.tab %}href="/apps/{{ program.id }}/{{ mode }}/t/{{ s.tab }}"{% endif %}>
+      <span class="tlabel">{{ s.label }}</span>
+      <span class="tvalue">{{ s.value }}<small>{{ s.unit }}</small></span>
+      {% if s.hint %}<span class="thint">{{ s.hint }}</span>{% endif %}
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if console.todos %}
+  <div class="card todo">
+    <h3>오늘 할 일</h3>
+    <ol>
+      {% for t in console.todos %}
+      <li class="{% if t.by_hand %}byhand{% endif %}">
+        {% if t.tab %}<a href="/apps/{{ program.id }}/{{ mode }}/t/{{ t.tab }}">{{ t.text }}</a>
+        {% else %}{{ t.text }}{% endif %}
+        {% if t.by_hand %}<span class="pill hand">손으로</span>{% endif %}
+        {% if t.detail %}<span class="tdetail">{{ t.detail | md }}</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+  </div>
+  {% endif %}
+
+{% endif %}
+
+{% if current.intro %}<p class="tabintro">{{ current.intro | md }}</p>{% endif %}
+
+{# ═══ 실행 결과 ═══ #}
+{% if outcome %}
+<div class="note {{ 'ok' if outcome.status == 'success' else ('warn' if outcome.status == 'warning' else 'bad') }}">
+  <strong>
+    {% if outcome.status == 'success' %}만들어졌습니다{% elif outcome.status == 'warning' %}만들어졌지만 볼 것이 있습니다{% else %}실패했습니다{% endif %}
+  </strong>
+  — {{ '모의' if outcome.mode == 'dry' else '실제' }} 실행 · 종료 코드 {{ outcome.exit_code }}
+</div>
+<div class="card">
+  <div class="actions" style="margin-bottom:10px">
+    {% if outcome.output_dir %}
+    <a class="btn primary" href="/programs/{{ program.id }}/outputs?run={{ outcome.id }}">산출물 보기</a>
+    {% endif %}
+    {% if mode == 'admin' %}<a class="btn" href="/runs/{{ outcome.id }}">실행 상세</a>{% endif %}
+  </div>
+  <pre class="runlog">{{ outcome.log }}</pre>
+</div>
+{% endif %}
+
+{# ═══ 탭 내용 ═══ #}
+{% if current.render %}
+  {% include "_std_" + current.render + ".html" %}
+{% else %}
+  {% for panel in current.panels %}
+    {% include "_panel.html" %}
+  {% endfor %}
+  {% if not current.panels %}
+  <div class="card"><p class="muted">이 탭에는 아직 아무것도 없습니다.</p></div>
+  {% endif %}
+{% endif %}
+
+{% if current.common_buttons %}
+<p class="help">자주 쓰는 버튼: {{ current.common_buttons | md }}</p>
+{% endif %}
+
+{% endblock %}

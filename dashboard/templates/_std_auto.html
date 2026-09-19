@@ -1,0 +1,24 @@
+{# 자동 실행 — 언제, 무엇이, 지난번엔 어땠는지. #}
+<div class="card">
+  <h3>정해진 시각에 도는 일</h3>
+  {% if schedule_rows %}
+  <table>
+    <tr><th>일</th><th>언제</th><th>마지막</th><th>상태</th></tr>
+    {% for r in schedule_rows %}
+    <tr>
+      <td><strong>{{ r.name }}</strong>
+        {% if r.why %}<div class="muted">{{ r.why }}</div>{% endif %}</td>
+      <td>{{ r.cadence_label }}{% if r.at %} {{ r.at }}{% endif %}</td>
+      <td class="muted">{{ r.last_run_label or '아직 없음' }}{% if r.age_label %}<div class="muted">{{ r.age_label }}</div>{% endif %}</td>
+      <td><span class="badge {{ r.state }}">{{ r.state_label }}</span></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">이 프로그램은 저절로 도는 일이 없습니다. 누를 때만 돕니다.</p>
+  {% endif %}
+  <p class="help">
+    컴퓨터가 꺼져 있으면 그날은 건너뜁니다. 절전 상태면 깨어나 실행합니다.
+    전체 일정은 <a href="/schedule">통합 대시보드의 일정</a>에서 함께 봅니다.
+  </p>
+</div>

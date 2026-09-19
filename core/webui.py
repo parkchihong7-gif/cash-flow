@@ -41,7 +41,7 @@ __all__ = [
     "Field", "Panel", "WebUI", "Table", "Note", "MODES", "MODE_LABEL",
     "default_webui", "generator_webui", "load_webui", "load_handler",
     "field_from_setting", "yaml_input_panel", "outputs_panel",
-    "write_yaml_fields", "read_yaml_fields",
+    "write_yaml_fields", "read_yaml_fields", "load_console",
 ]
 
 MODES = ("admin", "client")
@@ -308,6 +308,37 @@ def load_handler(program):
     except Exception:
         return None
     return getattr(module, "handle", None) if module else None
+
+
+def load_console(program, ctx: dict | None = None):
+    """상품이 자기 운영 콘솔을 정의해 뒀으면 그것을.
+
+        # products/<상품>/webui.py
+        def console(program, ctx):
+            return Console(...)
+
+    없으면 None 을 돌려준다. 부르는 쪽이 `WebUI` 를 콘솔로 감싸므로,
+    **상품이 아무것도 안 해도 화면은 뜬다.** 콘솔을 정의한 상품부터 차례로
+    깊어진다 — 16종을 한꺼번에 갈아엎지 않아도 되게 하려는 것이다.
+    """
+    if not (Path(program.directory) / WEBUI_FILENAME).is_file():
+        return None
+    try:
+        module = _product_module(program)
+        builder = getattr(module, "console", None)
+        if builder is None:
+            return None
+        return builder(program, ctx or {})
+    except Exception as exc:       # 콘솔 하나가 깨져도 나머지는 떠야 한다
+        from core.console import Console, Tab
+        broken = Console(
+            program_id=program.id, title=program.name,
+            tabs=[Tab(key="work", label="작업", icon="📋", panels=[Panel(
+                key="broken", title="이 상품의 콘솔을 불러오지 못했습니다",
+                intro=f"`{WEBUI_FILENAME}` 의 `console()` 에서 오류가 났습니다.",
+                note=str(exc), tone="bad")])],
+        )
+        return broken
 
 
 def load_webui(program, ctx: dict | None = None) -> WebUI:

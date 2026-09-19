@@ -473,3 +473,140 @@ table.ptable { margin: 4px 0 10px; font-size: 13.5px; }
 table.ptable tr.bad td { background: var(--bad-soft); }
 table.ptable tr.warn td { background: var(--warn-soft); }
 table.ptable tr.ok td { background: var(--ok-soft); }
+
+/* ═══════════════════════════════════════════════════════════════════
+   운영 콘솔 — /apps/<상품>/<모드>
+
+   참조한 관리자 세 개(유튜브 12탭·컨퍼런스·공인중개사)의 공통점을 따랐다.
+   왼쪽에 일하는 자리, 위에 지금 상태, 가운데 카드. 색은 대시보드 토큰을
+   그대로 쓴다 — 16종을 오가는 사람이 같은 색을 같은 뜻으로 읽게.
+   ═══════════════════════════════════════════════════════════════════ */
+
+body.console { background: var(--bg-soft); }
+
+.conside .brand { font-size: 15px; line-height: 1.4; }
+.conside .brand small { margin-top: 4px; }
+.conside .ticon { width: 18px; display: inline-block; text-align: center; }
+.conside .sidefoot {
+  margin-top: 18px; padding: 14px 20px 0; border-top: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 6px; font-size: 13px;
+}
+
+.conmain { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+/* 위쪽 띠 — 지금 어느 자리에 있고 누구의 화면인지 늘 보이게 */
+.conbar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 12px 28px; background: var(--bg); border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 5;
+}
+.conbar .contitle { font-size: 16px; }
+/* 모드 전환 버튼은 원래 어두운 띠에 쓰려고 만든 것이라 밝은 띠에서는 안 보인다 */
+.conbar .mbtn { color: var(--ink-soft); border: 1px solid var(--line); }
+.conbar .mbtn:hover { background: var(--bg-sunk); }
+.conbar .mbtn.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.conbar .sep { width: 1px; height: 18px; background: var(--line); }
+.conbar .grow { flex: 1; }
+.conbody { padding: 24px 28px 40px; max-width: 1100px; }
+.conbody > .card:first-child { margin-top: 0; }
+.tabintro { color: var(--ink-soft); margin: 0 0 16px; }
+
+/* 상태 타일 — 숫자만 크게 띄우고 끝내지 않는다. 그래서 뭘 할지 같이 적는다 */
+.tiles {
+  display: grid; gap: 12px; margin: 0 0 20px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+.tiles.small { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); margin-bottom: 12px; }
+.tile {
+  display: flex; flex-direction: column; gap: 2px; padding: 14px 16px;
+  background: var(--bg); border: 1px solid var(--line); border-left: 3px solid var(--line);
+  border-radius: var(--radius); color: var(--ink);
+}
+a.tile:hover { border-color: var(--accent); text-decoration: none; }
+.tile .tlabel { font-size: 12px; color: var(--ink-faint); }
+.tile .tvalue { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
+.tile .tvalue small { font-size: 13px; font-weight: 500; color: var(--ink-faint); margin-left: 2px; }
+.tile .thint { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+.tile.ok   { border-left-color: var(--ok); }
+.tile.warn { border-left-color: var(--warn); background: var(--warn-soft); }
+.tile.bad  { border-left-color: var(--bad); background: var(--bad-soft); }
+.tiles.small .tile .tvalue { font-size: 20px; }
+
+/* 오늘 할 일 */
+.card.todo ol { margin: 0; padding-left: 22px; }
+.card.todo li { margin-bottom: 10px; }
+.card.todo li.byhand { list-style: none; margin-left: -22px; padding-left: 22px; position: relative; }
+.card.todo li.byhand::before { content: "✋"; position: absolute; left: 0; }
+.card.todo .tdetail { display: block; font-size: 13px; color: var(--ink-soft); }
+.pill {
+  display: inline-block; padding: 1px 7px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; vertical-align: middle;
+}
+.pill.hand { background: var(--warn-soft); color: var(--warn); }
+
+/* 한 줄 폼 — 이름·이메일·기간을 나란히 */
+.rowform { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.rowform label {
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: 13px; font-weight: 600; color: var(--ink-soft);
+}
+.rowform label input { min-width: 180px; }
+/* 라벨 안의 글자는 한 줄로. flex 자식이 되면 낱말마다 줄이 바뀐다 */
+.rowform label .ltext { display: block; }
+.rowform label small { font-weight: 400; color: var(--ink-faint); }
+.rowform button { margin-bottom: 1px; }
+
+/* 1차키 / 2차키 */
+.subtabs { display: flex; gap: 4px; margin: 0 0 14px; border-bottom: 1px solid var(--line); }
+.subtabs .sub {
+  padding: 7px 16px; font-size: 14px; font-weight: 600; color: var(--ink-soft);
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.subtabs .sub:hover { text-decoration: none; color: var(--ink); }
+.subtabs .sub.on { color: var(--accent); border-bottom-color: var(--accent); }
+
+table.keys code { font-size: 13px; letter-spacing: .04em; }
+.keyacts { white-space: nowrap; display: flex; gap: 6px; }
+.keyacts form { margin: 0; }
+
+.issued { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.issued textarea, #bulk-text {
+  width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px; line-height: 1.7;
+}
+
+/* 되돌릴 수 없는 것은 빨갛게, 그리고 두 번 눌러야.
+   평소에는 테두리만 빨갛게 둔다 — 꽉 찬 빨강은 눌러도 되는 버튼처럼 보인다.
+   두 번째 누를 차례가 되어서야(.arm) 꽉 찬다. */
+.console .btn.danger { background: var(--bg); border-color: var(--bad); color: var(--bad); }
+.console .btn.danger:hover { background: var(--bad-soft); }
+.console .btn.danger.arm { background: var(--bad); color: #fff; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.card.danger { border-color: var(--bad); }
+.card.danger h3 { color: var(--bad); }
+
+/* 검증값 기본 세팅 */
+.card.preset.warn { border-left: 3px solid var(--warn); }
+.card.preset.ok { border-left: 3px solid var(--ok); }
+.presethead { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 14px; }
+.presethead h3 { margin-bottom: 2px; }
+.presethead form { margin: 0 0 0 auto; }
+.presethead .chk { font-size: 22px; line-height: 1.2; }
+.presethead .chk.ok { color: var(--ok); }
+.presethead .chk.warn { color: var(--warn); }
+table.presets tr.warn td { background: var(--warn-soft); }
+
+/* 손으로 할 일 */
+table.hand .why { font-size: 13px; color: var(--ink-soft); }
+table.hand .someday {
+  margin-top: 6px; padding-left: 10px; border-left: 2px solid var(--line);
+  font-size: 12px; color: var(--ink-faint);
+}
+table.trouble td:first-child { width: 34%; }
+
+@media (max-width: 860px) {
+  .layout { flex-direction: column; }
+  .conside { width: auto; height: auto; position: static; }
+  .conbody { padding: 18px 16px 32px; }
+  .conbar { padding: 10px 16px; }
+}

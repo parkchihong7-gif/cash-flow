@@ -1,0 +1,27 @@
+{# 손으로 할 일 — 이유를 같이 적는다.
+   유튜브 매뉴얼이 'API 미지원', 'OAuth 앱이 미감사' 라고 또박또박 적어 둔 덕에
+   사용자가 납득하고 손으로 한다. 이유 없는 수동 작업은 불만만 쌓인다. #}
+<div class="card">
+  <h3>프로그램이 대신 못 하는 일</h3>
+  {% if console.manual_tasks %}
+  <table class="hand">
+    <tr><th>일</th><th>어디서</th><th>왜 손으로 하는가</th></tr>
+    {% for m in console.manual_tasks %}
+    <tr>
+      <td><strong>{{ m.task }}</strong></td>
+      <td class="muted">{{ m.where }}</td>
+      <td class="why">{{ m.why | md }}
+        {% if m.someday %}<div class="someday">나중에 자동이 될 조건 — {{ m.someday | md }}</div>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="help">
+    여기 있는 일은 <strong>플랫폼이 막아 둔 것</strong>이거나
+    <strong>사람이 봐야 하는 것</strong>입니다. 우회하는 기능은 넣지 않습니다 —
+    계정이 정지되면 프로그램 값보다 큰 손해가 납니다.
+  </p>
+  {% else %}
+  <p class="muted">이 프로그램은 손으로 할 일이 없습니다.</p>
+  {% endif %}
+</div>

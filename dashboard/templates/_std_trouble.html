@@ -1,0 +1,15 @@
+{# 문제 해결 — 당황했을 때 읽는 표. 문장을 짧게. #}
+<div class="card">
+  <h3>증상을 찾아 그 줄대로 하세요</h3>
+  <table class="trouble">
+    <tr><th>이런 증상이면</th><th>이렇게 하세요</th></tr>
+    {% for t in console.troubles %}
+    <tr><td><strong>{{ t.symptom }}</strong></td><td>{{ t.fix | md }}</td></tr>
+    {% endfor %}
+  </table>
+  {% if mode == 'admin' %}
+  <p class="help">
+    표에 없는 증상은 <a href="/runs">실행 기록</a>에서 그 시각의 로그를 확인하세요.
+  </p>
+  {% endif %}
+</div>
