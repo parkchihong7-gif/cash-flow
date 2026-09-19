@@ -35,3 +35,20 @@ Claude 는 **저장소**에 고칩니다. 어느 컴퓨터에서 부르시든, �
 [python.org](https://www.python.org/downloads/) 에서 받으실 때
 **"Add Python to PATH"** 를 꼭 체크하세요. 안 하시면 위 파일들이 파이썬을
 못 찾습니다.
+
+---
+
+## 클라우드_백업받기.bat
+
+클라우드에 대시보드를 올리셨을 때만 씁니다. 고객 DB 를 한 벌 받아
+`data\backup\dashboard-날짜-시각.db` 로 저장합니다.
+
+처음 한 번, 같은 폴더에 `클라우드주소.txt` 를 만들고 두 줄을 적으세요.
+
+```
+https://내주소.onrender.com
+접속 코드
+```
+
+이 파일은 저장소에 올라가지 않습니다. 자세한 것은
+[docs/deploy.md](../../docs/deploy.md).

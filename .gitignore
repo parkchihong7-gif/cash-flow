@@ -57,3 +57,7 @@ docs/training/screens/
 # 교육자료 pptx (용량. tools/deck_*.js 로 다시 만든다)
 docs/training/*.pptx
 docs/training/*.pdf
+
+# 클라우드 주소와 접속 코드. 절대 올라가면 안 됩니다.
+tools/home/클라우드주소.txt
+data/backup/

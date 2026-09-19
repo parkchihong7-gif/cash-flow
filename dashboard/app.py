@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import html
 import json
+import tempfile
 from pathlib import Path
 from urllib.parse import quote, urlparse
 from typing import Any
@@ -32,13 +33,16 @@ from typing import Any
 import markdown as md
 from markupsafe import Markup
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import (FileResponse, HTMLResponse, PlainTextResponse,
+                               RedirectResponse)
+from starlette.background import BackgroundTask
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from core import auth
 from core.db import Database, DEFAULT_DB_PATH
 from core.access import collect as collect_access, summarize as access_summary
+from core.backup import backup_name, copy_db
 from core.compliance import audit as compliance_audit, RULES as COMPLIANCE_RULES
 from core.health import checklist
 from core.search import search as search_index
@@ -622,6 +626,25 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
             return RedirectResponse(f"/keys?error={exc}", status_code=303)
         return RedirectResponse(
             f"/keys?saved=접속키 {count}개를 모두 지웠습니다", status_code=303)
+
+    @app.get("/backup.db")
+    def backup_download():
+        """고객 DB 를 한 벌 내려받는다. 접속 코드가 있어야 열린다.
+
+        클라우드에 올려 두면 고객 이름·이메일·발급한 키가 전부 그쪽에만
+        있다. 호스팅 계정이 잠기면 판 키의 목록이 통째로 사라지므로,
+        집 컴퓨터로 한 벌 받아 두는 길을 둔다.
+
+        `tools/home/클라우드_백업받기.bat` 이 이 주소를 부른다.
+        """
+        name = backup_name()
+        temp = Path(tempfile.gettempdir()) / f"cash-flow-{name}"
+        copy_db(db().path, temp)
+        return FileResponse(
+            temp, filename=name, media_type="application/x-sqlite3",
+            # 다 보내고 나면 임시 파일을 지운다. 서버에 고객 DB 사본이
+            # 쌓이면 그것 자체가 새어 나갈 자리가 된다.
+            background=BackgroundTask(temp.unlink, missing_ok=True))
 
     @app.post("/settings/keys/reset")
     async def settings_keys_reset(request: Request):

@@ -15,6 +15,12 @@
 | **확인용 웹주소** | `https://parkchihong7-gif.github.io/cash-flow/` | 화면을 **눈으로 확인**. 어느 기기·어느 IP 에서나. 저장·실행은 안 됨 |
 | **확인용 한 장** | `대시보드_확인용.html` | 같은 내용을 파일 하나로. 인터넷 없이 더블클릭 |
 | **실제로 쓰기** | 집 컴퓨터 `대시보드_열기.bat` | 전부 됨. 저장·실행·키 발급 |
+| **밖에서도 실제로** | 클라우드 `내주소.onrender.com` | 전부 됨. 고객도 키로 들어옴. [올리는 법](./docs/deploy.md) |
+
+**확인용 웹주소에서는 키 발급이 안 됩니다.** 고장이 아닙니다 — 그곳은
+파일만 내어 주는 곳이라 파이썬이 돌지 않고, 키 발급은 DB 에 **쓰는**
+동작이라 저장할 자리가 없습니다. 밖에서도 발급하시려면
+[클라우드에 올리세요](./docs/deploy.md).
 
 웹주소는 [Settings → Pages → Source 를 **GitHub Actions**](https://github.com/parkchihong7-gif/cash-flow/settings/pages) 로
 바꾸셔야 켜집니다. 그 전에는 아무 데도 안 올라갑니다.
@@ -252,4 +258,6 @@ pytest tests/
 - 판매용 텍스트는 `shared.banned_phrases.check()` 를 통과해야 합니다. (CLAUDE.md §3-2, §7)
 - 모든 AI 산출물에 표시를 기본 on 으로 붙입니다. (CLAUDE.md §3-5)
 - 비밀키는 `.env` 에, 고객 데이터는 `dashboard.db` 에 있고 둘 다 커밋하지 않습니다.
-  **`dashboard.db` 는 직접 백업해야 합니다.**
+  **`dashboard.db` 는 직접 백업해야 합니다.** 클라우드에 올리셨다면
+  `tools/home/클라우드_백업받기.bat` 이 집으로 한 벌 받아 옵니다
+  (`data/backup/` 에 날짜를 붙여 쌓입니다).
