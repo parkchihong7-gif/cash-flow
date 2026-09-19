@@ -91,11 +91,11 @@ def test_admin_mode_shows_them(client):
     """관리자 화면에는 파일 편집과 **실제 실행**이 있다.
 
     패널 제목은 상품마다 다르므로(돌리기/만들기) 제목이 아니라
-    실제 실행 폼이 있는지로 본다. 파일 편집은 콘솔의 '파일 위치' 탭으로
-    옮겼으므로 그 탭에서 본다.
+    실제 실행 폼이 있는지로 본다. 콘솔로 바꾸면서 자리가 갈렸다 —
+    실행은 '만들기' 탭에, 파일 편집은 '파일 위치' 탭에 있다.
     """
-    body = client.get("/apps/funnel-builder/admin").text
-    assert 'value="real"' in body, "실제 실행 폼이 없습니다"
+    make = client.get("/apps/funnel-builder/admin/t/make").text
+    assert 'value="real"' in make, "실제 실행 폼이 없습니다"
 
     files = client.get("/apps/funnel-builder/admin/t/files").text
     assert "결과를 좌우하는 파일" in files

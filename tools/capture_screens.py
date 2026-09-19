@@ -49,6 +49,16 @@ SHARED_TABS = (
     ("trouble", "trouble", "문제 해결 — 증상을 찾아 그 줄대로"),
 )
 
+#: 교육자료에서 그 상품의 핵심 기능을 짚을 때 쓰는 화면.
+#: 전에는 관리자 첫 화면을 비율로 잘라 만들었는데, 화면을 탭으로 나누면서
+#: 자른 자리에 엉뚱한 것이 들어갔다. 이제는 그 탭을 직접 찍는다.
+DEEP_TABS = {
+    "exam-drill": ("weak", "13_exam_weak.png", "약한 단원 — 이유마다 처방이 다르다"),
+    "senior-video": ("savings", "14_senior_savings.png", "줄이기 — 무엇을 내주는지 같이"),
+    "naver-blog": ("review", "15_naver_review.png", "올리기 전 검사 — 탈이 나는 것만"),
+    "speaker-desk": ("tax", "16_speaker_tax.png", "사례비 — 세전인지 세후인지"),
+}
+
 
 def _free_port(start: int = 8811) -> int:
     for port in range(start, start + 50):
@@ -128,6 +138,22 @@ async def _shoot(out_dir: Path, port: int, only: str) -> list[tuple[str, str]]:
                 await page.screenshot(path=str(path), full_page=True)
                 made.append((path.name,
                              f"{program.number}. {program.name} — {caption}"))
+
+            # 이 상품의 핵심 기능 한 장.
+            deep = DEEP_TABS.get(program.id)
+            if deep is not None:
+                tab_key, filename, caption = deep
+                response = await page.goto(
+                    f"{base}/apps/{program.id}/admin/t/{tab_key}")
+                if response is not None and response.status == 200:
+                    await page.wait_for_timeout(300)
+                    await page.screenshot(path=str(out_dir / filename),
+                                          full_page=True)
+                    made.append((filename,
+                                 f"{program.number}. {program.name} — {caption}"))
+                    print(f"  ✓ {filename}")
+                else:
+                    problems.append(f"{program.id} 의 깊은 탭 {tab_key} 을 못 찍었습니다")
 
             # 고객이 들어오는 문. 대시보드 코드 없이 열리는 유일한 화면이다.
             door = await page.goto(f"{base}/c/{program.id}")

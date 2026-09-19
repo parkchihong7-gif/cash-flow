@@ -39,14 +39,6 @@ def top_crop(path: Path, out: Path, ratio: float = 0.62) -> None:
         _save(image.crop((0, 0, image.width, height)), out)
 
 
-def band(path: Path, out: Path, start: float, span: float) -> None:
-    """세로 비율로 잘라낸 한 구간. 특정 패널을 보여 줄 때 쓴다."""
-    with Image.open(path) as image:
-        top = int(image.height * start)
-        bottom = min(image.height, top + int(image.height * span))
-        _save(image.crop((0, top, image.width, bottom)), out)
-
-
 def main() -> int:
     if not SRC.is_dir():
         print("먼저 `python tools/capture_screens.py` 를 돌리세요.", file=sys.stderr)
@@ -64,18 +56,10 @@ def main() -> int:
             top_crop(path, target)
         made += 1
 
-    # 깊은 구간 몇 장 — 슬라이드에서 특정 기능을 짚을 때 쓴다.
-    deep = {
-        "13_exam-drill_admin.png": ("13_exam_weak.png", 0.30, 0.34),
-        "14_senior-video_admin.png": ("14_senior_savings.png", 0.22, 0.30),
-        "15_naver-blog_admin.png": ("15_naver_review.png", 0.26, 0.32),
-        "16_speaker-desk_admin.png": ("16_speaker_tax.png", 0.18, 0.26),
-    }
-    for source, (name, start, span) in deep.items():
-        path = SRC / source
-        if path.is_file():
-            band(path, OUT / name, start, span)
-            made += 1
+    # 깊은 화면은 전에 관리자 첫 화면을 비율로 잘라 만들었다. 화면을 탭으로
+    # 나누면서 그 자리에 엉뚱한 것이 들어가, 슬라이드가 '약한 단원' 이라고
+    # 적어 두고 입력 폼을 보여 주고 있었다. 지금은 capture_screens.py 가
+    # 그 탭을 직접 찍으므로 여기서 자를 것이 없다.
 
     total = sum(item.stat().st_size for item in OUT.glob("*.png"))
     print(f"{made}장 → {OUT} ({total / 1_000_000:.1f}MB)")

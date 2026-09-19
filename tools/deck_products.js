@@ -163,7 +163,8 @@ const exam = {
   ],
   deepImage: "13_exam_weak.png",
   deepTitle: "약한 단원 — 처방까지 같이",
-  deepCaption: "정답률만 보면 '공법을 더 해야겠다' 에서 끝납니다. 무엇을 더 할지가 이유마다 다릅니다.",
+  deepCaption: "/apps/exam-drill/admin/t/weak — 정답률만 보면 '공법을 더 해야겠다' 에서 " +
+               "끝납니다. 무엇을 더 할지가 이유마다 다릅니다.",
   deepNotes: [
     { title: "몰라서", body: "그 단원을 처음부터. 문제를 더 푸는 건 나중입니다." },
     { title: "헷갈려서", body: "섞이는 둘을 나란히 놓고 차이만 적은 비교표." },
@@ -247,7 +248,8 @@ const senior = {
   ],
   deepImage: "14_senior_savings.png",
   deepTitle: "절감안 — ⚠ 는 시청자를 잃는 선택",
-  deepCaption: "아끼는 돈과 내주는 것을 나란히 놓습니다. 판단은 사람이 합니다.",
+  deepCaption: "/apps/senior-video/admin/t/savings — 아끼는 돈과 내주는 것을 " +
+               "나란히 놓습니다. 판단은 사람이 합니다.",
   deepNotes: [
     { title: "공짜 절감은 하나뿐", body: "인사말·마무리 음성 재사용. 어차피 같은 문장이라 품질이 떨어질 데가 없습니다." },
     { title: "⚠ 음성 엔진 교체", tone: "warn", body: "아끼는 돈이 연 1만 원대인데 시청자가 떠나면 손해입니다." },
@@ -329,7 +331,8 @@ const naver = {
   ],
   deepImage: "15_naver_review.png",
   deepTitle: "올리기 전 검사 — ✗ 가 있으면 멈춥니다",
-  deepCaption: "품질은 사람이 봅니다. 여기서는 올리면 탈이 나는 것만 봅니다.",
+  deepCaption: "/apps/naver-blog/admin/t/review — 품질은 사람이 봅니다. " +
+               "여기서는 올리면 탈이 나는 것만 봅니다.",
   deepNotes: [
     { title: "✗ 고쳐야 합니다", tone: "bad", body: "빈칸이 남았거나 과장 문구가 있습니다." },
     { title: "⚠ 보시는 게 좋습니다", tone: "warn", body: "길이·소제목·태그 개수." },
@@ -412,7 +415,8 @@ const speaker = {
   ],
   deepImage: "16_speaker_tax.png",
   deepTitle: "세전 / 세후를 나란히 — 계약 전에 보는 표",
-  deepCaption: "이 표가 이 상품에서 가장 값어치 있습니다. 지급일에 알면 이미 늦습니다.",
+  deepCaption: "/apps/speaker-desk/admin/t/tax — 이 표가 이 상품에서 가장 값어치 " +
+               "있습니다. 지급일에 알면 이미 늦습니다.",
   deepNotes: [
     { title: "세전(gross)", body: "500만 원에서 떼고 390만 원 송금. 주최 측 지출 500만 원." },
     { title: "세후(net)", body: "연사 손에 500만 원. 주최 측 지출 641만 원." },
