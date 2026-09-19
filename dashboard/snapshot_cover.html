@@ -287,11 +287,10 @@
     var PAGES = payload ? JSON.parse(payload.textContent) : null;
 
     // 자물쇠가 걸린 판. 내용이 덮여 있어 암호로 풀어야 한다.
+    // 여기서 바로 열쇠상자를 띄우고 return 하면 안 된다 — 아래에 있는
+    // 칩 클릭·메시지·액자 리스너가 영영 안 붙어서, 홈은 뜨는데 메뉴가
+    // 전부 죽은 버튼이 된다. 열쇠상자는 리스너를 다 붙인 뒤 맨 끝에서 연다.
     var locked = document.getElementById("locked");
-    if (locked && !PAGES) {
-      startLocked(JSON.parse(locked.textContent));
-      return;
-    }
 
     function startLocked(blob) {
       var gate = document.getElementById("gate");
@@ -320,9 +319,12 @@
 
       // 덮은 덩어리가 옆 파일에 있을 때. 받는 동안 몇 퍼센트인지 보여 준다.
       function fetchData(src, total) {
-        return fetch(src, { cache: "no-store" }).then(function (res) {
+        return fetch(src, { cache: "no-store" }).catch(function () {
+          throw new Error("자료 파일에 연결하지 못했습니다 (" + src + ")");
+        }).then(function (res) {
           if (!res.ok) {
-            throw new Error("자료 파일을 못 받았습니다 (" + res.status + ")");
+            throw new Error("자료 파일을 못 받았습니다 ("
+              + res.status + " · " + res.url + ")");
           }
           if (!res.body || !res.body.getReader) {
             return res.arrayBuffer().then(function (b) {
@@ -365,7 +367,13 @@
 
       function open_() {
         var word = (input.value || "").trim();
-        if (!word) { return; }
+        if (!word) {
+          // 빈 칸이면 조용히 끝나고 있었다. 누른 사람은 버튼이 죽은 줄 안다.
+          note.className = "gatenote";
+          note.textContent = "키를 넣어 주세요.";
+          input.focus();
+          return;
+        }
         button.disabled = true;
         say("준비하는 중입니다...");
 
@@ -419,7 +427,18 @@
           });
       }
 
-      if (button) { button.addEventListener("click", open_); }
+      if (button) {
+        button.addEventListener("click", function () {
+          // 여기서 뭐가 터지든 화면에 남긴다. 조용히 멎는 길을 남기지 않는다.
+          try { open_(); }
+          catch (err) {
+            note.className = "gatenote";
+            note.textContent = "여는 중 문제가 났습니다: "
+              + ((err && err.message) || err);
+            button.disabled = false;
+          }
+        });
+      }
       if (input) {
         input.addEventListener("keydown", function (event) {
           if (event.key === "Enter") { open_(); }
@@ -470,6 +489,7 @@
     });
 
     if (PAGES) { show(frame.dataset.home); }
+    else if (locked) { startLocked(JSON.parse(locked.textContent)); }
   });
 </script>
 

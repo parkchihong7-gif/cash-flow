@@ -421,3 +421,29 @@ def test_한_장_판은_그대로_한_장이다(locked):
     """파일로 드리는 판은 옆 파일이 있으면 안 된다. 하나만 열어 봐야 한다."""
     assert '"src"' not in locked
     assert '"data"' in locked
+
+
+def test_잠근_표지는_칩_리스너를_붙인_뒤에_열쇠상자를_연다(tmp_path):
+    """열쇠상자를 먼저 띄우고 return 하면 칩·메시지 리스너가 안 붙는다.
+
+    그러면 홈은 뜨는데 메뉴 28개가 전부 죽은 버튼이 된다. 화면은
+    열렸으니 '멈췄다'고 밖에 말할 수 없는, 제일 찾기 어려운 꼴이다.
+    """
+    single = tmp_path / "index.html"
+    build(tmp_path / "b", single=str(single), lock="비밀", split=True)
+    js = single.read_text(encoding="utf-8")
+
+    연다 = js.index("startLocked(JSON.parse(locked.textContent))")
+    칩붙임 = js.index('chip.addEventListener("click"')
+    메시지 = js.index('window.addEventListener("message"')
+    assert 칩붙임 < 연다, "칩 리스너보다 열쇠상자가 먼저 열린다 — 메뉴가 죽는다"
+    assert 메시지 < 연다, "메시지 리스너보다 열쇠상자가 먼저 열린다"
+    assert "\n      return;\n    }" not in js[:연다], "열쇠상자 전에 빠져나가는 return 이 있다"
+
+
+def test_잠근_표지는_빈_칸으로_눌러도_말을_한다(tmp_path):
+    """빈 칸이면 조용히 return 하던 자리. 누른 사람은 버튼이 죽은 줄 안다."""
+    single = tmp_path / "index.html"
+    build(tmp_path / "b", single=str(single), lock="비밀")
+    js = single.read_text(encoding="utf-8")
+    assert "키를 넣어 주세요." in js
