@@ -44,7 +44,9 @@
   {% endif %}
 
   {% if panel.action %}
-  <form method="post" action="/apps/{{ program.id }}/{{ mode }}/{{ panel.form_path }}">
+  {# 문으로 들어온 고객은 /apps/ 아래에 닿지 못한다. 그 주소로 보내면
+     버튼 한 번에 로그인 화면으로 튕긴다. #}
+  <form method="post" action="{% if through_door %}{{ door_base }}/{{ panel.form_path }}{% else %}/apps/{{ program.id }}/{{ mode }}/{{ panel.form_path }}{% endif %}">
     {% if panel.run_mode %}<input type="hidden" name="run_mode" value="{{ panel.run_mode }}">{% endif %}
 
     {% for f in panel.fields if not (mode == 'client' and f.admin_only) %}

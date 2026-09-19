@@ -34,6 +34,7 @@ from fastapi import Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from core import console as console_mod
+from dashboard.clientdoor import DOOR_PREFIX
 from core import presets as presets_mod
 from core import schedule as schedule_mod
 from core.db import Database
@@ -62,7 +63,7 @@ def _mode_or_404(mode: str) -> str:
     return mode
 
 
-def register(app, page, registry, db, program_or_404) -> None:
+def register(app, page, registry, db, program_or_404):
     """통합 대시보드 앱에 상품별 화면 라우트를 붙인다.
 
     Args:
@@ -71,6 +72,11 @@ def register(app, page, registry, db, program_or_404) -> None:
         registry: `Registry` 를 돌려주는 함수.
         db: `Database` 를 돌려주는 함수.
         program_or_404: 상품 id 로 매니페스트를 찾는 함수.
+
+    Returns:
+        `(program, database, mode)` 로 콘솔을 만드는 함수. 클라이언트 문이
+        **같은 것**을 쓰게 하려고 돌려준다. 문이 자기 콘솔을 따로 만들면
+        관리자 화면과 어긋나기 시작한다.
     """
 
     #: 방금 발급한 키를 한 번 보여 주려고 잠깐 들고 있는 자리.
@@ -338,8 +344,11 @@ def register(app, page, registry, db, program_or_404) -> None:
                 name=str(form.get("name") or ""),
                 email=str(form.get("email") or ""),
                 program_id=program.id,
+                # 고객에게 보내는 주소는 **문**이다. `/apps/.../client` 는
+                # 대시보드 접속 코드가 있어야 열려서, 그 주소를 적어 보내면
+                # 고객은 들어오지 못한다.
                 service_url=str(request.base_url).rstrip("/")
-                            + f"{APPS_PREFIX}/{program.id}/client",
+                            + f"{DOOR_PREFIX}/{program.id}",
                 expires_days=int(days) if days else None,
             )
         except (KeyError_, ValueError) as exc:
@@ -442,3 +451,5 @@ def register(app, page, registry, db, program_or_404) -> None:
             f"{APPS_PREFIX}/{program_id}/admin/t/presets"
             f"?flash={what} 검증값으로 되돌렸습니다.",
             status_code=303)
+
+    return _console

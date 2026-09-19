@@ -48,6 +48,8 @@ from core.registry import Registry
 from core.schedule import collect as collect_schedule, summarize as schedule_summary
 from core.runner import RunError, run_program
 from dashboard.charts import monthly_chart, program_chart
+from dashboard.clientdoor import DOOR_PREFIX
+from dashboard.clientdoor import register as register_door
 from dashboard.webapp import register as register_apps
 from shared import banned_phrases
 from shared.config import ANTHROPIC_API_KEY, DEFAULT_MODEL, ROOT_DIR
@@ -73,7 +75,10 @@ def safe_next(target: str) -> str:
 #: 상태 확인용 주소를 열어 두는 이유는 클라우드 호스팅이 "살아 있나" 를
 #: 물어볼 때 로그인 화면을 주면 죽은 것으로 보기 때문이다.
 OPEN_PATHS = ("/login", "/healthz", "/favicon.ico")
-OPEN_PREFIXES = ("/static/",)
+#: 대시보드 접속 코드를 묻지 않는 길.
+#: `/c/` 는 고객이 들어오는 문이라 열려 있어야 한다. 대신 그 안에서
+#: 이중키를 따로 확인한다 — 열린 것은 문이지 화면이 아니다.
+OPEN_PREFIXES = ("/static/", "/c/")
 
 #: 전역 설정 항목 정의. 대시보드가 이걸로 폼을 그린다.
 GLOBAL_SETTINGS = [
@@ -710,7 +715,9 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
         )
 
     # -------------------------------------- 상품별 웹 화면 (관리자/클라이언트)
-    register_apps(app, page, registry, db, program_or_404)
+    console_for = register_apps(app, page, registry, db, program_or_404)
+    # 클라이언트 문. 대시보드 접속 코드 없이 **이중키만으로** 들어온다.
+    register_door(app, templates, registry, db, program_or_404, console_for)
 
     # ------------------------------------------------------------ 오류 처리
     @app.exception_handler(KeyError)

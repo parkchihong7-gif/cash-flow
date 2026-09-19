@@ -12,6 +12,15 @@
     <span class="tile {{ 'bad' if key_counts.expired else '' }}"><span class="tlabel">만료</span><span class="tvalue">{{ key_counts.expired }}<small>개</small></span></span>
     <span class="tile"><span class="tlabel">지금 접속</span><span class="tvalue">{{ live_sessions }}<small>명</small></span></span>
   </div>
+  <p class="doorurl">
+    고객이 들어오는 주소 —
+    <code>{{ request.base_url|string|trim('/') }}/c/{{ program.id }}</code>
+    <a class="btn small" href="/c/{{ program.id }}" target="_blank">새 창으로 열어 보기</a>
+  </p>
+  <p class="help">
+    이 주소에는 <strong>대시보드 접속 코드가 필요 없습니다.</strong> 키만 있으면
+    들어옵니다. 그래서 고객에게 이 주소를 보냅니다.
+  </p>
   <p class="help">
     <strong>1차키</strong>는 사람 한 명당 하나, 동시 접속 수를 세지 않습니다.
     <strong>2차키</strong>는 PC·노트북·휴대폰 세 개이고 <strong>기기당 한 세션</strong>입니다 —

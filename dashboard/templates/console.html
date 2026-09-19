@@ -13,7 +13,7 @@
   {% if console.stats %}
   <div class="tiles">
     {% for s in console.stats %}
-    <a class="tile {{ s.tone }}" {% if s.tab %}href="/apps/{{ program.id }}/{{ mode }}/t/{{ s.tab }}"{% endif %}>
+    <a class="tile {{ s.tone }}" {% if s.tab %}href="{% if through_door %}{{ door_base }}/t/{{ s.tab }}{% else %}/apps/{{ program.id }}/{{ mode }}/t/{{ s.tab }}{% endif %}"{% endif %}>
       <span class="tlabel">{{ s.label }}</span>
       <span class="tvalue">{{ s.value }}<small>{{ s.unit }}</small></span>
       {% if s.hint %}<span class="thint">{{ s.hint }}</span>{% endif %}
@@ -28,7 +28,7 @@
     <ol>
       {% for t in console.todos %}
       <li class="{% if t.by_hand %}byhand{% endif %}">
-        {% if t.tab %}<a href="/apps/{{ program.id }}/{{ mode }}/t/{{ t.tab }}">{{ t.text }}</a>
+        {% if t.tab %}<a href="{% if through_door %}{{ door_base }}/t/{{ t.tab }}{% else %}/apps/{{ program.id }}/{{ mode }}/t/{{ t.tab }}{% endif %}">{{ t.text }}</a>
         {% else %}{{ t.text }}{% endif %}
         {% if t.by_hand %}<span class="pill hand">손으로</span>{% endif %}
         {% if t.detail %}<span class="tdetail">{{ t.detail | md }}</span>{% endif %}

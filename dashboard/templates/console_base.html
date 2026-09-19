@@ -22,7 +22,7 @@
         {% if group %}<div class="group">{{ group }}</div>{% endif %}
         {% for tab in tabs %}
         <a class="item {% if tab.key == current.key %}on{% endif %}"
-           href="/apps/{{ program.id }}/{{ mode }}/t/{{ tab.key }}">
+           href="{% if through_door %}{{ door_base }}/t/{{ tab.key }}{% else %}/apps/{{ program.id }}/{{ mode }}/t/{{ tab.key }}{% endif %}">
           <span class="ticon">{{ tab.icon or '·' }}</span>{{ tab.label }}
         </a>
         {% endfor %}
@@ -30,8 +30,12 @@
     </nav>
 
     <div class="sidefoot">
+      {% if through_door %}
+      <form method="post" action="{{ door_base }}/out"><button class="btn small" type="submit">나가기</button></form>
+      {% else %}
       <a class="back" href="/programs/{{ program.id }}" data-back>← 뒤로</a>
       <a href="/programs/{{ program.id }}">통합 대시보드</a>
+      {% endif %}
     </div>
   </aside>
 
@@ -39,17 +43,21 @@
 
     {# ─── 위: 누구의 화면인지 늘 보이게 ─── #}
     <header class="conbar {{ mode }}">
+      {% if not through_door %}
       <a class="back" href="/programs/{{ program.id }}" data-back>← 뒤로</a>
       <span class="sep"></span>
+      {% endif %}
       <strong class="contitle">{{ current.title }}</strong>
       <span class="modeflag {{ mode }}">{{ mode_label }}</span>
       <span class="grow"></span>
+      {% if not through_door %}
       <nav class="modeswitch">
         <a class="mbtn {% if mode == 'admin' %}on{% endif %}"
            href="/apps/{{ program.id }}/admin/t/{{ current.key }}">관리자 모드</a>
         <a class="mbtn {% if mode == 'client' %}on{% endif %}"
            href="/apps/{{ program.id }}/client/t/{{ current.key }}">클라이언트 모드</a>
       </nav>
+      {% endif %}
     </header>
 
     <main class="conbody">
@@ -57,6 +65,13 @@
     </main>
 
     <footer class="appfoot">
+      {% if through_door %}
+      <span class="muted">{{ program.name }} v{{ program.version }}</span>
+      {% if program.manuals.client %}
+      <span class="dot">·</span>
+      <a href="/programs/{{ program.id }}/manual/client">사용 설명서</a>
+      {% endif %}
+      {% else %}
       <a href="/programs/{{ program.id }}">← 통합 대시보드로 돌아가기</a>
       <span class="dot">·</span>
       <a href="/apps/{{ program.id }}/{{ other_mode }}/t/{{ current.key }}">{{ other_label }} 로 보기</a>
@@ -66,6 +81,7 @@
       {% endif %}
       <span class="dot">·</span>
       <span class="muted">{{ program.name }} v{{ program.version }}</span>
+      {% endif %}
     </footer>
   </div>
 </div>

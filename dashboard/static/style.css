@@ -610,3 +610,25 @@ table.trouble td:first-child { width: 34%; }
   .conbody { padding: 18px 16px 32px; }
   .conbar { padding: 10px 16px; }
 }
+
+/* 클라이언트 문 — /c/<상품>. 고객이 처음 보는 화면이라 단출하게 */
+.doorbody { background: var(--bg-soft); }
+.door {
+  max-width: 460px; margin: 8vh auto; padding: 32px 28px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius);
+}
+.door h1 { font-size: 21px; margin-bottom: 4px; }
+.door .lead { color: var(--ink-soft); margin-bottom: 22px; }
+.door label { display: block; font-size: 13px; font-weight: 600; margin: 14px 0 5px; }
+.door input { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .06em; }
+.btn.wide { width: 100%; justify-content: center; margin-top: 20px; }
+.doorhelp { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 13px; }
+.doorhelp p { margin-bottom: 10px; }
+
+.doorurl {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 14px; background: var(--bg-sunk); border-radius: var(--radius);
+  font-size: 13px; margin-bottom: 10px;
+}
+.doorurl code { background: var(--bg); }
