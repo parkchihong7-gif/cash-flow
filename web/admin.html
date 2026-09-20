@@ -71,7 +71,7 @@
 
 <header>
   <h1>접속키 관리자</h1>
-  <p class="sub">16종 + 공인중개사 + maim 이 한 서버를 같이 씁니다. 여기서 발급하면 그 자리에서 이메일이 나갑니다.</p>
+  <p class="sub" id="whoami">여기서 발급하면 그 자리에서 이메일이 나갑니다.</p>
 </header>
 
 <!-- ── 설정: 키 서버 주소 ───────────────────────────────────────── -->
@@ -90,10 +90,33 @@
 
 <!-- ── 로그인 ───────────────────────────────────────────────────── -->
 <section id="login" class="hide">
-  <h2>관리자 비밀번호</h2>
-  <div class="row">
-    <div><input type="password" id="pw" placeholder="비밀번호" autocomplete="current-password"></div>
-    <div class="narrow"><button id="loginBtn">들어가기</button></div>
+  <h2>들어가기</h2>
+  <div class="row" style="margin-bottom:14px">
+    <div class="narrow"><button class="quiet" id="tabOwner">주인 — 비밀번호</button></div>
+    <div class="narrow"><button class="quiet" id="tabReseller">산 분 — 접속키</button></div>
+  </div>
+
+  <div id="byPw">
+    <div class="row">
+      <div><input type="password" id="pw" placeholder="관리자 비밀번호" autocomplete="current-password"></div>
+      <div class="narrow"><button id="loginBtn">들어가기</button></div>
+    </div>
+  </div>
+
+  <div id="byKey" class="hide">
+    <p class="sub" style="margin-bottom:12px">
+      이 프로그램을 <strong>사신 분</strong>이 자기 고객에게 키를 주실 때 쓰는 자리입니다.
+      받으신 <strong>1차키와 2차키</strong>를 넣으세요.
+    </p>
+    <div class="row">
+      <!-- 프로그램 고르는 칸은 로그인 뒤에 있어 산 분은 손이 안 닿는다.
+           여기에 따로 둔다. -->
+      <div><label for="keyProgram">무슨 프로그램</label>
+        <select id="keyProgram"></select></div>
+      <div><label for="k1">1차키</label><input id="k1" placeholder="XXXX-XXXX-XXXX"></div>
+      <div><label for="k2">2차키 (이 기기 것)</label><input id="k2" placeholder="XXXX-XXXX-XXXX"></div>
+      <div class="narrow"><button id="keyLoginBtn">들어가기</button></div>
+    </div>
   </div>
   <p class="note" id="loginNote"></p>
 </section>
@@ -110,8 +133,14 @@
     </div>
   </section>
 
-  <section>
+  <section id="issueBox">
     <h2>키 주기 — 1차키 1개 + 2차키 3개(PC·노트북·휴대폰)</h2>
+    <p class="warn hide" id="resellerNote">
+      <strong>고객용 키만 만드실 수 있습니다.</strong>
+      여기서 만든 키를 받은 분은 <strong>쓰는 화면만</strong> 열립니다 —
+      그분이 또 키를 파실 수는 없습니다.
+      목록에도 <strong>직접 발급하신 것만</strong> 보입니다.
+    </p>
     <div class="row">
       <div>
         <label for="role">무슨 키</label>
@@ -141,7 +170,7 @@
     <div id="list"><p class="sub">읽는 중...</p></div>
   </section>
 
-  <section>
+  <section id="resetBox">
     <h2>이 프로그램의 키 전부 지우기</h2>
     <p class="warn">되돌릴 수 없습니다. 이미 파신 키가 있으면 고객이 그 자리에서 못 들어오게 됩니다.</p>
     <div class="row">
@@ -165,6 +194,8 @@
   // 표는 sessionStorage 에 둔다. 창을 닫으면 사라진다 — 공용 PC 에서
   // localStorage 에 두면 다음 사람이 그대로 들어온다.
   var TOKEN_KEY = "keyserver.token";
+  //: 지금 들어온 사람이 주인인지 산 분인지. 화면이 달라진다.
+  var SCOPE_KEY = "keyserver.scope";
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -211,6 +242,8 @@
 
   function serverUrl() { return 꺼내기("localStorage", URL_KEY); }
   function token() { return 꺼내기("sessionStorage", TOKEN_KEY); }
+  function scope() { return 꺼내기("sessionStorage", SCOPE_KEY) || "owner"; }
+  function 산분() { return scope() === "reseller"; }
 
   /**
    * 서버를 부른다.
@@ -272,6 +305,53 @@
   };
 
   // ── 로그인 ────────────────────────────────────────────────────
+  // 두 길 중 어느 쪽을 보여 줄지.
+  function 로그인길(어느쪽) {
+    $("byPw").classList.toggle("hide", 어느쪽 !== "owner");
+    $("byKey").classList.toggle("hide", 어느쪽 === "owner");
+    $("tabOwner").classList.toggle("on", 어느쪽 === "owner");
+    $("tabReseller").classList.toggle("on", 어느쪽 !== "owner");
+    say($("loginNote"), "", "");
+  }
+  $("tabOwner").onclick = function () { 로그인길("owner"); };
+  $("tabReseller").onclick = function () { 로그인길("reseller"); };
+
+  /** 들어온 뒤 공통으로 하는 일. */
+  function 들어옴(표, 어느쪽) {
+    넣기("sessionStorage", TOKEN_KEY, 표);
+    넣기("sessionStorage", SCOPE_KEY, 어느쪽);
+    say($("loginNote"), "", "");
+    showStage();
+    // 들어오면서 프로그램·역할이 정해진다. 주소를 그때 다시 채운다 —
+    // 안 그러면 「들어가는 곳」 이 빈 채로 남아 메일에 주소가 안 실린다.
+    $("door").dataset.auto = "1";
+    주소채우기();
+    refresh();
+  }
+
+  $("keyLoginBtn").onclick = function () {
+    var k1 = $("k1").value.trim(), k2 = $("k2").value.trim();
+    if (!k1 || !k2) { say($("loginNote"), "1차키와 2차키를 모두 넣어 주세요.", "bad"); return; }
+    $("keyLoginBtn").disabled = true;
+    say($("loginNote"), "확인하는 중...", "busy");
+    var 고른것 = 키프로그램.value;
+    api("resellerLogin", { program: 고른것, key1: k1, key2: k2 })
+      .then(function (data) {
+        $("keyLoginBtn").disabled = false;
+        if (!data.ok) { say($("loginNote"), data.message || "들어가지 못했습니다.", "bad"); return; }
+        $("k1").value = ""; $("k2").value = "";
+        select.value = 고른것;          // 본 화면도 같은 프로그램으로
+        들어옴(data.token, "reseller");
+      })
+      .catch(function (err) {
+        $("keyLoginBtn").disabled = false;
+        say($("loginNote"), err.message, "bad");
+      });
+  };
+  $("k2").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { $("keyLoginBtn").click(); }
+  });
+
   $("loginBtn").onclick = function () {
     var pw = $("pw").value;
     if (!pw) { say($("loginNote"), "비밀번호를 넣어 주세요.", "bad"); return; }
@@ -280,11 +360,8 @@
     api("adminLogin", { password: pw }).then(function (data) {
       $("loginBtn").disabled = false;
       if (!data.ok) { say($("loginNote"), data.message || "들어가지 못했습니다.", "bad"); return; }
-      넣기("sessionStorage", TOKEN_KEY, data.token);
       $("pw").value = "";
-      say($("loginNote"), "", "");
-      showStage();
-      refresh();
+      들어옴(data.token, "owner");
     }).catch(function (err) {
       $("loginBtn").disabled = false;
       say($("loginNote"), err.message, "bad");
@@ -296,12 +373,27 @@
 
   $("logoutBtn").onclick = function () {
     지우기("sessionStorage", TOKEN_KEY);
+    지우기("sessionStorage", SCOPE_KEY);
     showStage();
   };
 
   function showStage() {
     var hasUrl = 구글안 || !!serverUrl();
     var hasToken = !!token();
+
+    // 산 분에게는 **못 하는 것을 아예 안 보여 준다.** 눌렀다가 거절당하면
+    // 고장인 줄 아신다. 서버도 따로 막고 있으니 화면은 안내만 한다.
+    if (hasToken) {
+      var 좁힘 = 산분();
+      $("resetBox").classList.toggle("hide", 좁힘);
+      $("resellerNote").classList.toggle("hide", !좁힘);
+      $("role").disabled = 좁힘;
+      if (좁힘) { $("role").value = "client"; }
+      $("program").disabled = 좁힘;   // 산 분은 산 프로그램 하나만 다룬다
+      $("whoami").textContent = 좁힘
+        ? "산 분으로 들어오셨습니다. 고객용 키만 만드실 수 있고, 직접 발급하신 것만 보입니다."
+        : "주인으로 들어오셨습니다. 판매(관리자) 키와 고객용 키를 모두 만드실 수 있습니다.";
+    }
     // 구글이 내어 주는 판에서는 주소 칸 자체가 필요 없다.
     $("setup").classList.toggle("hide", 구글안 || (hasUrl && hasToken));
     $("login").classList.toggle("hide", !hasUrl || hasToken);
@@ -314,11 +406,14 @@
   //: 역할마다 다르다 — 관리자로 산 분에게 고객용 주소를 보내면 발급
   //: 화면이 안 열리고, 반대면 고객이 남의 관리자 화면을 보게 된다.
   var 주소표 = {};
+  var 키프로그램 = $("keyProgram");
   (window.PROGRAMS || []).forEach(function (p) {
-    var option = document.createElement("option");
-    option.value = p.id;
-    option.textContent = p.name + "  (" + p.id + ")";
-    select.appendChild(option);
+    [select, 키프로그램].forEach(function (칸) {
+      var option = document.createElement("option");
+      option.value = p.id;
+      option.textContent = p.name + "  (" + p.id + ")";
+      칸.appendChild(option);
+    });
     if (p.url || p.adminUrl) {
       주소표[p.id] = { client: p.url || "", admin: p.adminUrl || p.url || "" };
     }
@@ -334,7 +429,8 @@
   function 주소채우기() {
     var 칸 = $("door");
     var 한벌 = 주소표[select.value] || {};
-    var 알던주소 = ($("role").value === "admin" ? 한벌.admin : 한벌.client) || "";
+    var 역할 = 산분() ? "client" : $("role").value;
+    var 알던주소 = (역할 === "admin" ? 한벌.admin : 한벌.client) || "";
     // 사장님이 손으로 고쳐 두셨으면 건드리지 않는다.
     if (!칸.value || 칸.dataset.auto === "1") {
       칸.value = 알던주소;
@@ -343,7 +439,7 @@
     칸.placeholder = 알던주소
       ? 알던주소
       : "https://… (이 프로그램은 아직 주소를 모릅니다. 직접 적어 주세요)";
-    $("doorLabel").textContent = ($("role").value === "admin"
+    $("doorLabel").textContent = ((산분() ? "client" : $("role").value) === "admin"
       ? "산 분이 들어가는 곳 — 관리자 화면"
       : "고객이 들어가는 곳 — 쓰는 화면") + " (메일에 이 주소가 적힙니다)";
   }

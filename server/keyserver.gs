@@ -228,6 +228,7 @@ function handle(e) {
       case 'checkSession':     return json(checkSession(p));
       // 주인·관리자 쪽
       case 'adminLogin':       return json(adminLogin(p));
+      case 'resellerLogin':    return json(resellerLogin(p));
       case 'adminList':        return json(adminList(p));
       case 'adminCreateKeys':  return json(adminCreateKeys(p));
       case 'adminCreateInvite':return json(adminCreateInvite(p));
@@ -376,6 +377,31 @@ function adminLogin(p) {
 }
 
 /**
+ * **산 사람**이 자기 키로 들어온다.
+ *
+ * 마스터 비밀번호를 넘기면 그 사람이 관리자키도 찍어 내고, 남의 키도
+ * 지우고, 전체 초기화까지 할 수 있다. 그래서 파는 분은 **비밀번호가 아니라
+ * 자기 키로** 들어오게 한다. 그 표로는 자기가 준 고객키만 다룰 수 있다.
+ */
+function resellerLogin(p) {
+  var program = programOf(p);
+  var key1 = normalizeKey(p.key1 || '');
+  var key2 = normalizeKey(p.key2 || '');
+  if (!key1 || !key2) {
+    return { ok: false, reason: 'need_pair', message: '1차키와 2차키를 함께 넣어 주세요.' };
+  }
+  // 문 여는 것과 같은 검사를 그대로 쓴다. 여기만 느슨하면 그리로 샌다.
+  var 열림 = validateKeyPair({ program: program, key1: key1, key2: key2 });
+  if (!열림.ok) { return 열림; }
+  if (열림.role !== ROLE_ADMIN) {
+    return { ok: false, reason: 'not_admin',
+             message: '고객용 키로는 발급 화면이 열리지 않습니다.' };
+  }
+  return { ok: true, token: makeScopedToken(key1, program), name: 열림.name,
+           program: program, hours: ADMIN_TOKEN_HOURS };
+}
+
+/**
  * 발급한 키 목록.
  *
  * `issuer` 를 내면 **그 사람이 준 것만** 보인다. 학원 A 가 학원 B 의
@@ -384,8 +410,9 @@ function adminLogin(p) {
 function adminList(p) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
-  var program = String(p.program || '').trim();
-  var issuer = normalizeKey(p.issuer || '');
+  // 주인은 program 을 비우면 전부 본다. 산 사람은 자기 것 하나뿐이다.
+  var program = who.scope === 'reseller' ? who.program : String(p.program || '').trim();
+  var issuer = issuerOf(who, p);
 
   var rows = readTable().rows.filter(function (r) {
     if (program && r.program !== program) { return false; }
@@ -400,6 +427,10 @@ function adminList(p) {
 function adminCreateKeys(p) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
+  // 레거시 단일키에는 발급자가 안 붙는다. 산 사람이 만들면 누구 것인지
+  // 가릴 수 없어 남의 목록에 섞인다. 그래서 주인만 만든다.
+  var 막힘 = ownerOnly(who);
+  if (막힘) { return 막힘; }
   var program = programOf(p);
   var count = Math.floor(Number(p.count || 0));
   if (!(count > 0)) { return { ok: false, reason: 'bad_count', message: '몇 개를 만들지 적어 주세요.' }; }
@@ -441,12 +472,19 @@ function adminCreateInvite(p) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
 
-  var program = programOf(p);
+  var program = programFor(who, p);
   var name = String(p.name || '').trim();
   var email = String(p.email || '').trim();
   var role = String(p.role || ROLE_ADMIN);
   var issuedBy = normalizeKey(p.issuedBy || '');
   var baseUrl = String(p.baseUrl || '').trim();
+
+  // 산 사람이 들어왔으면 **고객키만** 만들 수 있다. 보내온 값은 안 믿는다 —
+  // 주소를 고쳐 role=admin 으로 보내면 관리자를 찍어 내며 재판매하게 된다.
+  if (who.scope === 'reseller') {
+    role = ROLE_CLIENT;
+    issuedBy = who.issuer;
+  }
 
   if (!name) { return { ok: false, reason: 'no_name', message: '이름을 적어 주세요. 누구에게 준 키인지 남아야 합니다.' }; }
   if (email.indexOf('@') < 0) { return { ok: false, reason: 'bad_email', message: '이메일 주소를 확인해 주세요.' }; }
@@ -527,9 +565,9 @@ function adminCreateInvite(p) {
 function adminSetStatus(p, status) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
-  var program = programOf(p);
+  var program = programFor(who, p);
   var key = normalizeKey(p.key || '');
-  var issuer = normalizeKey(p.issuer || '');
+  var issuer = issuerOf(who, p);
 
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -555,9 +593,9 @@ function adminSetStatus(p, status) {
 function adminDeleteKey(p) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
-  var program = programOf(p);
+  var program = programFor(who, p);
   var key = normalizeKey(p.key || '');
-  var issuer = normalizeKey(p.issuer || '');
+  var issuer = issuerOf(who, p);
 
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -591,6 +629,9 @@ function adminDeleteKey(p) {
 function adminResetAll(p) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
+  // 산 사람이 이걸 부르면 **남이 판 키까지** 통째로 날아간다.
+  var 막힘 = ownerOnly(who);
+  if (막힘) { return 막힘; }
   var confirm = String(p.confirm || '').trim();
   if (confirm !== '초기화') {
     return { ok: false, reason: 'need_confirm',
@@ -622,10 +663,45 @@ function adminResetAll(p) {
  */
 function whoAmI(p) {
   var given = String(p.token || '');
-  if (given && checkAdminToken(given)) { return { ok: true }; }
-  if (given && passwordOk(given)) { return { ok: true }; }
+  if (given) {
+    var 표 = readToken(given);
+    if (표) { return 표; }                                   // 서명된 표
+    if (passwordOk(given)) { return OWNER; }                 // 주인 비밀번호
+  }
   Utilities.sleep(700);
   return { ok: false, reason: 'unauthorized', message: '관리자 비밀번호가 필요합니다.' };
+}
+
+//: 주인. 무엇이든 할 수 있다.
+var OWNER = { ok: true, scope: 'owner', issuer: '' };
+
+/**
+ * 이 요청이 다룰 수 있는 발급자.
+ *
+ * 산 사람은 **자기가 준 것만**이다. 보내온 `issuer` 를 그대로 믿으면
+ * 남의 것도 만질 수 있으니, 산 사람일 때는 표에 적힌 값으로 덮어쓴다.
+ */
+function issuerOf(who, p) {
+  if (who.scope === 'reseller') { return who.issuer; }
+  return normalizeKey(p.issuer || '');
+}
+
+/**
+ * 이 요청이 다룰 프로그램.
+ *
+ * 산 사람은 **자기가 산 것 하나**다. 보내온 program 을 그대로 믿으면
+ * 사지도 않은 프로그램의 키를 발급하고 목록까지 보게 된다.
+ */
+function programFor(who, p) {
+  if (who.scope === 'reseller') { return who.program; }
+  return programOf(p);
+}
+
+/** 주인만 할 수 있는 일. 산 사람이면 거절한다. */
+function ownerOnly(who) {
+  if (who.scope === 'owner') { return null; }
+  return { ok: false, reason: 'owner_only',
+           message: '이것은 프로그램을 만든 쪽에서만 할 수 있습니다.' };
 }
 
 function passwordOk(given) {
@@ -646,18 +722,46 @@ function constantEquals(a, b) {
 
 /** 서명한 표. 어디에도 저장하지 않고 다시 계산해서 맞춰 본다. */
 function makeAdminToken() {
-  var until = Date.now() + ADMIN_TOKEN_HOURS * 3600 * 1000;
-  return until + '.' + signature(String(until));
+  return signedToken(String(Date.now() + ADMIN_TOKEN_HOURS * 3600 * 1000));
 }
 
-function checkAdminToken(token) {
-  var at = String(token).indexOf('.');
-  if (at < 0) { return false; }
-  var until = String(token).slice(0, at);
-  var sig = String(token).slice(at + 1);
-  if (!/^\d+$/.test(until)) { return false; }
-  if (Number(until) < Date.now()) { return false; }
-  return constantEquals(sig, signature(until));
+/**
+ * 산 사람의 표. **누구인지와 무슨 프로그램인지**가 표 안에 들어 있다.
+ *
+ * 프로그램을 안 담으면, 산 분이 요청에 program 을 바꿔 보내 **자기가
+ * 사지도 않은 프로그램**의 키를 발급하고 목록을 볼 수 있다.
+ */
+function makeScopedToken(issuerKey, program) {
+  var until = Date.now() + ADMIN_TOKEN_HOURS * 3600 * 1000;
+  return signedToken(until + '~' + normalizeKey(issuerKey) + '~' + program);
+}
+
+function signedToken(payload) {
+  return payload + '.' + signature(payload);
+}
+
+/**
+ * 표를 읽는다. 맞으면 누구인지, 아니면 null.
+ *
+ * 서명이 맞아도 **기한을 먼저 본다.** 서명만 보고 통과시키면 한 번 받은
+ * 표가 영영 먹는다.
+ */
+function readToken(token) {
+  var text = String(token);
+  var at = text.lastIndexOf('.');
+  if (at < 0) { return null; }
+  var payload = text.slice(0, at);
+  var sig = text.slice(at + 1);
+  if (!constantEquals(sig, signature(payload))) { return null; }
+
+  var 칸 = payload.split('~');
+  if (!/^\d+$/.test(칸[0])) { return null; }
+  if (Number(칸[0]) < Date.now()) { return null; }
+
+  if (칸.length === 1) { return OWNER; }
+  if (칸.length !== 3) { return null; }     // 모양이 다르면 손댄 것이다
+  return { ok: true, scope: 'reseller',
+           issuer: normalizeKey(칸[1]), program: 칸[2] };
 }
 
 function signature(text) {

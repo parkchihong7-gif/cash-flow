@@ -419,7 +419,10 @@ def test_묶음_파일이_붙여_넣을_만큼_작다():
     from tools.build_keyserver import OUT
 
     글 = OUT.read_text(encoding="utf-8")
-    assert len(글.encode()) < 55_000, f"{len(글.encode()):,}바이트나 됩니다"
+    # 붙여 넣을 양이 적을수록 좋지만, 잘림의 진짜 원인은 크기가 아니라
+    # 복사 방법이었다(브라우저 화면에서 Ctrl+A). 그래서 상한은 "걷잡을 수
+    # 없이 커지는 것"만 잡는 선으로 둔다.
+    assert len(글.encode()) < 80_000, f"{len(글.encode()):,}바이트나 됩니다"
     # 읽기 좋은 원본은 그대로 둔다 — 줄인 것은 만들어지는 판뿐이다.
     원본 = (Path(__file__).resolve().parent.parent / "server" / "keyserver.gs")
     assert "왜 이것인가" in 원본.read_text(encoding="utf-8"), "원본의 설명이 사라졌습니다"
@@ -558,7 +561,9 @@ def test_역할마다_들어가는_주소가_다르다():
     assert "gongin-jungsagsa-exam/?admin=1" in progs
 
     page = (ROOT / "web" / "admin.html").read_text(encoding="utf-8")
-    assert '$("role").value === "admin" ? 한벌.admin : 한벌.client' in page, \
+    assert 'var 역할 = 산분() ? "client" : $("role").value;' in page, \
+        "산 분인데 관리자 주소를 고를 수 있습니다"
+    assert '알던주소 = (역할 === "admin" ? 한벌.admin : 한벌.client)' in page, \
         "역할에 따라 주소를 고르지 않습니다"
     assert '$("role").onchange = 주소채우기' in page, \
         "역할을 바꿔도 주소가 안 따라옵니다"
@@ -613,6 +618,98 @@ def test_역할을_바꾸면_주소가_따라_바뀐다(시험서버):
             발급됨 = page.inner_text("#issued")
             assert 고객주소 in 발급됨
             assert "admin=1" not in 발급됨, "고객에게 관리자 주소가 나갔습니다"
+
+            assert not 오류, f"화면에서 오류가 났습니다: {오류}"
+        finally:
+            browser.close()
+
+
+@pytest.mark.skipif(not Path(CHROMIUM).exists(), reason="크로미움이 없습니다")
+def test_산_분은_키로_들어와_고객키만_만든다(시험서버):
+    """관리자 권한을 파는 일의 전부가 여기에 있다.
+
+    마스터 비밀번호를 넘기면 산 분이 관리자키도 찍어 내고(끝없는 재판매),
+    남의 키도 지우고, 전체 초기화까지 한다. 한 번 넘기면 되돌릴 수도 없다.
+    그래서 파는 분은 **자기 키로** 들어오고, 고객키만 만든다.
+    """
+    playwright = pytest.importorskip("playwright.sync_api")
+
+    흉내 = """
+      window.google={script:{run:(function(){var ok=null,fail=null;
+        var api={withSuccessHandler(f){ok=f;return api;},
+                 withFailureHandler(f){fail=f;return api;},
+          apiCall(p){fetch('__B__/exec',{method:'POST',
+            headers:{'Content-Type':'text/plain'},body:p})
+            .then(r=>r.text()).then(t=>ok&&ok(t)).catch(e=>fail&&fail(e));}};
+        return api;})()}};
+    """.replace("__B__", 시험서버)
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(executable_path=CHROMIUM)
+        오류: list[str] = []
+
+        def 열기():
+            page = browser.new_page()
+            page.on("pageerror", lambda e: 오류.append(str(e)))
+            page.add_init_script(흉내)
+            page.goto(f"{시험서버}/admin.html", wait_until="domcontentloaded")
+            return page
+
+        try:
+            # 주인이 관리자키를 판다.
+            주인 = 열기()
+            주인.fill("#pw", "주인비밀번호7")
+            주인.click("#loginBtn")
+            주인.wait_for_selector("#main:not(.hide)", timeout=10000)
+            주인.select_option("#program", "exam-drill")
+            주인.select_option("#role", "admin")
+            주인.fill("#name", "김학원장")
+            주인.fill("#email", "kim@example.com")
+            주인.click("#issueBtn")
+            주인.wait_for_selector("#issued:not(.hide)", timeout=10000)
+            키 = [x for x in 주인.inner_text("#issued").split()
+                  if len(x) == 14 and x.count("-") == 2]
+            assert len(키) >= 2, 키
+            일차, 이차 = 키[0], 키[1]
+
+            # 산 분이 그 키로 들어온다.
+            산분 = 열기()
+            산분.click("#tabReseller")
+            산분.wait_for_timeout(300)
+            산분.select_option("#keyProgram", "exam-drill")
+            산분.fill("#k1", 일차)
+            산분.fill("#k2", 이차)
+            산분.click("#keyLoginBtn")
+            산분.wait_for_selector("#main:not(.hide)", timeout=10000)
+            산분.wait_for_timeout(600)
+
+            # 못 하는 것은 **보이지도 않아야** 한다.
+            assert 산분.is_hidden("#resetBox"), "전체 초기화 칸이 보입니다"
+            assert 산분.is_disabled("#role"), "역할을 고를 수 있습니다"
+            assert 산분.input_value("#role") == "client"
+            assert "고객용 키만" in 산분.inner_text("#whoami")
+
+            # 들어가는 곳이 고객용 주소로 채워져야 한다.
+            주소 = 산분.input_value("#door")
+            assert 주소, "들어가는 곳이 비었습니다 — 메일에 주소가 안 실립니다"
+            assert "admin=1" not in 주소, 주소
+
+            # 자기 고객에게 키를 준다.
+            assert 산분.eval_on_selector_all("#list tbody tr", "e => e.length") == 0, \
+                "남의 키가 보입니다"
+            산분.fill("#name", "이수강생")
+            산분.fill("#email", "lee@example.com")
+            산분.click("#issueBtn")
+            산분.wait_for_selector("#issued:not(.hide)", timeout=10000)
+            assert "admin=1" not in 산분.inner_text("#issued"), \
+                "고객에게 관리자 주소가 나갔습니다"
+            산분.wait_for_timeout(700)
+            assert 산분.eval_on_selector_all("#list tbody tr", "e => e.length") == 4
+
+            # 주인은 둘 다 본다.
+            주인.click("#refreshBtn")
+            주인.wait_for_timeout(900)
+            assert 주인.eval_on_selector_all("#list tbody tr", "e => e.length") == 8
 
             assert not 오류, f"화면에서 오류가 났습니다: {오류}"
         finally:

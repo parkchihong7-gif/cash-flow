@@ -2,7 +2,7 @@
 //  접속키 서버 — 구글 앱스 스크립트에 붙여 넣는 **한 장짜리** 판입니다.
 //
 //  ■ 붙여넣기 전에 꼭 보세요
-//    이 파일은 1,325줄입니다. 맨 아래에 ⛳ 표가 있습니다.
+//    이 파일은 1,467줄입니다. 맨 아래에 ⛳ 표가 있습니다.
 //    붙여 넣은 뒤 **맨 아래에 그 ⛳ 표가 보이는지** 확인하세요.
 //    안 보이면 잘린 것이고, 그대로 저장하면
 //      구문 오류: SyntaxError: Unexpected end of input
@@ -98,7 +98,7 @@ var ADMIN_HTML = `<!DOCTYPE html>
 <div class="wrap">
 <header>
   <h1>접속키 관리자</h1>
-  <p class="sub">16종 + 공인중개사 + maim 이 한 서버를 같이 씁니다. 여기서 발급하면 그 자리에서 이메일이 나갑니다.</p>
+  <p class="sub" id="whoami">여기서 발급하면 그 자리에서 이메일이 나갑니다.</p>
 </header>
 <section id="setup">
   <h2>키 서버 주소</h2>
@@ -113,10 +113,29 @@ var ADMIN_HTML = `<!DOCTYPE html>
   <p class="note" id="setupNote"></p>
 </section>
 <section id="login" class="hide">
-  <h2>관리자 비밀번호</h2>
-  <div class="row">
-    <div><input type="password" id="pw" placeholder="비밀번호" autocomplete="current-password"></div>
-    <div class="narrow"><button id="loginBtn">들어가기</button></div>
+  <h2>들어가기</h2>
+  <div class="row" style="margin-bottom:14px">
+    <div class="narrow"><button class="quiet" id="tabOwner">주인 — 비밀번호</button></div>
+    <div class="narrow"><button class="quiet" id="tabReseller">산 분 — 접속키</button></div>
+  </div>
+  <div id="byPw">
+    <div class="row">
+      <div><input type="password" id="pw" placeholder="관리자 비밀번호" autocomplete="current-password"></div>
+      <div class="narrow"><button id="loginBtn">들어가기</button></div>
+    </div>
+  </div>
+  <div id="byKey" class="hide">
+    <p class="sub" style="margin-bottom:12px">
+      이 프로그램을 <strong>사신 분</strong>이 자기 고객에게 키를 주실 때 쓰는 자리입니다.
+      받으신 <strong>1차키와 2차키</strong>를 넣으세요.
+    </p>
+    <div class="row">
+      <div><label for="keyProgram">무슨 프로그램</label>
+        <select id="keyProgram"></select></div>
+      <div><label for="k1">1차키</label><input id="k1" placeholder="XXXX-XXXX-XXXX"></div>
+      <div><label for="k2">2차키 (이 기기 것)</label><input id="k2" placeholder="XXXX-XXXX-XXXX"></div>
+      <div class="narrow"><button id="keyLoginBtn">들어가기</button></div>
+    </div>
   </div>
   <p class="note" id="loginNote"></p>
 </section>
@@ -129,8 +148,14 @@ var ADMIN_HTML = `<!DOCTYPE html>
       <div class="narrow"><button class="quiet" id="logoutBtn">나가기</button></div>
     </div>
   </section>
-  <section>
+  <section id="issueBox">
     <h2>키 주기 — 1차키 1개 + 2차키 3개(PC·노트북·휴대폰)</h2>
+    <p class="warn hide" id="resellerNote">
+      <strong>고객용 키만 만드실 수 있습니다.</strong>
+      여기서 만든 키를 받은 분은 <strong>쓰는 화면만</strong> 열립니다 —
+      그분이 또 키를 파실 수는 없습니다.
+      목록에도 <strong>직접 발급하신 것만</strong> 보입니다.
+    </p>
     <div class="row">
       <div>
         <label for="role">무슨 키</label>
@@ -158,7 +183,7 @@ var ADMIN_HTML = `<!DOCTYPE html>
     <div class="stats" id="stats"></div>
     <div id="list"><p class="sub">읽는 중...</p></div>
   </section>
-  <section>
+  <section id="resetBox">
     <h2>이 프로그램의 키 전부 지우기</h2>
     <p class="warn">되돌릴 수 없습니다. 이미 파신 키가 있으면 고객이 그 자리에서 못 들어오게 됩니다.</p>
     <div class="row">
@@ -252,6 +277,8 @@ window.PROGRAMS = [
   // 표는 sessionStorage 에 둔다. 창을 닫으면 사라진다 — 공용 PC 에서
   // localStorage 에 두면 다음 사람이 그대로 들어온다.
   var TOKEN_KEY = "keyserver.token";
+  //: 지금 들어온 사람이 주인인지 산 분인지. 화면이 달라진다.
+  var SCOPE_KEY = "keyserver.scope";
   var $ = function (id) { return document.getElementById(id); };
   function say(el, text, kind) {
     el.className = "note" + (kind ? " " + kind : "");
@@ -293,6 +320,8 @@ window.PROGRAMS = [
   }
   function serverUrl() { return 꺼내기("localStorage", URL_KEY); }
   function token() { return 꺼내기("sessionStorage", TOKEN_KEY); }
+  function scope() { return 꺼내기("sessionStorage", SCOPE_KEY) || "owner"; }
+  function 산분() { return scope() === "reseller"; }
   /**
    * 서버를 부른다.
    *
@@ -348,6 +377,50 @@ window.PROGRAMS = [
     });
   };
   // ── 로그인 ────────────────────────────────────────────────────
+  // 두 길 중 어느 쪽을 보여 줄지.
+  function 로그인길(어느쪽) {
+    $("byPw").classList.toggle("hide", 어느쪽 !== "owner");
+    $("byKey").classList.toggle("hide", 어느쪽 === "owner");
+    $("tabOwner").classList.toggle("on", 어느쪽 === "owner");
+    $("tabReseller").classList.toggle("on", 어느쪽 !== "owner");
+    say($("loginNote"), "", "");
+  }
+  $("tabOwner").onclick = function () { 로그인길("owner"); };
+  $("tabReseller").onclick = function () { 로그인길("reseller"); };
+  /** 들어온 뒤 공통으로 하는 일. */
+  function 들어옴(표, 어느쪽) {
+    넣기("sessionStorage", TOKEN_KEY, 표);
+    넣기("sessionStorage", SCOPE_KEY, 어느쪽);
+    say($("loginNote"), "", "");
+    showStage();
+    // 들어오면서 프로그램·역할이 정해진다. 주소를 그때 다시 채운다 —
+    // 안 그러면 「들어가는 곳」 이 빈 채로 남아 메일에 주소가 안 실린다.
+    $("door").dataset.auto = "1";
+    주소채우기();
+    refresh();
+  }
+  $("keyLoginBtn").onclick = function () {
+    var k1 = $("k1").value.trim(), k2 = $("k2").value.trim();
+    if (!k1 || !k2) { say($("loginNote"), "1차키와 2차키를 모두 넣어 주세요.", "bad"); return; }
+    $("keyLoginBtn").disabled = true;
+    say($("loginNote"), "확인하는 중...", "busy");
+    var 고른것 = 키프로그램.value;
+    api("resellerLogin", { program: 고른것, key1: k1, key2: k2 })
+      .then(function (data) {
+        $("keyLoginBtn").disabled = false;
+        if (!data.ok) { say($("loginNote"), data.message || "들어가지 못했습니다.", "bad"); return; }
+        $("k1").value = ""; $("k2").value = "";
+        select.value = 고른것;          // 본 화면도 같은 프로그램으로
+        들어옴(data.token, "reseller");
+      })
+      .catch(function (err) {
+        $("keyLoginBtn").disabled = false;
+        say($("loginNote"), err.message, "bad");
+      });
+  };
+  $("k2").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { $("keyLoginBtn").click(); }
+  });
   $("loginBtn").onclick = function () {
     var pw = $("pw").value;
     if (!pw) { say($("loginNote"), "비밀번호를 넣어 주세요.", "bad"); return; }
@@ -356,11 +429,8 @@ window.PROGRAMS = [
     api("adminLogin", { password: pw }).then(function (data) {
       $("loginBtn").disabled = false;
       if (!data.ok) { say($("loginNote"), data.message || "들어가지 못했습니다.", "bad"); return; }
-      넣기("sessionStorage", TOKEN_KEY, data.token);
       $("pw").value = "";
-      say($("loginNote"), "", "");
-      showStage();
-      refresh();
+      들어옴(data.token, "owner");
     }).catch(function (err) {
       $("loginBtn").disabled = false;
       say($("loginNote"), err.message, "bad");
@@ -371,11 +441,25 @@ window.PROGRAMS = [
   });
   $("logoutBtn").onclick = function () {
     지우기("sessionStorage", TOKEN_KEY);
+    지우기("sessionStorage", SCOPE_KEY);
     showStage();
   };
   function showStage() {
     var hasUrl = 구글안 || !!serverUrl();
     var hasToken = !!token();
+    // 산 분에게는 **못 하는 것을 아예 안 보여 준다.** 눌렀다가 거절당하면
+    // 고장인 줄 아신다. 서버도 따로 막고 있으니 화면은 안내만 한다.
+    if (hasToken) {
+      var 좁힘 = 산분();
+      $("resetBox").classList.toggle("hide", 좁힘);
+      $("resellerNote").classList.toggle("hide", !좁힘);
+      $("role").disabled = 좁힘;
+      if (좁힘) { $("role").value = "client"; }
+      $("program").disabled = 좁힘;   // 산 분은 산 프로그램 하나만 다룬다
+      $("whoami").textContent = 좁힘
+        ? "산 분으로 들어오셨습니다. 고객용 키만 만드실 수 있고, 직접 발급하신 것만 보입니다."
+        : "주인으로 들어오셨습니다. 판매(관리자) 키와 고객용 키를 모두 만드실 수 있습니다.";
+    }
     // 구글이 내어 주는 판에서는 주소 칸 자체가 필요 없다.
     $("setup").classList.toggle("hide", 구글안 || (hasUrl && hasToken));
     $("login").classList.toggle("hide", !hasUrl || hasToken);
@@ -387,11 +471,14 @@ window.PROGRAMS = [
   //: 역할마다 다르다 — 관리자로 산 분에게 고객용 주소를 보내면 발급
   //: 화면이 안 열리고, 반대면 고객이 남의 관리자 화면을 보게 된다.
   var 주소표 = {};
+  var 키프로그램 = $("keyProgram");
   (window.PROGRAMS || []).forEach(function (p) {
-    var option = document.createElement("option");
-    option.value = p.id;
-    option.textContent = p.name + "  (" + p.id + ")";
-    select.appendChild(option);
+    [select, 키프로그램].forEach(function (칸) {
+      var option = document.createElement("option");
+      option.value = p.id;
+      option.textContent = p.name + "  (" + p.id + ")";
+      칸.appendChild(option);
+    });
     if (p.url || p.adminUrl) {
       주소표[p.id] = { client: p.url || "", admin: p.adminUrl || p.url || "" };
     }
@@ -406,7 +493,8 @@ window.PROGRAMS = [
   function 주소채우기() {
     var 칸 = $("door");
     var 한벌 = 주소표[select.value] || {};
-    var 알던주소 = ($("role").value === "admin" ? 한벌.admin : 한벌.client) || "";
+    var 역할 = 산분() ? "client" : $("role").value;
+    var 알던주소 = (역할 === "admin" ? 한벌.admin : 한벌.client) || "";
     // 사장님이 손으로 고쳐 두셨으면 건드리지 않는다.
     if (!칸.value || 칸.dataset.auto === "1") {
       칸.value = 알던주소;
@@ -415,7 +503,7 @@ window.PROGRAMS = [
     칸.placeholder = 알던주소
       ? 알던주소
       : "https://… (이 프로그램은 아직 주소를 모릅니다. 직접 적어 주세요)";
-    $("doorLabel").textContent = ($("role").value === "admin"
+    $("doorLabel").textContent = ((산분() ? "client" : $("role").value) === "admin"
       ? "산 분이 들어가는 곳 — 관리자 화면"
       : "고객이 들어가는 곳 — 쓰는 화면") + " (메일에 이 주소가 적힙니다)";
   }
@@ -729,6 +817,7 @@ function handle(e) {
       case 'validateKeyPair':  return json(validateKeyPair(p));
       case 'checkSession':     return json(checkSession(p));
       case 'adminLogin':       return json(adminLogin(p));
+      case 'resellerLogin':    return json(resellerLogin(p));
       case 'adminList':        return json(adminList(p));
       case 'adminCreateKeys':  return json(adminCreateKeys(p));
       case 'adminCreateInvite':return json(adminCreateInvite(p));
@@ -838,11 +927,27 @@ function adminLogin(p) {
   }
   return { ok: true, token: makeAdminToken(), hours: ADMIN_TOKEN_HOURS };
 }
+function resellerLogin(p) {
+  var program = programOf(p);
+  var key1 = normalizeKey(p.key1 || '');
+  var key2 = normalizeKey(p.key2 || '');
+  if (!key1 || !key2) {
+    return { ok: false, reason: 'need_pair', message: '1차키와 2차키를 함께 넣어 주세요.' };
+  }
+  var 열림 = validateKeyPair({ program: program, key1: key1, key2: key2 });
+  if (!열림.ok) { return 열림; }
+  if (열림.role !== ROLE_ADMIN) {
+    return { ok: false, reason: 'not_admin',
+             message: '고객용 키로는 발급 화면이 열리지 않습니다.' };
+  }
+  return { ok: true, token: makeScopedToken(key1, program), name: 열림.name,
+           program: program, hours: ADMIN_TOKEN_HOURS };
+}
 function adminList(p) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
-  var program = String(p.program || '').trim();
-  var issuer = normalizeKey(p.issuer || '');
+  var program = who.scope === 'reseller' ? who.program : String(p.program || '').trim();
+  var issuer = issuerOf(who, p);
   var rows = readTable().rows.filter(function (r) {
     if (program && r.program !== program) { return false; }
     if (issuer && normalizeKey(r.issuedBy) !== issuer) { return false; }
@@ -853,6 +958,8 @@ function adminList(p) {
 function adminCreateKeys(p) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
+  var 막힘 = ownerOnly(who);
+  if (막힘) { return 막힘; }
   var program = programOf(p);
   var count = Math.floor(Number(p.count || 0));
   if (!(count > 0)) { return { ok: false, reason: 'bad_count', message: '몇 개를 만들지 적어 주세요.' }; }
@@ -884,12 +991,16 @@ function adminCreateKeys(p) {
 function adminCreateInvite(p) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
-  var program = programOf(p);
+  var program = programFor(who, p);
   var name = String(p.name || '').trim();
   var email = String(p.email || '').trim();
   var role = String(p.role || ROLE_ADMIN);
   var issuedBy = normalizeKey(p.issuedBy || '');
   var baseUrl = String(p.baseUrl || '').trim();
+  if (who.scope === 'reseller') {
+    role = ROLE_CLIENT;
+    issuedBy = who.issuer;
+  }
   if (!name) { return { ok: false, reason: 'no_name', message: '이름을 적어 주세요. 누구에게 준 키인지 남아야 합니다.' }; }
   if (email.indexOf('@') < 0) { return { ok: false, reason: 'bad_email', message: '이메일 주소를 확인해 주세요.' }; }
   if (role !== ROLE_ADMIN && role !== ROLE_CLIENT) {
@@ -955,9 +1066,9 @@ function adminCreateInvite(p) {
 function adminSetStatus(p, status) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
-  var program = programOf(p);
+  var program = programFor(who, p);
   var key = normalizeKey(p.key || '');
-  var issuer = normalizeKey(p.issuer || '');
+  var issuer = issuerOf(who, p);
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
@@ -980,9 +1091,9 @@ function adminSetStatus(p, status) {
 function adminDeleteKey(p) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
-  var program = programOf(p);
+  var program = programFor(who, p);
   var key = normalizeKey(p.key || '');
-  var issuer = normalizeKey(p.issuer || '');
+  var issuer = issuerOf(who, p);
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
@@ -1008,6 +1119,8 @@ function adminDeleteKey(p) {
 function adminResetAll(p) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
+  var 막힘 = ownerOnly(who);
+  if (막힘) { return 막힘; }
   var confirm = String(p.confirm || '').trim();
   if (confirm !== '초기화') {
     return { ok: false, reason: 'need_confirm',
@@ -1030,10 +1143,27 @@ function adminResetAll(p) {
 }
 function whoAmI(p) {
   var given = String(p.token || '');
-  if (given && checkAdminToken(given)) { return { ok: true }; }
-  if (given && passwordOk(given)) { return { ok: true }; }
+  if (given) {
+    var 표 = readToken(given);
+    if (표) { return 표; }
+    if (passwordOk(given)) { return OWNER; }
+  }
   Utilities.sleep(700);
   return { ok: false, reason: 'unauthorized', message: '관리자 비밀번호가 필요합니다.' };
+}
+var OWNER = { ok: true, scope: 'owner', issuer: '' };
+function issuerOf(who, p) {
+  if (who.scope === 'reseller') { return who.issuer; }
+  return normalizeKey(p.issuer || '');
+}
+function programFor(who, p) {
+  if (who.scope === 'reseller') { return who.program; }
+  return programOf(p);
+}
+function ownerOnly(who) {
+  if (who.scope === 'owner') { return null; }
+  return { ok: false, reason: 'owner_only',
+           message: '이것은 프로그램을 만든 쪽에서만 할 수 있습니다.' };
 }
 function passwordOk(given) {
   var real = prop('ADMIN_PASSWORD');
@@ -1049,17 +1179,29 @@ function constantEquals(a, b) {
   return diff === 0;
 }
 function makeAdminToken() {
-  var until = Date.now() + ADMIN_TOKEN_HOURS * 3600 * 1000;
-  return until + '.' + signature(String(until));
+  return signedToken(String(Date.now() + ADMIN_TOKEN_HOURS * 3600 * 1000));
 }
-function checkAdminToken(token) {
-  var at = String(token).indexOf('.');
-  if (at < 0) { return false; }
-  var until = String(token).slice(0, at);
-  var sig = String(token).slice(at + 1);
-  if (!/^\d+$/.test(until)) { return false; }
-  if (Number(until) < Date.now()) { return false; }
-  return constantEquals(sig, signature(until));
+function makeScopedToken(issuerKey, program) {
+  var until = Date.now() + ADMIN_TOKEN_HOURS * 3600 * 1000;
+  return signedToken(until + '~' + normalizeKey(issuerKey) + '~' + program);
+}
+function signedToken(payload) {
+  return payload + '.' + signature(payload);
+}
+function readToken(token) {
+  var text = String(token);
+  var at = text.lastIndexOf('.');
+  if (at < 0) { return null; }
+  var payload = text.slice(0, at);
+  var sig = text.slice(at + 1);
+  if (!constantEquals(sig, signature(payload))) { return null; }
+  var 칸 = payload.split('~');
+  if (!/^\d+$/.test(칸[0])) { return null; }
+  if (Number(칸[0]) < Date.now()) { return null; }
+  if (칸.length === 1) { return OWNER; }
+  if (칸.length !== 3) { return null; }
+  return { ok: true, scope: 'reseller',
+           issuer: normalizeKey(칸[1]), program: 칸[2] };
 }
 function signature(text) {
   var secret = signingSecret();
