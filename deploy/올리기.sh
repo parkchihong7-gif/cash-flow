@@ -65,22 +65,34 @@ fi
 
 # ── 4. 접속 코드 ────────────────────────────────────────
 #
-# 명령줄에 직접 적으면 셸 기록에 남는다. Secret Manager 에 넣는다.
+# **오류를 감추지 않는다.** 처음에는 이 대목의 출력을 다 껐는데, 그러면
+# 안 될 때 화면이 조용히 멈춘다. 사장님이 "여기서 끝나는데" 하고 막히셨다.
+# 무엇이 도는지 말하고, 안 되면 무엇이 안 되는지 보이게 한다.
+
+echo
+echo "비밀 보관 기능을 확인합니다..."
+
+# 이미 켜져 있나. `gcloud secrets describe` 를 먼저 부르면, 기능이 꺼져 있을 때
+# gcloud 가 "켤까요?" 하고 되묻는다 — 출력을 꺼 두면 그 물음이 안 보인다.
+if gcloud services list --enabled --format='value(config.name)' 2>/dev/null      | grep -q secretmanager; then
+  echo "           이미 켜져 있습니다."
+else
+  echo "           켜는 중입니다. 30초~1분 걸립니다..."
+  gcloud services enable secretmanager.googleapis.com
+  echo "           켰습니다."
+fi
+
 if gcloud secrets describe "$SECRET" >/dev/null 2>&1; then
   echo "접속코드 : 이미 넣어 두신 것을 씁니다"
+  echo "           (바꾸시려면: gcloud secrets delete $SECRET 뒤에 다시 돌리세요)"
 else
-  # 이 기능을 켜는 데 30~60초 걸린다. 조용히 두면 멈춘 줄 안다.
-  echo
-  echo "비밀 보관 기능을 켜는 중입니다 (처음 한 번, 30초~1분)..."
-  gcloud services enable secretmanager.googleapis.com >/dev/null 2>&1 || true
-  echo "           켰습니다."
   echo
   echo "────────────────────────────────────────────────────"
   echo " 이 대시보드를 열 때 쓸 **접속 코드**를 정하세요."
   echo
   echo "  · 여섯 자 이상"
   echo "  · **치셔도 화면에 아무것도 안 보입니다** (비밀번호라서)"
-  echo "    그냥 치고 Enter 를 누르세요"
+  echo "    글자도 점도 안 나옵니다. 그냥 치고 Enter 를 누르세요"
   echo "  · 잊으면 다시 만들어야 하니 적어 두세요"
   echo "────────────────────────────────────────────────────"
   printf "  접속 코드: "
@@ -90,7 +102,7 @@ else
     echo "✗ 너무 짧습니다. 여섯 자 이상으로 하세요."
     exit 1
   fi
-  printf '%s' "$CODE" | gcloud secrets create "$SECRET" --data-file=- >/dev/null
+  printf '%s' "$CODE" | gcloud secrets create "$SECRET" --data-file=-
   unset CODE
   echo "접속코드 : 넣었습니다"
 fi
