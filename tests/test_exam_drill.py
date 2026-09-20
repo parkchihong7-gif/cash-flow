@@ -389,3 +389,70 @@ def test_manuals_promise_nothing_about_passing(audience):
     assert "합격을 약속하지 않습니다" in 글
     for 위험 in ("합격 보장", "합격보장", "합격률 90", "반드시 합격"):
         assert 위험 not in 글, f"{audience} 매뉴얼에 위험한 문구: {위험}"
+
+
+# --------------------------------------------- 화면도 프로그램을 따라오는가
+#
+# 매뉴얼 문서를 고친 뒤에도 사장님이 "클라이언트는 예전 그대로" 라고 하셨다.
+# 문서가 아니라 **화면**(`webui.py` 의 콘솔)이 옛 분석기였다. 탭 이름이
+# 「문항 채우기」·「빈 기록표」 였고, 손으로 할 일에 "이 프로그램에는 문제
+# 지문을 넣는 칸이 없습니다" 가 그대로 있었다.
+#
+# 문서 셋(README·admin.md·client.md)과 화면이 따로 놀면, 고객은 서로 다른
+# 안내를 두 번 받는다. 여기서 같이 묶는다.
+
+def _console():
+    from core.webui import load_console
+
+    return load_console(Registry().require("exam-drill"), {})
+
+
+def test_console_dropped_the_old_analyzer():
+    """옛 분석기 화면이 한 조각도 남으면 안 된다."""
+    화면 = _console()
+    글 = " ".join([
+        화면.admin_intro, 화면.client_intro,
+        " ".join(t.label + " " + t.intro for t in 화면.tabs),
+        " ".join(m.task + " " + m.why for m in 화면.manual_tasks),
+        " ".join(t.symptom + " " + t.fix for t in 화면.troubles),
+        " ".join(f.what for f in 화면.files),
+    ])
+    for 옛것 in ("문항 채우기", "빈 기록표", "기록 지우기", "약한 단원",
+                 "지문을 넣는 칸", "records.csv", "syllabus.py"):
+        assert 옛것 not in 글, f"콘솔 화면에 옛 분석기 내용이 남았습니다: {옛것}"
+
+
+def test_console_is_about_selling_not_about_pretending_to_be_the_program():
+    """본체가 밖에 있으니 화면은 **파는 일**만 다뤄야 한다.
+
+    프로그램을 흉내 내면 사장님이 여기서 키를 발급하려 들고,
+    고객에게 이 주소를 보낸다.
+    """
+    화면 = _console()
+    라벨 = [t.label for t in 화면.tabs]
+    for 필요 in ("여기서 시작", "팔기 전 확인", "키 보내는 법", "고객 안내", "문의 대응"):
+        assert 필요 in 라벨, f"'{필요}' 탭이 없습니다 (지금: {라벨})"
+
+    assert "밖에서 돕니다" in 화면.admin_intro
+    assert "이 화면이 아닙니다" in 화면.client_intro, (
+        "고객이 실제로 쓰는 곳은 밖이라고 못 박아야 한다"
+    )
+
+
+def test_console_carries_the_copyright_check_as_a_todo():
+    """권리 확인은 '오늘 할 일' 에 떠 있어야 한다. 문서에만 있으면 안 읽는다."""
+    화면 = _console()
+    할일 = " ".join(t.text + " " + t.detail for t in 화면.todos)
+    assert "권리" in 할일
+    손 = " ".join(m.task + " " + m.where for m in 화면.manual_tasks)
+    assert "한국산업인력공단" in 손
+
+
+def test_console_numbers_match_the_manuals():
+    """화면 타일과 매뉴얼이 다른 숫자를 말하면 안 된다."""
+    화면 = _console()
+    타일 = {s.label: s.value for s in 화면.stats}
+    assert 타일["문항"] == "4,400"
+    assert 타일["회차"] == "22"
+    for audience in ("admin", "client"):
+        assert "4,400" in _manual(audience)
