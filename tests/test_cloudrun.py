@@ -163,3 +163,21 @@ def test_script_parses_as_bash():
     done = subprocess.run(["bash", "-n", str(ROOT / "deploy" / "올리기.sh")],
                           capture_output=True, text=True)
     assert done.returncode == 0, done.stderr
+
+
+def test_script_grants_secret_access_before_deploying():
+    """비밀을 **넣는 것**과 **읽을 권한을 주는 것**은 다른 일이다.
+
+    안 주면 빌드까지 다 끝난 뒤 마지막 단계에서 배포가 실패한다.
+    실제로 거기서 한 번 멎었다 —
+      Permission denied on secret: .../dashboard-access-code/versions/latest
+      The service account used must be granted the 'Secret Manager Secret Accessor'
+    """
+    글 = (ROOT / "deploy" / "올리기.sh").read_text(encoding="utf-8")
+    assert "secrets add-iam-policy-binding" in 글
+    assert "roles/secretmanager.secretAccessor" in 글
+    # 프로젝트 **번호**는 이름과 다르다. 번호로 계정 이름을 만든다.
+    assert "value(projectNumber)" in 글
+    assert "compute@developer.gserviceaccount.com" in 글
+    # 권한을 준 **뒤에** 올려야 한다.
+    assert 글.index("add-iam-policy-binding") < 글.index("gcloud run deploy")

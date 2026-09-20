@@ -107,6 +107,30 @@ else
   echo "접속코드 : 넣었습니다"
 fi
 
+# ── 4-1. Cloud Run 이 그 비밀을 읽을 수 있게 ────────────
+#
+# 비밀을 넣어 두는 것과 **읽을 권한을 주는 것은 다른 일**이다. 안 주면
+# 빌드까지 다 끝난 뒤 마지막 단계에서 배포가 실패한다.
+#
+#   Permission denied on secret: .../dashboard-access-code/versions/latest
+#   The service account used must be granted the 'Secret Manager Secret Accessor'
+#
+# 실제로 거기서 한 번 멎었다. 여기서 미리 준다.
+#
+# Cloud Run 이 쓰는 계정은 <프로젝트번호>-compute@developer.gserviceaccount.com 이다.
+# 프로젝트 **번호**는 이름과 다르다 — 따로 물어봐야 한다.
+
+NUMBER=$(gcloud projects describe "$PROJECT" --format='value(projectNumber)')
+RUNNER="${NUMBER}-compute@developer.gserviceaccount.com"
+
+echo
+echo "읽을 권한을 주는 중..."
+gcloud secrets add-iam-policy-binding "$SECRET" \
+  --member="serviceAccount:$RUNNER" \
+  --role="roles/secretmanager.secretAccessor" \
+  --quiet >/dev/null
+echo "           주었습니다 ($RUNNER)"
+
 # ── 5. 올리기 ───────────────────────────────────────────
 echo
 echo "────────────────────────────────────────────────────"
