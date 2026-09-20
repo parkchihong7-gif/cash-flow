@@ -171,6 +171,10 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
         # 받아 오는 것은 여기가 아니라 **DB 를 열기 전**에 이미 했다.
         # 열고 나서 덮으면 그 사이에 쓴 것이 날아간다.
         if gcsstate.enabled():
+            # 고친 파일을 저장소 판 위에 덮는다. **선언된 편집 대상만** 건드린다.
+            되살림 = gcsstate.restore_edits(app.state.registry.programs)
+            if 되살림:
+                print(f"웹에서 고친 파일 {len(되살림)}개를 되살렸습니다: {', '.join(되살림)}")
             gcsstate.start_autosave()
         yield
         # 끌 때: 마지막으로 한 번 더 올린다.
@@ -405,7 +409,8 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
         return RedirectResponse(f"/programs/{program_id}/edit?saved=설정", status_code=303)
 
     @app.get("/programs/{program_id}/file", response_class=HTMLResponse)
-    def file_edit(request: Request, program_id: str, path: str, saved: str = ""):
+    def file_edit(request: Request, program_id: str, path: str, saved: str = "",
+                  reverted: str = ""):
         program = program_or_404(program_id)
         spec = next((f for f in program.editable_files if f.path == path), None)
         if spec is None:
@@ -434,10 +439,31 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
             target.with_suffix(target.suffix + ".bak").write_text(
                 target.read_text(encoding="utf-8"), encoding="utf-8"
             )
-        target.write_text(content.replace("\r\n", "\n"), encoding="utf-8")
+        글 = content.replace("\r\n", "\n")
+        target.write_text(글, encoding="utf-8")
+        # 클라우드에서는 컨테이너가 접히면 이 파일이 사라진다. 60초를 기다리지
+        # 않고 **바로** 버킷에 둔다 — 고친 직후에 접히면 통째로 없어진다.
+        gcsstate.save_edit(program_id, path, 글)
         return RedirectResponse(
             f"/programs/{program_id}/file?path={path}&saved=1", status_code=303
         )
+
+    @app.post("/programs/{program_id}/file/revert")
+    def file_revert(program_id: str, path: str = Form(...)):
+        """버킷에 둔 «웹에서 고친 판» 을 버린다.
+
+        저장소 판으로 돌아가는 것은 **다음에 올릴 때** 일어난다. 지금 도는
+        컨테이너 안의 파일은 그대로다 — 그걸 여기서 되돌리려면 저장소에서
+        원본을 가져와야 하는데, 그건 이 화면이 할 일이 아니다.
+        """
+        program = program_or_404(program_id)
+        if not any(spec.path == path for spec in program.editable_files):
+            return RedirectResponse(
+                f"/programs/{program_id}/edit?error=편집 대상이 아닌 파일입니다",
+                status_code=303)
+        gcsstate.drop_edit(program_id, path)
+        return RedirectResponse(
+            f"/programs/{program_id}/file?path={path}&reverted=1", status_code=303)
 
     # ------------------------------------------------------ 프로그램 테스트
     @app.get("/programs/{program_id}/test", response_class=HTMLResponse)

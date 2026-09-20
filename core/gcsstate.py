@@ -34,7 +34,8 @@ from pathlib import Path
 
 from shared.config import DATA_DIR
 
-__all__ = ["bucket_name", "enabled", "restore", "save", "start_autosave", "NEEDED"]
+__all__ = ["bucket_name", "enabled", "restore", "save", "start_autosave", "NEEDED",
+           "save_edit", "drop_edit", "edited_files", "restore_edits"]
 
 #: 켜질 때 받아 오고 주기적으로 올려 둘 것. **이것만** 다룬다.
 #:
@@ -141,3 +142,92 @@ def start_autosave() -> threading.Thread | None:
     thread = threading.Thread(target=돌기, name="gcs-autosave", daemon=True)
     thread.start()
     return thread
+
+
+# ─────────────────────────────────────────── 웹에서 고친 파일
+#
+# 수정 탭에서 고친 파일은 컨테이너 안에만 남는다. Cloud Run 이 잠들면
+# 디스크가 처음으로 돌아가서 **고친 것이 사라진다.** 저장은 됐는데 몇 시간
+# 뒤에 원래대로 돌아가 있으면, 고장인지 아닌지도 알 수 없다.
+#
+# 그래서 고친 파일도 버킷에 둔다. 켜질 때 그것을 덮어 쓴다.
+#
+# 대신 규칙이 하나 생긴다 — **웹에서 고친 판이 저장소 판을 이긴다.**
+# 저장소에서 고치고 재배포했는데 안 바뀌면 사람이 혼란스럽다. 그래서
+# 화면이 «웹에서 고친 판» 이라고 말하고, 되돌리는 길을 같이 둔다.
+
+EDITS = "edits"
+
+
+def _edit_key(program_id: str, relative: str) -> str:
+    """버킷 안에서 쓸 이름. 프로그램별로 갈라 둔다."""
+    return f"{EDITS}/{program_id}/{relative.lstrip('/')}"
+
+
+def save_edit(program_id: str, relative: str, text: str) -> bool:
+    """웹에서 고친 파일을 버킷에 둔다. 넣었으면 True.
+
+    60초를 기다리지 않고 **바로** 올린다. 고친 직후에 서버가 접히면
+    그 수정이 통째로 없어지기 때문이다.
+    """
+    client = _client()
+    if not bucket_name() or client is None:
+        return False
+    try:
+        blob = _blob(client, _edit_key(program_id, relative))
+        blob.upload_from_string(text, content_type="text/plain; charset=utf-8")
+        return True
+    except Exception:
+        return False
+
+
+def drop_edit(program_id: str, relative: str) -> bool:
+    """버킷에서 지운다 — 저장소 판으로 되돌릴 때."""
+    client = _client()
+    if not bucket_name() or client is None:
+        return False
+    try:
+        _blob(client, _edit_key(program_id, relative)).delete()
+        return True
+    except Exception:
+        return False
+
+
+def edited_files(program_id: str) -> set[str]:
+    """이 프로그램에서 **웹으로 고친** 파일들의 상대 경로."""
+    client = _client()
+    if not bucket_name() or client is None:
+        return set()
+    앞 = f"{PREFIX}/{EDITS}/{program_id}/"
+    try:
+        blobs = client.list_blobs(bucket_name(), prefix=앞)
+        return {blob.name[len(앞):] for blob in blobs if blob.name != 앞}
+    except Exception:
+        return set()
+
+
+def restore_edits(programs) -> list[str]:
+    """켜질 때 고친 파일들을 덮어 쓴다. 덮어 쓴 것을 돌려준다.
+
+    **선언된 편집 대상만** 건드린다. 버킷에 엉뚱한 이름이 들어와도 아무
+    파일이나 덮어쓰지 않게 하려는 것이다.
+    """
+    client = _client()
+    if not bucket_name() or client is None:
+        return []
+    done = []
+    for program in programs:
+        허용 = {spec.path for spec in program.editable_files}
+        if not 허용:
+            continue
+        for relative in edited_files(program.id):
+            if relative not in 허용:
+                continue
+            try:
+                target = program.resolve(relative)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                _blob(client, _edit_key(program.id, relative)).download_to_filename(str(target))
+                done.append(f"{program.id}/{relative}")
+            except Exception:
+                continue
+    return done

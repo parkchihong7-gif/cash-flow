@@ -181,3 +181,50 @@ def test_script_grants_secret_access_before_deploying():
     assert "compute@developer.gserviceaccount.com" in 글
     # 권한을 준 **뒤에** 올려야 한다.
     assert 글.index("add-iam-policy-binding") < 글.index("gcloud run deploy")
+
+
+# ------------------------------------------------- 웹에서 고친 파일 보관
+def test_edits_are_kept_too_not_just_the_db():
+    """수정 탭에서 고친 파일도 남아야 한다.
+
+    컨테이너가 접히면 디스크가 처음으로 돌아간다. DB 만 맞춰 두면 **고친
+    파일이 몇 시간 뒤 조용히 사라진다.** 저장은 됐는데 원래대로 돌아가
+    있으면 고장인지 아닌지도 알 수 없다.
+    """
+    assert hasattr(gcsstate, "save_edit")
+    assert hasattr(gcsstate, "restore_edits")
+    assert hasattr(gcsstate, "drop_edit")
+
+
+def test_restore_edits_only_touches_declared_files():
+    """버킷에 엉뚱한 이름이 들어와도 아무 파일이나 덮으면 안 된다."""
+    글 = (ROOT / "core" / "gcsstate.py").read_text(encoding="utf-8")
+    몸통 = 글[글.index("def restore_edits"):]
+    assert "editable_files" in 몸통, "선언된 편집 대상만 건드려야 한다"
+    assert "if relative not in" in 몸통, "목록에 없으면 건너뛰어야 한다"
+
+
+def test_saving_uploads_right_away():
+    """60초를 기다리면 안 된다. 고친 직후에 접히면 통째로 없어진다."""
+    글 = (ROOT / "dashboard" / "app.py").read_text(encoding="utf-8")
+    저장 = 글[글.index("def file_save"):글.index("def file_revert")]
+    assert "gcsstate.save_edit" in 저장
+
+
+def test_the_screen_says_which_version_this_is():
+    """«웹에서 고친 판이 저장소 판을 이긴다» 를 화면이 말해야 한다.
+
+    안 그러면 저장소에서 고치고 재배포했는데 안 바뀌는 이유를 알 수 없다.
+    """
+    글 = (ROOT / "dashboard" / "templates" / "file_edit.html").read_text(encoding="utf-8")
+    assert "웹에서 고친 판" in 글
+    assert "이깁니다" in 글, "어느 쪽이 이기는지 말해야 한다"
+    assert "원래대로 되돌리기" in 글, "되돌리는 길이 있어야 한다"
+    assert "data-twice" in 글, "되돌리기는 두 번 눌러야 한다"
+
+
+def test_revert_also_checks_the_file_is_editable(client_free=None):
+    """되돌리기도 편집 대상인지 확인해야 한다. 저장만 막으면 반쪽이다."""
+    글 = (ROOT / "dashboard" / "app.py").read_text(encoding="utf-8")
+    되돌리기 = 글[글.index("def file_revert"):글.index("def file_revert") + 900]
+    assert "editable_files" in 되돌리기
