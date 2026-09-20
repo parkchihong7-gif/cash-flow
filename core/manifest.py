@@ -283,6 +283,38 @@ class Manuals(BaseModel):
     client: str = Field(default="", description="구매자용 매뉴얼 (마크다운)")
 
 
+class LiveSite(BaseModel):
+    """이 프로그램이 **저장소 밖에서** 실제로 도는 곳.
+
+    13번 공인중개사처럼, 프로그램 본체가 다른 곳(GitHub Pages 등)에 이미
+    올라가 있는 경우가 있다. 그때 대시보드의 [관리자 모드]·[클라이언트 모드]
+    는 흉내가 아니라 **그 진짜 주소**를 열어야 한다.
+
+    **비밀번호는 여기 적지 않는다.** 이 저장소는 공개라, 적는 순간
+    주소를 아는 누구나 들어온다. 비밀번호는 사장님이 따로 보관하신다.
+    """
+
+    model_config = {"extra": "forbid"}
+
+    admin: str = Field(default="", description="관리자 모드 주소 (https://…)")
+    client: str = Field(default="", description="클라이언트 모드 주소")
+    note: str = Field(default="", description="화면에 함께 보일 한 줄")
+
+    @field_validator("admin", "client")
+    @classmethod
+    def _https_only(cls, value: str) -> str:
+        """http:// 를 막는다. 키를 넣는 화면이라 가로채이면 안 된다."""
+        value = value.strip()
+        if value and not value.startswith("https://"):
+            raise ValueError("주소는 https:// 로 시작해야 합니다")
+        return value
+
+    @property
+    def elsewhere(self) -> bool:
+        """저장소 밖에서 도는 프로그램인가."""
+        return bool(self.admin or self.client)
+
+
 class ProgramManifest(BaseModel):
     """프로그램 하나의 전체 정의."""
 
@@ -307,6 +339,8 @@ class ProgramManifest(BaseModel):
     run: RunSpec | None = None
     schedule: ScheduleSpec = Field(default_factory=ScheduleSpec)
     requirements: Requirements = Field(default_factory=Requirements)
+    #: 저장소 밖에서 도는 프로그램이면 그 진짜 주소. 비밀번호는 안 담는다.
+    live: LiveSite = Field(default_factory=LiveSite)
 
     # 로드 시 채워진다. YAML 에는 쓰지 않는다.
     directory: Path = Field(default=Path("."), exclude=True)

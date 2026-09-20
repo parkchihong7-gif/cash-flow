@@ -14,9 +14,11 @@ from pathlib import Path
 from core.registry import Registry
 
 #: 이 저장소 밖에 있지만 **같은 키 서버**를 쓰는 것들.
-#: 공인중개사·maim 을 한 키 체계로 묶는 것이 애초의 목적이었다.
+#:
+#: 공인중개사는 여기 없다. 13번(`exam-drill`)이 바로 그 프로그램이라,
+#: 따로 두면 키가 두 군데로 갈라진다. 앱스 스크립트의 `DEFAULT_PROGRAM`
+#: 을 `exam-drill` 로 두면 그 화면이 보내는 키가 13번으로 들어온다.
 OUTSIDE = [
-    {"id": "exam", "name": "공인중개사 기출문제 (바깥 프로그램)"},
     {"id": "maim", "name": "maim 블로그 (바깥 프로그램)"},
 ]
 
@@ -30,7 +32,19 @@ OUT = Path(__file__).resolve().parent.parent / "web" / "programs.js"
 
 def build() -> list[dict[str, str]]:
     """등록부 + 바깥 프로그램을 합쳐 목록을 만든다."""
-    rows = [{"id": p.id, "name": p.name} for p in Registry().programs]
+    rows = []
+    for program in Registry().programs:
+        row = {"id": program.id, "name": program.name}
+        # 키를 넣고 들어가는 곳. 발급 안내 메일에 이 주소가 실린다.
+        # 없으면 고객이 키만 받고 **어디로 가야 하는지 모르게** 된다.
+        #
+        # 역할마다 주소가 다르다. 관리자로 산 분에게 고객용 주소를 보내면
+        # 발급 화면이 안 열리고, 반대면 고객이 남의 관리자 화면을 본다.
+        if program.live.client:
+            row["url"] = program.live.client
+        if program.live.admin:
+            row["adminUrl"] = program.live.admin
+        rows.append(row)
     return rows + OUTSIDE
 
 

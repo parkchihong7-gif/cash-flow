@@ -51,16 +51,37 @@
       <span class="modeflag {{ mode }}">{{ mode_label }}</span>
       <span class="grow"></span>
       {% if not through_door %}
+      {# 본체가 저장소 밖에서 도는 프로그램이면, 흉내가 아니라 **그 주소**를
+         연다. 안 그러면 사장님이 여기서 눌러 보고 "왜 안 되지" 하시게 된다. #}
       <nav class="modeswitch">
+        {% if program.live.elsewhere %}
+        <a class="mbtn out" target="_blank" rel="noopener"
+           href="{{ program.live.admin or program.live.client }}">관리자 모드 ↗</a>
+        <a class="mbtn out" target="_blank" rel="noopener"
+           href="{{ program.live.client or program.live.admin }}">클라이언트 모드 ↗</a>
+        {% else %}
         <a class="mbtn {% if mode == 'admin' %}on{% endif %}"
            href="/apps/{{ program.id }}/admin/t/{{ current.key }}">관리자 모드</a>
         <a class="mbtn {% if mode == 'client' %}on{% endif %}"
            href="/apps/{{ program.id }}/client/t/{{ current.key }}">클라이언트 모드</a>
+        {% endif %}
       </nav>
       {% endif %}
     </header>
 
     <main class="conbody">
+      {% if program.live.elsewhere %}
+      {# 여기 탭들은 이 프로그램의 **껍데기**다. 진짜는 밖에 있다.
+         말해 두지 않으면 여기서 키를 발급하려 하시게 된다. #}
+      <div class="note warn">
+        <strong>이 프로그램의 본체는 밖에서 돕니다.</strong>
+        {{ program.live.note }}
+        <br>
+        위 <strong>[관리자 모드 ↗]</strong> · <strong>[클라이언트 모드 ↗]</strong>
+        를 누르시면 그 화면이 새 창으로 열립니다.
+        여기 탭은 대시보드 쪽 기록일 뿐입니다.
+      </div>
+      {% endif %}
       {% block body %}{% endblock %}
     </main>
 

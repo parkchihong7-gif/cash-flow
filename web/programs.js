@@ -51,7 +51,9 @@ window.PROGRAMS = [
   },
   {
     "id": "exam-drill",
-    "name": "공인중개사 기출 풀이 분석기"
+    "name": "공인중개사 기출문제",
+    "url": "https://parkchihong7-gif.github.io/gongin-jungsagsa-exam/",
+    "adminUrl": "https://parkchihong7-gif.github.io/gongin-jungsagsa-exam/?admin=1"
   },
   {
     "id": "senior-video",
@@ -64,10 +66,6 @@ window.PROGRAMS = [
   {
     "id": "speaker-desk",
     "name": "해외 연사 초청 관리"
-  },
-  {
-    "id": "exam",
-    "name": "공인중개사 기출문제 (바깥 프로그램)"
   },
   {
     "id": "maim",

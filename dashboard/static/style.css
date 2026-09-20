@@ -410,6 +410,10 @@ ul.cautions li { color: var(--warn); }
   text-decoration: none; border: 1px solid rgba(255,255,255,.18); }
 .mbtn:hover { background: rgba(255,255,255,.1); text-decoration: none; }
 .mbtn.on { background: #fff; color: #12151c; font-weight: 700; border-color: #fff; }
+/* 밖으로 나가는 버튼. 눌러도 이 대시보드 안에서 안 열린다는 것을 색으로 말한다. */
+.mbtn.out { background: var(--amber, #e0a44a); color: #1a1206; font-weight: 700;
+            border-color: var(--amber, #e0a44a); }
+.mbtn.out:hover { background: #f0b45a; }
 
 .testbar { background: var(--warn-soft); color: var(--warn); font-size: 13px;
   padding: 9px 20px; text-align: center; border-bottom: 1px solid #f0e2c4; }

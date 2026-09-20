@@ -488,3 +488,132 @@ def test_구글이_내어_주는_판에서_저장소가_막혀도_돈다(시험�
             assert not 오류, f"저장소가 막히자 화면이 터졌습니다: {오류}"
         finally:
             browser.close()
+
+
+def test_아는_프로그램은_들어가는_곳이_미리_채워진다():
+    """메일에 주소가 안 실리면 고객은 키만 받고 어디로 갈지 모른다."""
+    progs = (ROOT / "web" / "programs.js").read_text(encoding="utf-8")
+    assert "gongin-jungsagsa-exam" in progs, "13번 주소가 목록에 없습니다"
+
+    page = (ROOT / "web" / "admin.html").read_text(encoding="utf-8")
+    assert 'id="door"' in page, "들어가는 곳 칸이 없습니다"
+    assert 'baseUrl: $("door").value.trim()' in page, "그 칸을 메일에 안 씁니다"
+    assert "주소표[select.value]" in page, "프로그램을 바꿔도 안 채워집니다"
+
+
+def test_밖에서_도는_프로그램은_그_주소를_연다(tmp_path, monkeypatch):
+    """13번 본체는 GitHub Pages 에 있다. 여기서 흉내를 내면 안 된다."""
+    import re as _re
+
+    client = 대시보드(tmp_path, monkeypatch)
+    page = client.get("/apps/exam-drill/admin").text
+
+    버튼 = _re.findall(r'<a class="mbtn[^"]*"[^>]*href="([^"]+)"', page)
+    assert any("gongin-jungsagsa-exam" in h and "admin=1" in h for h in 버튼), \
+        f"관리자 모드가 밖을 안 엽니다: {버튼}"
+    assert any(h.rstrip("/").endswith("gongin-jungsagsa-exam") for h in 버튼), \
+        f"클라이언트 모드가 밖을 안 엽니다: {버튼}"
+    assert "본체는 밖에서 돕니다" in page
+
+    # 저장소 안에서 도는 프로그램은 그대로여야 한다.
+    안쪽 = client.get("/apps/agency-kit/admin").text
+    assert "/apps/agency-kit/admin" in 안쪽
+    assert "gongin-jungsagsa-exam" not in 안쪽
+
+
+def test_주소는_담되_비밀번호는_담을_수_없다():
+    """공개 저장소다. 비밀번호를 적는 순간 주소를 아는 누구나 들어온다.
+
+    시험에 비밀번호를 적어 두고 "이게 없는지" 보는 것은 뜻이 없다 —
+    그 시험 파일 자체가 새는 곳이 된다. 그래서 **담을 칸을 아예 없앤다.**
+    """
+    import pydantic
+    from core.manifest import LiveSite
+
+    # 주소는 담긴다.
+    site = LiveSite(admin="https://example.test/?admin=1", client="https://example.test/")
+    assert site.elsewhere
+
+    # 비밀번호를 담으려 하면 거절한다 (extra="forbid").
+    for 칸 in ("password", "pw", "비번", "secret"):
+        with pytest.raises(pydantic.ValidationError):
+            LiveSite(client="https://example.test/", **{칸: "무엇이든"})
+
+    # http 는 막는다 — 키를 넣는 화면이라 가로채이면 안 된다.
+    with pytest.raises(pydantic.ValidationError):
+        LiveSite(client="http://example.test/")
+
+    # 13번 설정에는 주소만 있고, 왜 비밀번호를 안 적는지가 남아 있어야 한다.
+    manifest = (ROOT / "products" / "exam-drill" / "program.yaml").read_text(encoding="utf-8")
+    assert "gongin-jungsagsa-exam" in manifest
+    assert "비밀번호는 여기 적지 않습니다" in manifest
+
+
+def test_역할마다_들어가는_주소가_다르다():
+    """관리자로 산 분에게 고객용 주소를 보내면 발급 화면이 안 열린다.
+    반대면 고객이 남의 관리자 화면을 본다. 둘 다 팔고 나서야 안다.
+    """
+    progs = (ROOT / "web" / "programs.js").read_text(encoding="utf-8")
+    assert '"adminUrl"' in progs, "관리자용 주소가 목록에 없습니다"
+    assert "gongin-jungsagsa-exam/?admin=1" in progs
+
+    page = (ROOT / "web" / "admin.html").read_text(encoding="utf-8")
+    assert '$("role").value === "admin" ? 한벌.admin : 한벌.client' in page, \
+        "역할에 따라 주소를 고르지 않습니다"
+    assert '$("role").onchange = 주소채우기' in page, \
+        "역할을 바꿔도 주소가 안 따라옵니다"
+
+
+@pytest.mark.skipif(not Path(CHROMIUM).exists(), reason="크로미움이 없습니다")
+def test_역할을_바꾸면_주소가_따라_바뀐다(시험서버):
+    """눌러서 확인한다. 문자열만 봐서는 실제로 바뀌는지 모른다."""
+    playwright = pytest.importorskip("playwright.sync_api")
+
+    흉내 = """
+      window.google = { script: { run: (function () {
+        var ok=null,fail=null;
+        var api={ withSuccessHandler(f){ok=f;return api;},
+                  withFailureHandler(f){fail=f;return api;},
+          apiCall(p){ fetch('__B__/exec',{method:'POST',
+            headers:{'Content-Type':'text/plain'},body:p})
+            .then(r=>r.text()).then(t=>ok&&ok(t)).catch(e=>fail&&fail(e)); } };
+        return api; })() } };
+    """.replace("__B__", 시험서버)
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(executable_path=CHROMIUM)
+        page = browser.new_page()
+        오류: list[str] = []
+        page.on("pageerror", lambda e: 오류.append(str(e)))
+        page.add_init_script(흉내)
+        try:
+            page.goto(f"{시험서버}/admin.html", wait_until="domcontentloaded")
+            page.fill("#pw", "주인비밀번호7")
+            page.click("#loginBtn")
+            page.wait_for_selector("#main:not(.hide)", timeout=10000)
+            page.select_option("#program", "exam-drill")
+            page.wait_for_timeout(400)
+
+            page.select_option("#role", "admin")
+            page.wait_for_timeout(300)
+            관리자주소 = page.input_value("#door")
+            assert 관리자주소.endswith("?admin=1"), 관리자주소
+
+            page.select_option("#role", "client")
+            page.wait_for_timeout(300)
+            고객주소 = page.input_value("#door")
+            assert "admin=1" not in 고객주소, 고객주소
+            assert 고객주소 and 고객주소 != 관리자주소
+
+            # 고객용으로 발급하면 메일 안내에도 고객용 주소만 실려야 한다.
+            page.fill("#name", "이수강생")
+            page.fill("#email", "lee@example.com")
+            page.click("#issueBtn")
+            page.wait_for_selector("#issued:not(.hide)", timeout=10000)
+            발급됨 = page.inner_text("#issued")
+            assert 고객주소 in 발급됨
+            assert "admin=1" not in 발급됨, "고객에게 관리자 주소가 나갔습니다"
+
+            assert not 오류, f"화면에서 오류가 났습니다: {오류}"
+        finally:
+            browser.close()

@@ -1,6 +1,6 @@
 id: exam-drill
 number: 13
-name: 공인중개사 기출 풀이 분석기
+name: 공인중개사 기출문제
 tagline: 몇 개 틀렸는지가 아니라 어디서 왜 틀렸는지
 status: ready
 version: "1.0.0"
@@ -163,6 +163,16 @@ manuals:
   client: docs/client.md
 
 # 권한·환경 — 쓰기 전에 무엇이 필요한가 (🔑 권한·환경 화면)
+# 이 프로그램의 본체는 저장소 밖(GitHub Pages)에서 이미 돌고 있습니다.
+# 대시보드의 [관리자 모드]·[클라이언트 모드] 는 흉내가 아니라 그곳을 엽니다.
+#
+# 비밀번호는 여기 적지 않습니다. 저장소가 공개라, 적는 순간 주소를 아는
+# 누구나 들어옵니다. 사장님이 따로 보관하십니다.
+live:
+  admin: https://parkchihong7-gif.github.io/gongin-jungsagsa-exam/?admin=1
+  client: https://parkchihong7-gif.github.io/gongin-jungsagsa-exam/
+  note: 본체는 GitHub Pages 에서 돕니다. 비밀번호는 따로 보관하신 것을 쓰세요.
+
 requirements:
   home_pc: yes
   internet: optional

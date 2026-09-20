@@ -2,7 +2,7 @@
 //  접속키 서버 — 구글 앱스 스크립트에 붙여 넣는 **한 장짜리** 판입니다.
 //
 //  ■ 붙여넣기 전에 꼭 보세요
-//    이 파일은 1,287줄입니다. 맨 아래에 ⛳ 표가 있습니다.
+//    이 파일은 1,325줄입니다. 맨 아래에 ⛳ 표가 있습니다.
 //    붙여 넣은 뒤 **맨 아래에 그 ⛳ 표가 보이는지** 확인하세요.
 //    안 보이면 잘린 것이고, 그대로 저장하면
 //      구문 오류: SyntaxError: Unexpected end of input
@@ -142,6 +142,12 @@ var ADMIN_HTML = `<!DOCTYPE html>
       <div><label for="name">이름</label><input id="name" placeholder="홍길동"></div>
       <div><label for="email">이메일</label><input type="email" id="email" placeholder="hong@example.com"></div>
       <div class="narrow"><label for="days">유효기간</label><input id="days" placeholder="비우면 무제한"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div>
+        <label for="door" id="doorLabel">들어가는 곳 (메일에 이 주소가 적힙니다)</label>
+        <input type="url" id="door" placeholder="https://… (비우면 메일에 주소가 안 적힙니다)">
+      </div>
       <div class="narrow"><button id="issueBtn">발급하고 보내기</button></div>
     </div>
     <p class="note" id="issueNote"></p>
@@ -215,7 +221,9 @@ window.PROGRAMS = [
   },
   {
     "id": "exam-drill",
-    "name": "공인중개사 기출 풀이 분석기"
+    "name": "공인중개사 기출문제",
+    "url": "https://parkchihong7-gif.github.io/gongin-jungsagsa-exam/",
+    "adminUrl": "https://parkchihong7-gif.github.io/gongin-jungsagsa-exam/?admin=1"
   },
   {
     "id": "senior-video",
@@ -228,10 +236,6 @@ window.PROGRAMS = [
   {
     "id": "speaker-desk",
     "name": "해외 연사 초청 관리"
-  },
-  {
-    "id": "exam",
-    "name": "공인중개사 기출문제 (바깥 프로그램)"
   },
   {
     "id": "maim",
@@ -379,13 +383,48 @@ window.PROGRAMS = [
   }
   // ── 프로그램 고르기 ───────────────────────────────────────────
   var select = $("program");
+  //: 프로그램 → { admin: 주소, client: 주소 }.
+  //: 역할마다 다르다 — 관리자로 산 분에게 고객용 주소를 보내면 발급
+  //: 화면이 안 열리고, 반대면 고객이 남의 관리자 화면을 보게 된다.
+  var 주소표 = {};
   (window.PROGRAMS || []).forEach(function (p) {
     var option = document.createElement("option");
     option.value = p.id;
     option.textContent = p.name + "  (" + p.id + ")";
     select.appendChild(option);
+    if (p.url || p.adminUrl) {
+      주소표[p.id] = { client: p.url || "", admin: p.adminUrl || p.url || "" };
+    }
   });
-  select.onchange = refresh;
+  /**
+   * 고른 프로그램의 '들어가는 곳' 을 채워 준다.
+   *
+   * 이게 비어 있으면 메일에 주소가 안 적혀, 고객이 키만 받고 **어디로
+   * 가야 하는지 모르게** 된다. 아는 프로그램은 미리 채우고, 모르는
+   * 것은 사장님이 직접 적으실 수 있게 둔다.
+   */
+  function 주소채우기() {
+    var 칸 = $("door");
+    var 한벌 = 주소표[select.value] || {};
+    var 알던주소 = ($("role").value === "admin" ? 한벌.admin : 한벌.client) || "";
+    // 사장님이 손으로 고쳐 두셨으면 건드리지 않는다.
+    if (!칸.value || 칸.dataset.auto === "1") {
+      칸.value = 알던주소;
+      칸.dataset.auto = "1";
+    }
+    칸.placeholder = 알던주소
+      ? 알던주소
+      : "https://… (이 프로그램은 아직 주소를 모릅니다. 직접 적어 주세요)";
+    $("doorLabel").textContent = ($("role").value === "admin"
+      ? "산 분이 들어가는 곳 — 관리자 화면"
+      : "고객이 들어가는 곳 — 쓰는 화면") + " (메일에 이 주소가 적힙니다)";
+  }
+  $("door").addEventListener("input", function () { this.dataset.auto = ""; });
+  select.onchange = function () { 주소채우기(); refresh(); };
+  // 역할을 바꾸면 주소도 따라 바뀌어야 한다. 안 그러면 관리자에게
+  // 고객용 주소가, 고객에게 관리자 주소가 나간다.
+  $("role").onchange = 주소채우기;
+  주소채우기();
   $("refreshBtn").onclick = refresh;
   // ── 발급 ──────────────────────────────────────────────────────
   $("issueBtn").onclick = function () {
@@ -402,9 +441,8 @@ window.PROGRAMS = [
       email: email,
       role: $("role").value,
       expiryDays: $("days").value.trim(),
-      // 고객에게 보낼 주소. 구글이 내어 주는 판에서는 이 화면의 주소가
-      // 곧 서버 주소라, 고객용 문 주소는 사장님이 따로 적어 주셔야 한다.
-      baseUrl: 구글안 ? "" : location.origin + location.pathname.replace(/admin\\.html$/, "")
+      // 고객에게 보낼 주소. 화면의 칸에 적힌 것을 그대로 쓴다.
+      baseUrl: $("door").value.trim()
     }).then(function (data) {
       $("issueBtn").disabled = false;
       if (!data.ok) { say($("issueNote"), data.message || "발급하지 못했습니다.", "bad"); return; }

@@ -21,10 +21,18 @@
     <span class="modeflag {{ mode }}">{{ mode_label }}</span>
     <span class="grow"></span>
     <nav class="modeswitch">
+      {# console_base.html 과 같은 뜻. 본체가 밖에 있으면 그 주소를 연다. #}
+      {% if program.live.elsewhere %}
+      <a class="mbtn out" target="_blank" rel="noopener"
+         href="{{ program.live.admin or program.live.client }}">관리자 모드 ↗</a>
+      <a class="mbtn out" target="_blank" rel="noopener"
+         href="{{ program.live.client or program.live.admin }}">클라이언트 모드 ↗</a>
+      {% else %}
       <a class="mbtn {% if mode == 'admin' %}on{% endif %}"
          href="/apps/{{ program.id }}/admin">관리자 모드</a>
       <a class="mbtn {% if mode == 'client' %}on{% endif %}"
          href="/apps/{{ program.id }}/client">클라이언트 모드</a>
+      {% endif %}
     </nav>
   </div>
 </header>
