@@ -385,3 +385,40 @@ def test_묶음_파일_하나만_붙이면_되게_들어_있다():
     from core.registry import Registry
     for program in Registry().programs:
         assert f'"{program.id}"' in 글, f"{program.id} 가 빠졌습니다"
+
+
+def test_묶음_파일이_잘렸는지_눈으로_알_수_있다():
+    """잘린 파일은 문법이 깨져 "Unexpected end of input" 만 나온다.
+
+    그 말만으로는 무엇을 하라는 건지 알 수가 없다. 실제로 사장님이
+    150번째 줄에서 잘린 채 붙여 넣으시고 그 오류를 받으셨다.
+    맨 아래에 표를 두어, 그 표가 보이는지로 판단하실 수 있게 한다.
+    """
+    from tools.build_keyserver import OUT, TAIL_MARK
+
+    글 = OUT.read_text(encoding="utf-8")
+    줄 = 글.splitlines()
+    assert 줄[-1] == TAIL_MARK, "맨 끝 표가 없습니다"
+    assert "⛳" in TAIL_MARK
+
+    # 머리말이 말하는 줄 수가 실제와 같아야, 세어 보고 확인하실 수 있다.
+    머리 = re.search(r"이 파일은 ([\d,]+)줄입니다", 글)
+    assert 머리, "머리말에 줄 수가 없습니다"
+    assert int(머리.group(1).replace(",", "")) == len(줄), (
+        f"머리말은 {머리.group(1)}줄이라는데 실제는 {len(줄)}줄입니다"
+    )
+
+    # 무엇 때문에 잘리는지, 어떻게 하라는지가 파일 안에 있어야 한다.
+    assert "Unexpected end of input" in 글, "그 오류가 무슨 뜻인지 안 적혀 있습니다"
+    assert "Raw" in 글, "제대로 복사하는 법이 안 적혀 있습니다"
+
+
+def test_묶음_파일이_붙여_넣을_만큼_작다():
+    """붙여 넣을 양이 적을수록 잘릴 일도 적다."""
+    from tools.build_keyserver import OUT
+
+    글 = OUT.read_text(encoding="utf-8")
+    assert len(글.encode()) < 55_000, f"{len(글.encode()):,}바이트나 됩니다"
+    # 읽기 좋은 원본은 그대로 둔다 — 줄인 것은 만들어지는 판뿐이다.
+    원본 = (Path(__file__).resolve().parent.parent / "server" / "keyserver.gs")
+    assert "왜 이것인가" in 원본.read_text(encoding="utf-8"), "원본의 설명이 사라졌습니다"

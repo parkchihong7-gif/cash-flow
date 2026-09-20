@@ -1,9 +1,18 @@
 // ═══════════════════════════════════════════════════════════════════
 //  접속키 서버 — 구글 앱스 스크립트에 붙여 넣는 **한 장짜리** 판입니다.
 //
+//  ■ 붙여넣기 전에 꼭 보세요
+//    이 파일은 1,257줄입니다. 맨 아래에 ⛳ 표가 있습니다.
+//    붙여 넣은 뒤 **맨 아래에 그 ⛳ 표가 보이는지** 확인하세요.
+//    안 보이면 잘린 것이고, 그대로 저장하면
+//      구문 오류: SyntaxError: Unexpected end of input
+//    이 납니다. 그때는 GitHub 화면에서 Ctrl+A 하지 마시고
+//    파일 위쪽의 [Raw] 또는 복사 아이콘을 쓰세요.
+//    (GitHub 은 긴 파일을 보이는 만큼만 그려서, Ctrl+A 가 잘립니다.)
+//
 //  이 파일은 만들어진 것입니다. 손으로 고치지 마세요.
-//    만든 것   : server/keyserver.gs + web/admin.html
-//    다시 만들기: python -m tools.build_keyserver
+//    읽기 좋은 원본: server/keyserver.gs + web/admin.html
+//    다시 만들기   : python -m tools.build_keyserver
 //
 //  설치 (세 단계)
 //    1. script.google.com → 새 프로젝트 → 이 파일을 통째로 붙여넣기
@@ -14,7 +23,6 @@
 //       → 나온 주소를 열면 관리자 화면이 바로 뜹니다
 // ═══════════════════════════════════════════════════════════════════
 
-//: 관리자 화면. web/admin.html 을 그대로 넣은 것입니다.
 var ADMIN_HTML = `<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -85,13 +93,10 @@ var ADMIN_HTML = `<!DOCTYPE html>
 </head>
 <body>
 <div class="wrap">
-
 <header>
   <h1>접속키 관리자</h1>
   <p class="sub">16종 + 공인중개사 + maim 이 한 서버를 같이 씁니다. 여기서 발급하면 그 자리에서 이메일이 나갑니다.</p>
 </header>
-
-<!-- ── 설정: 키 서버 주소 ───────────────────────────────────────── -->
 <section id="setup">
   <h2>키 서버 주소</h2>
   <p class="sub" style="margin-bottom:12px">
@@ -104,8 +109,6 @@ var ADMIN_HTML = `<!DOCTYPE html>
   </div>
   <p class="note" id="setupNote"></p>
 </section>
-
-<!-- ── 로그인 ───────────────────────────────────────────────────── -->
 <section id="login" class="hide">
   <h2>관리자 비밀번호</h2>
   <div class="row">
@@ -114,10 +117,7 @@ var ADMIN_HTML = `<!DOCTYPE html>
   </div>
   <p class="note" id="loginNote"></p>
 </section>
-
-<!-- ── 본 화면 ──────────────────────────────────────────────────── -->
 <div id="main" class="hide">
-
   <section>
     <h2>프로그램 고르기</h2>
     <div class="row">
@@ -126,7 +126,6 @@ var ADMIN_HTML = `<!DOCTYPE html>
       <div class="narrow"><button class="quiet" id="logoutBtn">나가기</button></div>
     </div>
   </section>
-
   <section>
     <h2>키 주기 — 1차키 1개 + 2차키 3개(PC·노트북·휴대폰)</h2>
     <div class="row">
@@ -145,13 +144,11 @@ var ADMIN_HTML = `<!DOCTYPE html>
     <p class="note" id="issueNote"></p>
     <div class="keys hide" id="issued"></div>
   </section>
-
   <section>
     <h2>발급한 키</h2>
     <div class="stats" id="stats"></div>
     <div id="list"><p class="sub">읽는 중...</p></div>
   </section>
-
   <section>
     <h2>이 프로그램의 키 전부 지우기</h2>
     <p class="warn">되돌릴 수 없습니다. 이미 파신 키가 있으면 고객이 그 자리에서 못 들어오게 됩니다.</p>
@@ -161,13 +158,9 @@ var ADMIN_HTML = `<!DOCTYPE html>
     </div>
     <p class="note" id="resetNote"></p>
   </section>
-
 </div>
 </div>
-
 <script>
-/* 키 서버가 다루는 프로그램 목록. dashboard 의 등록부에서 뽑아 만든 것입니다.
-   \`python -m tools.gen_programs_js\` 로 다시 만듭니다. 손으로 고치지 마세요. */
 window.PROGRAMS = [
   {
     "id": "funnel-builder",
@@ -242,26 +235,21 @@ window.PROGRAMS = [
     "name": "maim 블로그 (바깥 프로그램)"
   }
 ];
-
 </script>
 <script>
 (function () {
   "use strict";
-
   // 주소는 이 브라우저에만 둔다. 비밀은 아니지만 저장소에 박아 두면
   // 서버를 옮길 때마다 코드를 고쳐야 한다.
   var URL_KEY = "keyserver.url";
   // 표는 sessionStorage 에 둔다. 창을 닫으면 사라진다 — 공용 PC 에서
   // localStorage 에 두면 다음 사람이 그대로 들어온다.
   var TOKEN_KEY = "keyserver.token";
-
   var $ = function (id) { return document.getElementById(id); };
-
   function say(el, text, kind) {
     el.className = "note" + (kind ? " " + kind : "");
     el.textContent = text;
   }
-
   /**
    * 구글이 이 화면을 직접 내어 주고 있나?
    *
@@ -269,10 +257,8 @@ window.PROGRAMS = [
    * 스크립트를 바로 부른다. CORS 도, 주소를 어디 적어 둘 일도 없다.
    */
   var 구글안 = !!(window.google && window.google.script && window.google.script.run);
-
   function serverUrl() { return localStorage.getItem(URL_KEY) || ""; }
   function token() { return sessionStorage.getItem(TOKEN_KEY) || ""; }
-
   /**
    * 서버를 부른다.
    *
@@ -282,7 +268,6 @@ window.PROGRAMS = [
    */
   function api(action, params) {
     var body = Object.assign({ action: action }, params || {});
-
     if (구글안) {
       // 구글이 감싸 준다. 주소도 CORS 도 없다.
       return new Promise(function (ok, fail) {
@@ -297,7 +282,6 @@ window.PROGRAMS = [
           .apiCall(JSON.stringify(body));
       });
     }
-
     var url = serverUrl();
     if (!url) { return Promise.reject(new Error("키 서버 주소를 먼저 넣어 주세요.")); }
     return fetch(url, {
@@ -309,11 +293,9 @@ window.PROGRAMS = [
       return res.json();
     });
   }
-
   function authed(action, params) {
     return api(action, Object.assign({ token: token() }, params || {}));
   }
-
   // ── 설정 ──────────────────────────────────────────────────────
   $("serverUrl").value = serverUrl();
   $("saveUrl").onclick = function () {
@@ -331,7 +313,6 @@ window.PROGRAMS = [
       say($("setupNote"), "연결하지 못했습니다: " + err.message, "bad");
     });
   };
-
   // ── 로그인 ────────────────────────────────────────────────────
   $("loginBtn").onclick = function () {
     var pw = $("pw").value;
@@ -354,12 +335,10 @@ window.PROGRAMS = [
   $("pw").addEventListener("keydown", function (e) {
     if (e.key === "Enter") { $("loginBtn").click(); }
   });
-
   $("logoutBtn").onclick = function () {
     sessionStorage.removeItem(TOKEN_KEY);
     showStage();
   };
-
   function showStage() {
     var hasUrl = 구글안 || !!serverUrl();
     var hasToken = !!token();
@@ -368,7 +347,6 @@ window.PROGRAMS = [
     $("login").classList.toggle("hide", !hasUrl || hasToken);
     $("main").classList.toggle("hide", !(hasUrl && hasToken));
   }
-
   // ── 프로그램 고르기 ───────────────────────────────────────────
   var select = $("program");
   (window.PROGRAMS || []).forEach(function (p) {
@@ -379,18 +357,15 @@ window.PROGRAMS = [
   });
   select.onchange = refresh;
   $("refreshBtn").onclick = refresh;
-
   // ── 발급 ──────────────────────────────────────────────────────
   $("issueBtn").onclick = function () {
     var name = $("name").value.trim();
     var email = $("email").value.trim();
     if (!name) { say($("issueNote"), "이름을 적어 주세요. 누구에게 준 키인지 남아야 합니다.", "bad"); return; }
     if (email.indexOf("@") < 0) { say($("issueNote"), "이메일 주소를 확인해 주세요.", "bad"); return; }
-
     $("issueBtn").disabled = true;
     say($("issueNote"), "만들고 보내는 중...", "busy");
     $("issued").classList.add("hide");
-
     authed("adminCreateInvite", {
       program: select.value,
       name: name,
@@ -403,7 +378,6 @@ window.PROGRAMS = [
     }).then(function (data) {
       $("issueBtn").disabled = false;
       if (!data.ok) { say($("issueNote"), data.message || "발급하지 못했습니다.", "bad"); return; }
-
       // 메일이 막혀도 키는 이미 있다. 그것을 그대로 보여 줘야 직접 보내실 수 있다.
       say($("issueNote"), data.message || "발급했습니다.", data.mailed ? "good" : "bad");
       var lines = [
@@ -430,7 +404,6 @@ window.PROGRAMS = [
       box.appendChild(document.createElement("br"));
       box.appendChild(copy);
       box.classList.remove("hide");
-
       $("name").value = ""; $("email").value = "";
       refresh();
     }).catch(function (err) {
@@ -438,7 +411,6 @@ window.PROGRAMS = [
       say($("issueNote"), err.message, "bad");
     });
   };
-
   // ── 목록 ──────────────────────────────────────────────────────
   function refresh() {
     if (!token()) { return; }
@@ -462,7 +434,6 @@ window.PROGRAMS = [
       $("list").innerHTML = '<p class="note bad">' + err.message + "</p>";
     });
   }
-
   function drawStats(counts) {
     var pairs = [
       ["판 것 (관리자키)", counts.admins],
@@ -475,13 +446,11 @@ window.PROGRAMS = [
       return '<div class="stat"><b>' + p[1] + "</b><span>" + p[0] + "</span></div>";
     }).join("");
   }
-
   function esc(text) {
     return String(text == null ? "" : text)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
   }
-
   function drawRows(rows) {
     if (!rows.length) {
       $("list").innerHTML = '<p class="sub">아직 발급한 키가 없습니다.</p>';
@@ -494,7 +463,6 @@ window.PROGRAMS = [
       if (r.type !== "secondary") { return; }
       (byParent[r.parentKey] = byParent[r.parentKey] || []).push(r);
     });
-
     var html = ['<table><thead><tr><th>키</th><th>누구</th><th>무슨 키</th>',
                 '<th>상태</th><th>발급일</th><th>만료</th><th></th></tr></thead><tbody>'];
     primaries.forEach(function (r) {
@@ -503,7 +471,6 @@ window.PROGRAMS = [
     });
     html.push("</tbody></table>");
     $("list").innerHTML = html.join("");
-
     $("list").querySelectorAll("button[data-do]").forEach(function (btn) {
       btn.onclick = function () {
         var what = btn.dataset.do, key = btn.dataset.key;
@@ -517,7 +484,6 @@ window.PROGRAMS = [
       };
     });
   }
-
   function line(r, indented) {
     var 상태 = r.status === "suspended"
       ? '<span class="tag off">정지</span>'
@@ -542,7 +508,6 @@ window.PROGRAMS = [
       + '<button class="quiet" data-do="adminDeleteKey" data-key="' + esc(r.key) + '">지우기</button></td>'
       + "</tr>";
   }
-
   // ── 초기화 ────────────────────────────────────────────────────
   $("resetBtn").onclick = function () {
     var word = $("confirm").value.trim();
@@ -564,131 +529,55 @@ window.PROGRAMS = [
       say($("resetNote"), err.message, "bad");
     });
   };
-
   // ── 시작 ──────────────────────────────────────────────────────
   showStage();
   if ((구글안 || serverUrl()) && token()) { refresh(); }
 })();
 </script>
 </body>
-</html>
-`;
-
-/**
- * 통합 접속키 서버 — 구글 앱스 스크립트 판.
- *
- * 왜 이것인가
- *   화면(GitHub Pages)은 파일만 내어 주는 곳이라 키를 발급할 수 없다.
- *   키 발급은 "어딘가에 적어 두는" 일이라 서버가 있어야 한다. 그 서버를
- *   돈 내고 빌리지 않고 구글 앱스 스크립트로 둔다. 무료이고, 항상 켜져
- *   있고, 구글 시트가 그대로 장부가 되고, Gmail 로 발송까지 된다.
- *
- *   공인중개사 기출문제 프로그램이 이미 이 방식으로 돌고 있다. 그 규약을
- *   그대로 지키면서, 16종이 **한 서버를 같이 쓰도록** program 칸과
- *   이중 판매(관리자키/고객키)를 더한 것이 이 파일이다.
- *
- * 키 구조 (16종 공통 표준)
- *   1차키  사람 한 명당 하나. 동시 접속 수를 세지 않는다.
- *   2차키  1차키 아래 PC·노트북·휴대폰 셋. **기기당 한 세션**이라,
- *          같은 2차키로 다른 기기에서 들어오면 먼저 있던 기기가 잠긴다.
- *   레거시 1차/2차 구분 없이 단독으로 쓰는 옛 방식. 받아만 준다.
- *
- * 파는 구조
- *   role=admin   이 프로그램을 **산 사람**. 자기 고객에게 키를 줄 수 있다.
- *   role=client  그 관리자의 고객. 쓰는 화면만 열린다.
- *   관리자키는 **주인만** 만든다. 산 사람이 관리자를 찍어 내며 재판매하는
- *   길을 막아야 하기 때문이다.
- *
- * 설치
- *   server/README.md 를 보세요. 시트 만들기 → 이 파일 붙이기 → 배포.
- */
-
-// ── 설정 ────────────────────────────────────────────────────────────
-// 값은 코드가 아니라 **스크립트 속성**에 둔다. 코드는 저장소에 올라가고,
-// 저장소는 공개라서 여기 적으면 비밀번호가 그대로 새어 나간다.
-//   파일 → 프로젝트 설정 → 스크립트 속성에서 넣습니다.
-//     ADMIN_PASSWORD   관리자 비밀번호 (필수)
-//     SIGNING_SECRET   관리자 표를 서명할 값 (필수, 아무 긴 글자)
-//     SHEET_ID         장부로 쓸 구글 시트 id (비우면 붙어 있는 시트)
-//     DEFAULT_PROGRAM  program 을 안 보내는 옛 화면이 쓸 프로그램 이름
-//     MAIL_FROM_NAME   보내는 사람 이름 (비우면 계정 이름)
+</html>`;
 
 var SHEET_KEYS = 'keys';
-//: 서버가 스스로 만드는 장부의 이름. 사장님 드라이브에 이 이름으로 생깁니다.
 var SHEET_TITLE = '접속키 장부 (지우지 마세요)';
-//: 한 요청 안에서 시트를 여러 번 열지 않게 잡아 둔다.
 var BOOK_CACHE = null;
 var SHEET_LOG = 'log';
-
-/** 0·O·1·I·L 을 뺐다. 전화로 불러 줄 때 서로 다른 글자를 못 듣는다. */
 var ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 var BLOCK = 4;
 var BLOCKS = 3;
-
-/** 2차키는 이 셋으로 함께 나간다. 순서가 바뀌면 옛 화면이 못 읽는다. */
 var DEVICES = ['PC', '노트북', '휴대폰'];
-
 var ROLE_ADMIN = 'admin';
 var ROLE_CLIENT = 'client';
-
 var KIND_PRIMARY = 'primary';
 var KIND_SECONDARY = 'secondary';
 var KIND_LEGACY = 'legacy';
-
-/** 한 번에 만들 수 있는 최대 개수. 실수로 0 을 더 붙여도 시트가 안 터진다. */
 var MAX_BULK = 500;
-
-/** 관리자 표가 살아 있는 시간. */
 var ADMIN_TOKEN_HOURS = 12;
-
-/** 키를 틀리게 넣어 볼 수 있는 횟수와 그 창의 길이(초). */
 var GUESS_LIMIT = 10;
 var GUESS_WINDOW = 600;
-
-/** 시트의 칸 순서. 이 순서가 곧 장부의 머리글이다. */
 var COLUMNS = [
-  'program',        // 어느 프로그램의 키인가
-  'key',            // 키 그 자체
-  'type',           // primary / secondary / legacy
-  'role',           // admin(산 사람) / client(그 사람의 고객)
-  'issuedBy',       // 준 사람의 1차키. 비면 주인이 직접 준 것
-  'parentKey',      // 2차키가 딸린 1차키
-  'deviceLabel',    // PC / 노트북 / 휴대폰
-  'status',         // active / suspended
+  'program',
+  'key',
+  'type',
+  'role',
+  'issuedBy',
+  'parentKey',
+  'deviceLabel',
+  'status',
   'issuedDate',
-  'expiryDate',     // 비우면 무제한
+  'expiryDate',
   'assignedName',
   'assignedEmail',
-  'usedDate',       // 마지막으로 들어온 때
-  'sessionToken',   // 지금 이 기기가 쥐고 있는 표
+  'usedDate',
+  'sessionToken',
   'sessionAt',
   'note'
 ];
-
-// ── 처음 한 번 ──────────────────────────────────────────────────────
-
-/**
- * **편집기에서 이 함수를 한 번 실행하세요.** 그것으로 설치가 끝납니다.
- *
- * 하는 일
- *   1. 장부로 쓸 구글 시트를 만듭니다 (이미 있으면 그대로 씁니다)
- *   2. 표를 서명할 값을 만듭니다
- *   3. 관리자 비밀번호를 만들어 **실행 기록에 적어 줍니다**
- *
- * 비밀번호를 직접 정하고 싶으시면 아래 따옴표 안에 적고 실행하세요.
- * 비워 두시면 읽기 쉬운 것으로 만들어 드립니다.
- *
- * 이 함수는 **편집기에서만** 부를 수 있습니다. 웹 주소로는 닿지 않습니다 —
- * 닿으면 주소를 아는 사람이 비밀번호를 바꿔 버릴 수 있습니다.
- */
 function 처음설정() {
-  var 직접정한비밀번호 = '';          // ← 여기에 적으시면 이것을 씁니다
-
+  var 직접정한비밀번호 = '';
   var 시트 = book();
   sheetOf(SHEET_KEYS, COLUMNS);
   sheetOf(SHEET_LOG, ['때', '무엇', '프로그램', '내용']);
   signingSecret();
-
   var 비밀번호 = prop('ADMIN_PASSWORD');
   var 새로만듦 = false;
   if (직접정한비밀번호) {
@@ -700,7 +589,6 @@ function 처음설정() {
     setProp('ADMIN_PASSWORD', 비밀번호);
     새로만듦 = true;
   }
-
   var 줄 = [
     '',
     '════════════════════════════════════════════════',
@@ -724,8 +612,6 @@ function 처음설정() {
   Logger.log(글);
   return 글;
 }
-
-/** 전화로 불러 줄 수 있는 비밀번호. 헷갈리는 글자를 뺀 네 덩이. */
 function 읽기쉬운비밀번호() {
   var 덩이 = [];
   for (var b = 0; b < 4; b++) {
@@ -737,23 +623,11 @@ function 읽기쉬운비밀번호() {
   }
   return 덩이.join('-');
 }
-
-// ── 들어오는 문 ─────────────────────────────────────────────────────
-
 function doGet(e) {
-  // action 없이 주소만 열면 **관리자 화면**을 내어 준다. 그래서 배포 주소가
-  // 곧 관리자 주소가 된다 — 어디에도 주소를 적어 둘 일이 없다.
   if (!e || !e.parameter || !e.parameter.action) { return servePage(); }
   return handle(e);
 }
 function doPost(e) { return handle(e); }
-
-/**
- * 관리자 화면. 빌드가 ADMIN_HTML 을 채워 넣는다.
- *
- * 화면 안에서는 `google.script.run.apiCall()` 로 이 스크립트를 바로 부른다.
- * 구글이 감싸 주므로 주소도, CORS 도 신경 쓸 것이 없다.
- */
 function servePage() {
   if (typeof ADMIN_HTML === 'undefined' || !ADMIN_HTML) {
     return HtmlService.createHtmlOutput(
@@ -765,25 +639,11 @@ function servePage() {
     .setTitle('접속키 관리자')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
-
-/**
- * 화면이 부르는 하나뿐인 문. JSON 글자를 받아 JSON 글자를 돌려준다.
- *
- * `google.script.run` 은 객체를 주고받을 때 까다로워, 글자로만 오간다.
- */
 function apiCall(payloadJson) {
   var params = {};
   try { params = JSON.parse(payloadJson || '{}'); } catch (_) { params = {}; }
   return handle({ parameter: params }).getContent();
 }
-
-/**
- * 모든 요청이 여기로 온다.
- *
- * GET 과 POST 를 둘 다 받는다. 옛 화면이 GET 으로 부르고 있어서다.
- * 새로 만드는 화면은 POST 를 쓰는 편이 낫다 — GET 은 주소에 값이 실려
- * 실행 기록에 비밀번호가 그대로 남는다.
- */
 function handle(e) {
   var p = {};
   try {
@@ -793,16 +653,13 @@ function handle(e) {
       try { body = JSON.parse(e.postData.contents); } catch (_) { body = {}; }
       for (var k2 in body) { p[k2] = body[k2]; }
     }
-  } catch (_) { /* 빈 요청 */ }
-
+  } catch (_) {  }
   var action = String(p.action || '');
   try {
     switch (action) {
-      // 쓰는 사람 쪽
       case 'ping':             return json({ ok: true, at: nowIso() });
       case 'validateKeyPair':  return json(validateKeyPair(p));
       case 'checkSession':     return json(checkSession(p));
-      // 주인·관리자 쪽
       case 'adminLogin':       return json(adminLogin(p));
       case 'adminList':        return json(adminList(p));
       case 'adminCreateKeys':  return json(adminCreateKeys(p));
@@ -815,37 +672,23 @@ function handle(e) {
         return json({ ok: false, reason: 'unknown_action', message: '모르는 요청입니다: ' + action });
     }
   } catch (err) {
-    // 속사정을 그대로 내보내면 시트 구조가 밖으로 샌다. 사람에게는 한 줄만.
     log('error', action, String((err && err.message) || err));
     return json({ ok: false, reason: 'server_error', message: '서버에서 문제가 났습니다. 잠시 뒤 다시 해 주세요.' });
   }
 }
-
 function json(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
 }
-
-// ── 쓰는 사람: 문 열기 ──────────────────────────────────────────────
-
-/**
- * 1차키(+2차키)로 문을 연다.
- *
- * 2차키를 같이 냈으면 그 기기에 **새 표**를 준다. 같은 2차키를 쥔 다른
- * 기기는 다음 확인 때 `session_replaced` 를 받고 잠긴다. 키를 빌려줘도
- * 기기 수만큼만 쓸 수 있게 하려는 것이다.
- */
 function validateKeyPair(p) {
   var program = programOf(p);
   var key1 = normalizeKey(p.key1 || p.key || '');
   var key2 = normalizeKey(p.key2 || '');
   if (!key1) { return { ok: false, reason: 'no_primary', message: '1차 인증키를 입력해주세요.' }; }
-
   if (tooManyGuesses(key1)) {
     return { ok: false, reason: 'too_many_attempts',
              message: '너무 여러 번 틀렸습니다. 10분 뒤에 다시 해 주세요.' };
   }
-
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
@@ -857,8 +700,6 @@ function validateKeyPair(p) {
     }
     var bad = unusable(row1);
     if (bad) { return bad; }
-
-    // 레거시 단일키는 짝이 없다. 그대로 열어 준다.
     if (row1.type === KIND_LEGACY) {
       touch(table, row1, '');
       writeTable(table);
@@ -866,7 +707,6 @@ function validateKeyPair(p) {
       return { ok: true, legacy: true, role: row1.role || ROLE_CLIENT,
                name: row1.assignedName || '', program: program };
     }
-
     if (!key2) {
       return { ok: false, reason: 'no_secondary',
                message: '2차 인증키도 함께 입력해주세요.' };
@@ -883,7 +723,6 @@ function validateKeyPair(p) {
     }
     var bad2 = unusable(row2);
     if (bad2) { return bad2; }
-
     var token = Utilities.getUuid();
     row2.sessionToken = token;
     row2.sessionAt = nowIso();
@@ -891,7 +730,6 @@ function validateKeyPair(p) {
     touch(table, row2, '');
     writeTable(table);
     log('open', program, key1 + ' / ' + key2 + ' (' + (row2.deviceLabel || '') + ')');
-
     return {
       ok: true,
       sessionToken: token,
@@ -904,25 +742,16 @@ function validateKeyPair(p) {
     lock.releaseLock();
   }
 }
-
-/**
- * 이 기기가 아직 주인인지 묻는다. 화면이 1분마다 부른다.
- *
- * 1차키가 정지되면 그 아래 2차키도 함께 끊는다. 정지해 놓았는데 이미
- * 들어와 있던 기기가 계속 쓰고 있으면 정지한 뜻이 없다.
- */
 function checkSession(p) {
   var program = programOf(p);
   var key = normalizeKey(p.key || p.key2 || '');
   var token = String(p.sessionToken || '');
   if (!key || !token) { return { ok: false, reason: 'missing' }; }
-
   var table = readTable();
   var row = findKey(table, program, key);
   if (!row) { return { ok: false, reason: 'not_found' }; }
   if (row.status === 'suspended') { return { ok: false, reason: 'suspended' }; }
   if (expired(row)) { return { ok: false, reason: 'expired' }; }
-
   var parent = row.parentKey ? findKey(table, program, row.parentKey) : null;
   if (parent) {
     if (parent.status === 'suspended') { return { ok: false, reason: 'suspended' }; }
@@ -933,46 +762,26 @@ function checkSession(p) {
   }
   return { ok: true };
 }
-
-// ── 주인·관리자 쪽 ──────────────────────────────────────────────────
-
-/**
- * 비밀번호를 확인하고 12시간짜리 표를 준다.
- *
- * 옛 화면은 비밀번호 자체를 매번 보낸다. 그것도 받아 주되, 새 화면은
- * 이 표를 쓰는 편이 낫다 — 주소에 비밀번호가 실려 실행 기록에 남지 않는다.
- */
 function adminLogin(p) {
   var given = String(p.password || p.token || '');
   if (!passwordOk(given)) {
-    Utilities.sleep(700);   // 빠르게 되물으며 찍어 보는 것을 늦춘다
+    Utilities.sleep(700);
     return { ok: false, reason: 'bad_password', message: '비밀번호가 올바르지 않습니다.' };
   }
   return { ok: true, token: makeAdminToken(), hours: ADMIN_TOKEN_HOURS };
 }
-
-/**
- * 발급한 키 목록.
- *
- * `issuer` 를 내면 **그 사람이 준 것만** 보인다. 학원 A 가 학원 B 의
- * 고객 명단을 보면 안 되기 때문이다.
- */
 function adminList(p) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
   var program = String(p.program || '').trim();
   var issuer = normalizeKey(p.issuer || '');
-
   var rows = readTable().rows.filter(function (r) {
     if (program && r.program !== program) { return false; }
     if (issuer && normalizeKey(r.issuedBy) !== issuer) { return false; }
     return true;
   }).map(publicRow);
-
   return { ok: true, rows: rows, counts: countRows(rows) };
 }
-
-/** 레거시 단일키를 여러 개 한 번에. 1차/2차 구분 없이 단독으로 쓴다. */
 function adminCreateKeys(p) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
@@ -984,7 +793,6 @@ function adminCreateKeys(p) {
              message: '한 번에 ' + MAX_BULK + '개까지 만드실 수 있습니다.' };
   }
   var expiry = expiryFrom(p.expiryDays);
-
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
@@ -1005,25 +813,15 @@ function adminCreateKeys(p) {
     lock.releaseLock();
   }
 }
-
-/**
- * 한 사람에게 1차키 1개 + 2차키 3개를 만들고, 그대로 이메일로 보낸다.
- *
- * role=admin 은 **파는 키**다. 산 사람이 자기 고객에게 줄 키를 만들 때는
- * issuedBy 가 그 사람의 1차키로 들어오는데, 그 경우 관리자키는 만들 수
- * 없다. 허용하면 산 사람이 관리자를 찍어 내며 재판매할 수 있다.
- */
 function adminCreateInvite(p) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
-
   var program = programOf(p);
   var name = String(p.name || '').trim();
   var email = String(p.email || '').trim();
   var role = String(p.role || ROLE_ADMIN);
   var issuedBy = normalizeKey(p.issuedBy || '');
   var baseUrl = String(p.baseUrl || '').trim();
-
   if (!name) { return { ok: false, reason: 'no_name', message: '이름을 적어 주세요. 누구에게 준 키인지 남아야 합니다.' }; }
   if (email.indexOf('@') < 0) { return { ok: false, reason: 'bad_email', message: '이메일 주소를 확인해 주세요.' }; }
   if (role !== ROLE_ADMIN && role !== ROLE_CLIENT) {
@@ -1034,13 +832,10 @@ function adminCreateInvite(p) {
              message: '관리자키는 발급하실 수 없습니다. 고객용 키만 만드실 수 있습니다.' };
   }
   var expiry = expiryFrom(p.expiryDays);
-
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
     var table = readTable();
-
-    // 산 사람이 발급하는 경우, 그 사람의 1차키가 실제로 쓸 수 있는 것인지 본다.
     if (issuedBy) {
       var issuerRow = findKey(table, program, issuedBy);
       if (!issuerRow || issuerRow.role !== ROLE_ADMIN) {
@@ -1050,7 +845,6 @@ function adminCreateInvite(p) {
         return { ok: false, reason: 'issuer_unusable', message: '발급하신 분의 키가 정지되었거나 만료되었습니다.' };
       }
     }
-
     var primary = blankRow(program, KIND_PRIMARY);
     primary.key = uniqueKey(table);
     primary.role = role;
@@ -1059,7 +853,6 @@ function adminCreateInvite(p) {
     primary.assignedName = name;
     primary.assignedEmail = email;
     table.rows.push(primary);
-
     var secondaries = {};
     for (var i = 0; i < DEVICES.length; i++) {
       var s = blankRow(program, KIND_SECONDARY);
@@ -1075,11 +868,9 @@ function adminCreateInvite(p) {
       secondaries[DEVICES[i]] = s.key;
     }
     writeTable(table);
-
     var url = baseUrl || '';
     var sent = sendInvite(email, name, program, primary.key, secondaries, url, role, expiry);
     log('invite', program, name + ' <' + email + '> ' + (sent ? '보냄' : '못 보냄'));
-
     return {
       ok: true,
       primaryKey: primary.key,
@@ -1093,20 +884,12 @@ function adminCreateInvite(p) {
     lock.releaseLock();
   }
 }
-
-/**
- * 키 하나를 정지하거나 되살린다.
- *
- * 1차키를 정지하면 그 아래 2차키도 함께 정지한다. 1차키만 막고 2차키를
- * 살려 두면, 이미 들어와 있던 기기가 그대로 쓰게 된다.
- */
 function adminSetStatus(p, status) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
   var program = programOf(p);
   var key = normalizeKey(p.key || '');
   var issuer = normalizeKey(p.issuer || '');
-
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
@@ -1126,15 +909,12 @@ function adminSetStatus(p, status) {
     lock.releaseLock();
   }
 }
-
-/** 키를 지운다. 1차키를 지우면 딸린 2차키도 함께 사라진다. */
 function adminDeleteKey(p) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
   var program = programOf(p);
   var key = normalizeKey(p.key || '');
   var issuer = normalizeKey(p.issuer || '');
-
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
@@ -1157,13 +937,6 @@ function adminDeleteKey(p) {
     lock.releaseLock();
   }
 }
-
-/**
- * 전부 지운다. 되돌릴 수 없다.
- *
- * 그래서 `confirm` 에 '초기화' 를 받아야 움직인다. 버튼 한 번 잘못
- * 눌렀다고 판 키가 통째로 사라지면 안 된다.
- */
 function adminResetAll(p) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
@@ -1173,7 +946,6 @@ function adminResetAll(p) {
              message: '정말 지우시려면 confirm 에 "초기화" 라고 적어 보내 주세요.' };
   }
   var program = String(p.program || '').trim();
-
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
@@ -1188,14 +960,6 @@ function adminResetAll(p) {
     lock.releaseLock();
   }
 }
-
-// ── 관리자인지 확인 ─────────────────────────────────────────────────
-
-/**
- * 표를 냈으면 표를, 비밀번호를 냈으면 비밀번호를 본다.
- *
- * 옛 화면이 비밀번호를 그대로 `token` 에 실어 보내고 있어 둘 다 받는다.
- */
 function whoAmI(p) {
   var given = String(p.token || '');
   if (given && checkAdminToken(given)) { return { ok: true }; }
@@ -1203,14 +967,11 @@ function whoAmI(p) {
   Utilities.sleep(700);
   return { ok: false, reason: 'unauthorized', message: '관리자 비밀번호가 필요합니다.' };
 }
-
 function passwordOk(given) {
   var real = prop('ADMIN_PASSWORD');
-  if (!real) { return false; }   // 안 정했으면 아무도 못 들어온다
+  if (!real) { return false; }
   return constantEquals(String(given), String(real));
 }
-
-/** 길이만 보고 빨리 돌아가면 그것만으로 글자 수가 새어 나간다. */
 function constantEquals(a, b) {
   var diff = a.length ^ b.length;
   var n = Math.max(a.length, b.length);
@@ -1219,13 +980,10 @@ function constantEquals(a, b) {
   }
   return diff === 0;
 }
-
-/** 서명한 표. 어디에도 저장하지 않고 다시 계산해서 맞춰 본다. */
 function makeAdminToken() {
   var until = Date.now() + ADMIN_TOKEN_HOURS * 3600 * 1000;
   return until + '.' + signature(String(until));
 }
-
 function checkAdminToken(token) {
   var at = String(token).indexOf('.');
   if (at < 0) { return false; }
@@ -1235,7 +993,6 @@ function checkAdminToken(token) {
   if (Number(until) < Date.now()) { return false; }
   return constantEquals(sig, signature(until));
 }
-
 function signature(text) {
   var secret = signingSecret();
   var raw = Utilities.computeHmacSha256Signature(text, secret);
@@ -1243,52 +1000,34 @@ function signature(text) {
     return ('0' + (b & 0xff).toString(16)).slice(-2);
   }).join('');
 }
-
-// ── 찍어 보기 막기 ──────────────────────────────────────────────────
-
 function tooManyGuesses(key) {
   var cache = CacheService.getScriptCache();
   var n = Number(cache.get('guess:' + key) || 0);
   return n >= GUESS_LIMIT;
 }
-
 function countGuess(key) {
   var cache = CacheService.getScriptCache();
   var n = Number(cache.get('guess:' + key) || 0) + 1;
   cache.put('guess:' + key, String(n), GUESS_WINDOW);
 }
-
-// ── 장부 (구글 시트) ────────────────────────────────────────────────
-
-/**
- * 장부로 쓸 구글 시트. **없으면 만든다.**
- *
- * 사장님이 시트를 손으로 만들어 id 를 옮겨 적을 일이 없게 하려는 것이다.
- * 한 번 만들면 id 를 스크립트 속성에 적어 두고, 다음부터 그것을 쓴다.
- * 시트를 지우셨으면 새로 만든다 — 그 경우 **옛 키는 사라진다.**
- */
 function book() {
   if (BOOK_CACHE) { return BOOK_CACHE; }
-
   var id = prop('SHEET_ID');
   if (id) {
     try { return (BOOK_CACHE = SpreadsheetApp.openById(id)); }
-    catch (_) { /* 지웠거나 권한이 없다. 아래에서 새로 만든다. */ }
+    catch (_) {  }
   }
-  // 시트에 붙여 만든 프로젝트면 그 시트를 그대로 쓴다.
   try {
     var active = SpreadsheetApp.getActiveSpreadsheet();
     if (active) {
       setProp('SHEET_ID', active.getId());
       return (BOOK_CACHE = active);
     }
-  } catch (_) { /* 따로 만든 프로젝트다 */ }
-
+  } catch (_) {  }
   var made = SpreadsheetApp.create(SHEET_TITLE);
   setProp('SHEET_ID', made.getId());
   return (BOOK_CACHE = made);
 }
-
 function sheetOf(name, headers) {
   var ss = book();
   var sh = ss.getSheetByName(name);
@@ -1300,8 +1039,6 @@ function sheetOf(name, headers) {
   }
   return sh;
 }
-
-/** 시트를 통째로 읽어 온다. 한 요청 안에서는 이것 한 번만 한다. */
 function readTable() {
   var sh = sheetOf(SHEET_KEYS, COLUMNS);
   var values = sh.getDataRange().getValues();
@@ -1320,8 +1057,6 @@ function readTable() {
   }
   return { sheet: sh, rows: rows };
 }
-
-/** 통째로 다시 쓴다. 줄 수가 적어 이 편이 단순하고 틀릴 자리가 없다. */
 function writeTable(table) {
   var sh = table.sheet;
   var out = [COLUMNS.slice()];
@@ -1334,17 +1069,12 @@ function writeTable(table) {
   sh.clear();
   sh.getRange(1, 1, out.length, COLUMNS.length).setValues(out);
 }
-
 function log(what, program, detail) {
   try {
     var sh = sheetOf(SHEET_LOG, ['때', '무엇', '프로그램', '내용']);
     sh.appendRow([nowIso(), what, program || '', detail || '']);
-  } catch (_) { /* 기록을 못 남겨도 본 일은 계속한다 */ }
+  } catch (_) {  }
 }
-
-// ── 잔일 ────────────────────────────────────────────────────────────
-
-/** 표를 서명할 값. 없으면 만들어 둔다 — 사장님이 알 필요가 없는 값이다. */
 function signingSecret() {
   var secret = prop('SIGNING_SECRET');
   if (secret) { return secret; }
@@ -1352,35 +1082,27 @@ function signingSecret() {
   setProp('SIGNING_SECRET', secret);
   return secret;
 }
-
 function setProp(name, value) {
   try { PropertiesService.getScriptProperties().setProperty(name, String(value)); }
-  catch (_) { /* 못 적어도 이번 요청은 계속한다 */ }
+  catch (_) {  }
 }
-
 function prop(name) {
   try { return PropertiesService.getScriptProperties().getProperty(name) || ''; }
   catch (_) { return ''; }
 }
-
 function programOf(p) {
   var given = String(p.program || '').trim();
   return given || prop('DEFAULT_PROGRAM') || 'default';
 }
-
 function nowIso() {
   return Utilities.formatDate(new Date(), 'Asia/Seoul', "yyyy-MM-dd'T'HH:mm:ss");
 }
-
 function today() {
   return Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
 }
-
-/** 넣는 사람이 소문자로 쓰든 사이에 공백을 넣든 같은 키로 본다. */
 function normalizeKey(text) {
   return String(text || '').trim().toUpperCase().replace(/\s+/g, '');
 }
-
 function newKey() {
   var blocks = [];
   for (var b = 0; b < BLOCKS; b++) {
@@ -1392,8 +1114,6 @@ function newKey() {
   }
   return blocks.join('-');
 }
-
-/** 같은 키가 두 번 나오면 둘 중 하나는 영영 안 열린다. */
 function uniqueKey(table) {
   for (var tries = 0; tries < 50; tries++) {
     var candidate = newKey();
@@ -1405,7 +1125,6 @@ function uniqueKey(table) {
   }
   throw new Error('키를 못 만들었습니다');
 }
-
 function blankRow(program, type) {
   var row = {};
   for (var i = 0; i < COLUMNS.length; i++) { row[COLUMNS[i]] = ''; }
@@ -1415,7 +1134,6 @@ function blankRow(program, type) {
   row.issuedDate = today();
   return row;
 }
-
 function findKey(table, program, key) {
   var want = normalizeKey(key);
   if (!want) { return null; }
@@ -1425,21 +1143,17 @@ function findKey(table, program, key) {
   }
   return null;
 }
-
 function expiryFrom(days) {
   var n = Number(days || 0);
   if (!(n > 0)) { return ''; }
   var when = new Date(Date.now() + n * 86400000);
   return Utilities.formatDate(when, 'Asia/Seoul', 'yyyy-MM-dd');
 }
-
 function expired(row) {
   var until = String(row.expiryDate || '').trim();
   if (!until) { return false; }
   return until < today();
 }
-
-/** 못 쓰는 키면 그 이유를, 쓸 수 있으면 null 을 준다. */
 function unusable(row) {
   if (row.status === 'suspended') {
     return { ok: false, reason: 'suspended', message: '정지된 키입니다. 발급하신 분께 문의해 주세요.' };
@@ -1449,12 +1163,9 @@ function unusable(row) {
   }
   return null;
 }
-
 function touch(table, row, _unused) {
   row.usedDate = nowIso();
 }
-
-/** 1차키면 자기와 딸린 2차키 전부, 2차키면 자기만. */
 function familyOf(table, program, row) {
   if (row.type !== KIND_PRIMARY) { return [row]; }
   var out = [row];
@@ -1466,8 +1177,6 @@ function familyOf(table, program, row) {
   }
   return out;
 }
-
-/** 밖으로 내보낼 때는 **지금 쥔 표를 뺀다.** 그것이 곧 남의 세션이다. */
 function publicRow(row) {
   return {
     program: row.program,
@@ -1486,7 +1195,6 @@ function publicRow(row) {
     live: !!String(row.sessionToken || '')
   };
 }
-
 function countRows(rows) {
   var out = { total: rows.length, primary: 0, secondary: 0, legacy: 0,
               admins: 0, clients: 0, suspended: 0, live: 0 };
@@ -1502,13 +1210,6 @@ function countRows(rows) {
   }
   return out;
 }
-
-// ── 이메일 ──────────────────────────────────────────────────────────
-
-/**
- * 키를 보낸다. 못 보내도 **키는 이미 만들어져 있다** — 화면이 그것을
- * 보여 주므로, 복사해서 직접 보내시면 된다.
- */
 function sendInvite(email, name, program, primaryKey, secondaries, url, role, expiry) {
   var lines = [];
   lines.push(name + '님, 안녕하세요.');
@@ -1543,7 +1244,6 @@ function sendInvite(email, name, program, primaryKey, secondaries, url, role, ex
   }
   lines.push('');
   lines.push('키는 다른 분께 알려 주지 마세요.');
-
   try {
     var options = { name: prop('MAIL_FROM_NAME') || undefined };
     MailApp.sendEmail(email, '[' + program + '] 접속키를 보내 드립니다', lines.join('\n'), options);
@@ -1554,3 +1254,4 @@ function sendInvite(email, name, program, primaryKey, secondaries, url, role, ex
   }
 }
 
+// ⛳ 여기가 마지막 줄입니다. 이 줄이 안 보이면 붙여넣기가 잘린 것입니다.
