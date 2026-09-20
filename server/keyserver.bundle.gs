@@ -197,6 +197,24 @@ var ADMIN_HTML = `<!DOCTYPE html>
 <script>
 window.PROGRAMS = [
   {
+    "id": "exam-drill",
+    "name": "공인중개사 기출문제",
+    "url": "https://parkchihong7-gif.github.io/gongin-jungsagsa-exam/",
+    "adminUrl": "https://parkchihong7-gif.github.io/gongin-jungsagsa-exam/?admin=1"
+  },
+  {
+    "id": "senior-video",
+    "name": "시니어 영상 비용 견적·절감기"
+  },
+  {
+    "id": "naver-blog",
+    "name": "네이버 블로그 초안 생성기"
+  },
+  {
+    "id": "speaker-desk",
+    "name": "해외 연사 초청 관리"
+  },
+  {
     "id": "funnel-builder",
     "name": "퍼널 빌더"
   },
@@ -243,24 +261,6 @@ window.PROGRAMS = [
   {
     "id": "niche-research",
     "name": "니치 리서치"
-  },
-  {
-    "id": "exam-drill",
-    "name": "공인중개사 기출문제",
-    "url": "https://parkchihong7-gif.github.io/gongin-jungsagsa-exam/",
-    "adminUrl": "https://parkchihong7-gif.github.io/gongin-jungsagsa-exam/?admin=1"
-  },
-  {
-    "id": "senior-video",
-    "name": "시니어 영상 비용 견적·절감기"
-  },
-  {
-    "id": "naver-blog",
-    "name": "네이버 블로그 초안 생성기"
-  },
-  {
-    "id": "speaker-desk",
-    "name": "해외 연사 초청 관리"
   },
   {
     "id": "maim",

@@ -2,7 +2,7 @@
 # 규격 설명: core/manifest.py
 
 id: kmong-copy
-number: 5
+number: 9
 name: 크몽 상세페이지 카피 생성기
 tagline: 상세페이지·패키지·문의 응답을 만들고 등록 전 정책 위반을 잡습니다
 status: ready

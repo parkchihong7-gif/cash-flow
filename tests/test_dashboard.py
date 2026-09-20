@@ -507,7 +507,7 @@ def test_ebook_gen_is_registered():
     program = Registry().require("ebook-gen")
     assert program.status == "ready"
     assert program.runnable and program.run.dry_run_command
-    assert program.number == 3
+    assert program.number == 7
 
 
 def test_ebook_gen_dry_run_through_ui(client):
@@ -522,7 +522,7 @@ def test_ebook_gen_dry_run_through_ui(client):
 def test_lecture_deck_is_registered():
     program = Registry().require("lecture-deck")
     assert program.status == "ready"
-    assert program.number == 4
+    assert program.number == 8
     assert program.runnable and program.run.dry_run_command
 
 
@@ -538,7 +538,7 @@ def test_lecture_deck_dry_run_through_ui(client):
 def test_kmong_copy_is_registered():
     program = Registry().require("kmong-copy")
     assert program.status == "ready"
-    assert program.number == 5
+    assert program.number == 9
     assert program.runnable and program.run.dry_run_command
 
 
@@ -554,7 +554,7 @@ def test_kmong_copy_dry_run_through_ui(client):
 def test_n8n_gen_is_registered():
     program = Registry().require("n8n-gen")
     assert program.status == "ready"
-    assert program.number == 6
+    assert program.number == 10
     assert program.runnable and program.run.dry_run_command
 
 
@@ -570,7 +570,7 @@ def test_n8n_gen_dry_run_through_ui(client):
 def test_groupbuy_ledger_is_registered():
     program = Registry().require("groupbuy-ledger")
     assert program.status == "ready"
-    assert program.number == 7
+    assert program.number == 11
     assert program.runnable and program.run.dry_run_command
 
 
@@ -586,7 +586,7 @@ def test_groupbuy_ledger_dry_run_through_ui(client):
 def test_income_sim_is_registered():
     program = Registry().require("income-sim")
     assert program.status == "ready"
-    assert program.number == 8
+    assert program.number == 12
     assert program.runnable and program.run.dry_run_command
 
 
@@ -602,7 +602,7 @@ def test_income_sim_dry_run_through_ui(client):
 def test_notion_template_kit_is_registered():
     program = Registry().require("notion-template-kit")
     assert program.status == "ready"
-    assert program.number == 9
+    assert program.number == 13
     assert program.runnable and program.run.dry_run_command
 
 
@@ -618,7 +618,7 @@ def test_notion_template_kit_dry_run_through_ui(client):
 def test_affiliate_matcher_is_registered():
     program = Registry().require("affiliate-matcher")
     assert program.status == "ready"
-    assert program.number == 10
+    assert program.number == 14
     assert program.runnable and program.run.dry_run_command
 
 
@@ -634,7 +634,7 @@ def test_affiliate_matcher_dry_run_through_ui(client):
 def test_agency_kit_is_registered():
     program = Registry().require("agency-kit")
     assert program.status == "ready"
-    assert program.number == 11
+    assert program.number == 15
     assert program.runnable and program.run.dry_run_command
 
 
@@ -651,7 +651,7 @@ def test_agency_kit_dry_run_through_ui(client):
 def test_niche_research_is_registered():
     program = Registry().require("niche-research")
     assert program.status == "ready"
-    assert program.number == 12
+    assert program.number == 16
     assert program.runnable and program.run.dry_run_command
 
 
@@ -805,11 +805,15 @@ def test_programs_needing_review_are_not_called_ready_now():
 
 
 def test_offline_programs_need_no_signup():
-    """계정도 인터넷도 없는 상품은 '지금 바로' 여야 한다."""
+    """계정도 인터넷도 없는 상품은 '지금 바로' 여야 한다.
+
+    `exam-drill` 은 여기서 빠졌다. 본체가 GitHub Pages 로 옮겨 가면서
+    인터넷이 있어야 하는 상품이 되었다 — 집 컴퓨터에서 돌릴 것이 없다.
+    """
     from core.access import collect
 
     rows = {row.id: row for row in collect(Registry(), environ={})}
-    for program_id in ("speaker-desk", "exam-drill", "income-sim"):
+    for program_id in ("speaker-desk", "income-sim"):
         assert rows[program_id].ready_now, f"{program_id} 는 바로 쓸 수 있어야 한다"
 
 

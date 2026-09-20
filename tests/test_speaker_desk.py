@@ -358,9 +358,9 @@ def test_cli_checklist_flags_overdue(tmp_path, capsys):
 
 
 # --------------------------------------------------------------- 등록
-def test_registered_as_program_16():
+def test_registered_as_program_4():
     program = Registry().require("speaker-desk")
-    assert program.number == 16
+    assert program.number == 4
     assert program.status == "ready"
 
 

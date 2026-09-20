@@ -1,0 +1,22 @@
+{# 뒤로가기 동작. **한 군데에만 둔다.**
+
+   예전에는 base·app_base·console_base 세 벌로 복사돼 있었다. 한 벌을 고치면
+   나머지 둘이 그대로 남아, 화면마다 뒤로가기가 다르게 도는 일이 생겼다.
+   같은 사고가 `_tabs.html` 에서도 났다. 고칠 곳은 하나여야 한다. #}
+<script>
+// 히스토리가 있으면 브라우저 뒤로, 없으면 링크의 href(홈)로 간다.
+// 새 창으로 열린 화면에서는 돌아갈 데가 없으므로 이 갈래가 필요하다.
+//
+// **남의 화면 안에 들어가 있을 때는 손대지 않는다.** 스냅샷(사진판)은 이
+// 화면을 iframe 에 끼워 놓고 바깥 표지가 페이지를 갈아 끼운다. 거기서
+// `history.back()` 을 부르면 표지까지 같이 뒤로 가 버려서, 누르는 사람 눈에는
+// 엉뚱한 화면이 뜨거나 스냅샷 밖으로 튕겨 나간다. 링크에 `data-page` 가
+// 붙어 있는 것도 스냅샷이 맡은 링크다. 둘 다 그대로 흘려보낸다.
+document.querySelectorAll("[data-back]").forEach(function (el) {
+  el.addEventListener("click", function (event) {
+    if (window.parent !== window) { return; }
+    if (el.hasAttribute("data-page") || el.hasAttribute("data-missing")) { return; }
+    if (window.history.length > 1) { event.preventDefault(); window.history.back(); }
+  });
+});
+</script>

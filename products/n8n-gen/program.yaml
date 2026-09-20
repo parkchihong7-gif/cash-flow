@@ -2,7 +2,7 @@
 # 규격 설명: core/manifest.py
 
 id: n8n-gen
-number: 6
+number: 10
 name: n8n 워크플로 JSON 생성기
 tagline: 자연어 자동화 요구를 n8n 에 바로 가져오는 workflow.json 으로 바꿉니다
 status: ready

@@ -2,7 +2,7 @@
 # 규격 설명: core/manifest.py
 
 id: income-sim
-number: 8
+number: 12
 name: 수익 시뮬레이터
 tagline: 부업 8종의 12개월 손익을 시간당 수익으로 견줍니다
 status: ready

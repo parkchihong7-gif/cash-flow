@@ -292,9 +292,9 @@ def test_cli_spec_prints_the_reasons(capsys):
 
 
 # --------------------------------------------------------------- 등록
-def test_registered_as_program_14():
+def test_registered_as_program_2():
     program = Registry().require("senior-video")
-    assert program.number == 14
+    assert program.number == 2
     assert program.status == "ready"
 
 

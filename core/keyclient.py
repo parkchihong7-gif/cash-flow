@@ -29,7 +29,7 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any
 
-__all__ = ["KeyServer", "KeyServerError", "from_env"]
+__all__ = ["KeyServer", "KeyServerError", "from_env", "admin_page_url"]
 
 #: 서버가 느릴 때 화면이 영영 안 돌아오지 않게.
 TIMEOUT = 25.0
@@ -157,3 +157,17 @@ def from_env() -> KeyServer | None:
     if not url or not password:
         return None
     return KeyServer(url=url, password=password)
+
+
+def admin_page_url() -> str:
+    """접속키 관리자 화면 주소. 없으면 빈 글자.
+
+    `from_env()` 와 달리 **비밀번호는 보지 않는다.** 그 화면이 직접 묻기
+    때문이다. 비밀번호를 `.env` 에 안 넣으신 분(집에서 손으로만 쓰시는 분)도
+    화면에서 버튼은 보여야 한다.
+
+    주소를 `program.yaml` 이 아니라 `.env` 에 두는 이유: 이 저장소는 공개라,
+    앱스 스크립트 `/exec` 주소가 박히면 장부의 대문 주소가 같이 공개된다.
+    비밀번호와 같은 칸에 둔다.
+    """
+    return (os.getenv("KEYSERVER_URL") or "").strip()

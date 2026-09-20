@@ -2,7 +2,7 @@
 # 규격 설명: core/manifest.py
 
 id: agency-kit
-number: 11
+number: 15
 name: 자동화 대행 납품 키트
 tagline: 소상공인에게 설치해 주고 받는 자동화 3종과 납품 문서 묶음
 status: ready

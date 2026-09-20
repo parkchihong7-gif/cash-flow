@@ -263,9 +263,9 @@ def test_cli_disclosure_prints_the_phrase_and_the_rules(capsys):
 
 
 # --------------------------------------------------------------- 등록
-def test_registered_as_program_15():
+def test_registered_as_program_3():
     program = Registry().require("naver-blog")
-    assert program.number == 15
+    assert program.number == 3
     assert program.status == "ready"
     assert program.requirements.home_pc == "yes"
 

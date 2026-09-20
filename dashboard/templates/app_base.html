@@ -61,12 +61,6 @@
   <span class="muted">{{ program.name }} v{{ program.version }}</span>
 </footer>
 
-<script>
-document.querySelectorAll("[data-back]").forEach(function (el) {
-  el.addEventListener("click", function (event) {
-    if (window.history.length > 1) { event.preventDefault(); window.history.back(); }
-  });
-});
-</script>
+{% include "_back.html" %}
 </body>
 </html>

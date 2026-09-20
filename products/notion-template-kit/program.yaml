@@ -2,7 +2,7 @@
 # 규격 설명: core/manifest.py
 
 id: notion-template-kit
-number: 9
+number: 13
 name: 노션 템플릿 기획·설명서 생성기
 tagline: 주제 하나로 구조 설계·판매 문구·구매자 설명서까지 냅니다
 status: ready

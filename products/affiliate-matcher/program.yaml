@@ -2,7 +2,7 @@
 # 규격 설명: core/manifest.py
 
 id: affiliate-matcher
-number: 10
+number: 14
 name: 제휴 상품 매칭 로직
 tagline: 원고를 읽고 어느 문단에 무엇을 붙일지 표로 만듭니다
 status: ready

@@ -1,4 +1,4 @@
-"""13번 전용 웹 화면 — **표를 화면에서 채운다.**
+"""1번 전용 웹 화면 — **표를 화면에서 채운다.**
 
 CLI 로 쓸 때 가장 번거로운 곳이 기록표였다. 엑셀을 따로 열어 O/X 를 치고,
 저장하고, 다시 명령을 쳐야 한다. 그 사이에 파일을 잘못 저장하거나 열이
@@ -355,7 +355,7 @@ def _round_table(analysis) -> Table:
 
 
 def console(program, ctx) -> Console:
-    """13번 운영 콘솔."""
+    """1번 운영 콘솔."""
     analysis = _analysis(RECORDS)
     count = analysis.attempts if analysis else 0
     ui = build(program, ctx)

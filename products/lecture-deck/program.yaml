@@ -2,7 +2,7 @@
 # 규격 설명: core/manifest.py
 
 id: lecture-deck
-number: 4
+number: 8
 name: 강의 슬라이드 생성기
 tagline: 커리큘럼부터 발표자 노트까지 강의 자료 한 벌을 만듭니다
 status: ready

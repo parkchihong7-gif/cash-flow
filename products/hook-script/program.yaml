@@ -2,7 +2,7 @@
 # 규격 설명: core/manifest.py
 
 id: hook-script
-number: 2
+number: 6
 name: 후킹 대본 생성기
 tagline: 주제 하나로 후크 10개와 타임코드 대본 초안을 만듭니다
 status: ready

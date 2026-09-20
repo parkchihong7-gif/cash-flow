@@ -15,9 +15,9 @@ from core.registry import Registry
 
 #: 이 저장소 밖에 있지만 **같은 키 서버**를 쓰는 것들.
 #:
-#: 공인중개사는 여기 없다. 13번(`exam-drill`)이 바로 그 프로그램이라,
+#: 공인중개사는 여기 없다. 1번(`exam-drill`)이 바로 그 프로그램이라,
 #: 따로 두면 키가 두 군데로 갈라진다. 앱스 스크립트의 `DEFAULT_PROGRAM`
-#: 을 `exam-drill` 로 두면 그 화면이 보내는 키가 13번으로 들어온다.
+#: 을 `exam-drill` 로 두면 그 화면이 보내는 키가 1번으로 들어온다.
 OUTSIDE = [
     {"id": "maim", "name": "maim 블로그 (바깥 프로그램)"},
 ]

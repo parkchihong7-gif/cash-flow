@@ -2,7 +2,7 @@
 # 규격 설명: core/manifest.py
 
 id: ebook-gen
-number: 3
+number: 7
 name: 전자책 원고 생성기
 tagline: 주제 하나로 목차·원고·워드 파일까지 3단계로 만듭니다
 status: ready

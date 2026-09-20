@@ -289,18 +289,35 @@ def test_cli_without_a_command_explains_itself(capsys):
 
 
 # --------------------------------------------------------------- 등록
-def test_registered_as_program_13():
+def test_registered_as_program_1():
     program = Registry().require("exam-drill")
-    assert program.number == 13
+    assert program.number == 1
     assert program.status == "ready"
-    assert program.requirements.home_pc == "yes"
     assert program.requirements.signup_free, "가입 없이 바로 써야 한다"
 
 
+def test_it_lives_outside_and_says_so():
+    """본체가 GitHub Pages 로 옮겨 갔다. 화면 설명이 그걸 알고 있어야 한다.
+
+    옛 설명(집 컴퓨터에서 도는 파이썬 분석기)이 남아 있으면 산 분이
+    엉뚱한 것을 설치하려 든다. 그래서 세 가지를 못 박아 둔다.
+    """
+    program = Registry().require("exam-drill")
+    assert program.live.elsewhere, "밖에서 도는 프로그램으로 표시되어야 한다"
+    assert program.requirements.home_pc == "no", "집 컴퓨터에서 돌릴 것이 없다"
+    assert program.requirements.internet == "needed", "인터넷이 있어야 한다"
+
+
 def test_manifest_warns_about_copyright():
+    """문항 4,400개를 담고 판다. 저작권 확인은 사람이 해야 하는 일이다.
+
+    옛 판은 문제를 아예 담지 않아 '어문저작물' 한 줄로 끝났다. 지금은
+    담고 있으니, 넘기지 말고 **팔기 전에 확인하라**고 적혀 있어야 한다.
+    """
     cautions = " ".join(Registry().require("exam-drill").requirements.cautions)
-    assert "어문저작물" in cautions
-    assert "합격을 약속하지 않습니다" in cautions
+    assert "재배포 권리" in cautions
+    assert "팔기 전에 확인" in cautions
+    assert "약속하지 않습니다" in cautions
 
 
 def test_subject_lookup_accepts_short_names():

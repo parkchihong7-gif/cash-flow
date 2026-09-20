@@ -1,4 +1,4 @@
-"""15번 전용 웹 화면 — **수요 보고, 초안 쓰고, 검사까지 한 화면에서.**
+"""3번 전용 웹 화면 — **수요 보고, 초안 쓰고, 검사까지 한 화면에서.**
 
 CLI 는 명령을 세 번 쳐야 한다. `demand` 로 수요를 보고, `request.yaml` 을
 메모장으로 고치고, `draft` 를 친다. 그 사이에 파일을 잘못 저장하거나 대가
@@ -365,7 +365,7 @@ def _stats(request, draft, issues) -> list[Stat]:
 
 
 def console(program, ctx) -> Console:
-    """15번 운영 콘솔."""
+    """3번 운영 콘솔."""
     request = _request()
     draft, issues = _draft_preview()
     ui = build(program, ctx)

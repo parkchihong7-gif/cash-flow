@@ -160,6 +160,10 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
     templates.env.filters["markdown"] = render_markdown
     templates.env.filters["md"] = render_inline
     templates.env.filters["won"] = lambda value: f"{int(value or 0):,}원"
+    # 접속키 관리자(앱스 스크립트) 주소. `_tabs.html` 이 여덟 화면에 끼어들기
+    # 때문에 각 화면마다 넘기면 반드시 한 군데를 빠뜨린다. 전역으로 둔다.
+    # 값은 `.env` 에서 읽는다 — 공개 저장소에 주소를 박지 않으려는 것.
+    templates.env.globals["keyserver_url"] = keyclient.admin_page_url
     app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
     def db() -> Database:

@@ -104,14 +104,6 @@
   });
 })();
 </script>
-<script>
-// 뒤로가기: 히스토리가 있으면 브라우저 뒤로, 없으면 링크의 href(홈)로 간다.
-// 새 창으로 열린 화면에서는 돌아갈 데가 없으므로 이 갈래가 필요하다.
-document.querySelectorAll("[data-back]").forEach(function (el) {
-  el.addEventListener("click", function (event) {
-    if (window.history.length > 1) { event.preventDefault(); window.history.back(); }
-  });
-});
-</script>
+{% include "_back.html" %}
 </body>
 </html>

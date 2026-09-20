@@ -2,7 +2,7 @@
 # 규격 설명: core/manifest.py
 
 id: niche-research
-number: 12
+number: 16
 name: 니치 리서치
 tagline: 유튜브에서 공급이 비어 있는 자리를 찾습니다 (영상 추천은 하지 않습니다)
 status: ready

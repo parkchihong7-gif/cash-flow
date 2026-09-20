@@ -1,4 +1,4 @@
-"""14번 전용 웹 화면 — **값을 바꾸면 견적이 바로 바뀐다.**
+"""2번 전용 웹 화면 — **값을 바꾸면 견적이 바로 바뀐다.**
 
 이 상품의 쓸모는 "얼마 드나" 보다 **"어디서 새나"** 에 있다. 그런데 CLI 로는
 `plan.yaml` 을 고치고 명령을 다시 쳐야 견적이 바뀐다. 값을 바꿔 가며 비교해
@@ -418,7 +418,7 @@ def _stats(plan, rates) -> list[Stat]:
 
 
 def console(program, ctx) -> Console:
-    """14번 운영 콘솔."""
+    """2번 운영 콘솔."""
     try:
         rates = load_rates(RATES)
     except RateError as exc:

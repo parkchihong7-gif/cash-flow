@@ -107,12 +107,8 @@
   </div>
 </div>
 
+{% include "_back.html" %}
 <script>
-document.querySelectorAll("[data-back]").forEach(function (el) {
-  el.addEventListener("click", function (event) {
-    if (window.history.length > 1) { event.preventDefault(); window.history.back(); }
-  });
-});
 {# 삭제는 두 번 눌러야 한다. 되돌릴 수 없는 일은 손이 미끄러져도 안 되게. #}
 document.querySelectorAll("[data-twice]").forEach(function (btn) {
   var original = btn.textContent, armed = false, timer = null;

@@ -57,11 +57,32 @@ def test_back_link_is_always_present(client, program_id, mode):
 
 
 def test_program_detail_page_has_back_and_both_mode_links(client):
-    body = client.get("/programs/exam-drill").text
+    """집 컴퓨터에서 도는 상품은 대시보드 안의 두 화면을 가리킨다."""
+    body = client.get("/programs/funnel-builder").text
     assert "data-back" in body
-    assert 'href="/apps/exam-drill/admin"' in body
-    assert 'href="/apps/exam-drill/client"' in body
+    assert 'href="/apps/funnel-builder/admin"' in body
+    assert 'href="/apps/funnel-builder/client"' in body
     assert 'target="_blank"' in body, "새 창에서 열려야 한다"
+
+
+def test_detail_page_of_an_outside_program_points_outside(client):
+    """본체가 밖에 있으면 **밖을 가리켜야 한다.**
+
+    이 규칙이 `console_base.html`·`app_base.html` 에만 있고 `_tabs.html` 에는
+    빠져 있던 적이 있다. 그래서 상세 페이지의 [관리자 모드] 만 집 컴퓨터의
+    옛 화면을 열었다. 세 파일이 같이 움직이는지 여기서 지킨다.
+    """
+    program = Registry().require("exam-drill")
+    assert program.live.elsewhere, "이 시험은 밖에서 도는 상품을 전제로 한다"
+
+    body = client.get("/programs/exam-drill").text
+    assert program.live.admin in body
+    assert program.live.client in body
+    assert 'href="/apps/exam-drill/admin"' not in body, "옛 내부 화면을 가리키면 안 된다"
+    assert 'href="/c/exam-drill"' not in body, (
+        "고객이 들어가는 곳은 [클라이언트 모드] 와 같은 주소다. "
+        "집 컴퓨터의 문을 따로 두면 중복이면서 안 열린다"
+    )
 
 
 @pytest.mark.parametrize("suffix", ["", "/edit", "/test", "/members", "/manual/admin"])
@@ -241,3 +262,48 @@ def test_custom_screen_is_marked():
     assert not ui.custom
     assert ui.panels("admin")[0].key == "a"
     assert ui.panels("client") == []
+
+
+def test_back_button_stands_down_inside_a_frame():
+    """스냅샷(사진판)은 이 화면을 iframe 에 끼운다. 거기서 뒤로가기가 돌면 안 된다.
+
+    `history.back()` 을 부르면 바깥 표지까지 같이 뒤로 가서, 누르는 사람 눈에는
+    엉뚱한 화면이 뜨거나 스냅샷 밖으로 튕겨 나간다. 스냅샷이 맡은 링크
+    (`data-page`·`data-missing`) 도 마찬가지로 건드리지 않는다.
+
+    스크립트가 **한 군데에만** 있는지도 같이 지킨다. 예전에는 세 벌로
+    복사돼 있어서 한 벌을 고치면 나머지 둘이 그대로 남았다.
+    """
+    from pathlib import Path
+
+    templates = Path(__file__).resolve().parent.parent / "dashboard" / "templates"
+    source = (templates / "_back.html").read_text(encoding="utf-8")
+    assert "window.parent !== window" in source, "남의 화면 안에서는 손대지 않는다"
+    assert 'hasAttribute("data-page")' in source
+    assert 'hasAttribute("data-missing")' in source
+
+    베낀곳 = [f.name for f in templates.glob("*.html")
+              if f.name != "_back.html"
+              and 'querySelectorAll("[data-back]")' in f.read_text(encoding="utf-8")]
+    assert not 베낀곳, f"뒤로가기 스크립트가 또 복사되었습니다: {베낀곳}"
+
+
+def test_outside_program_offers_the_key_issuing_door(client, monkeypatch):
+    """세 번째 버튼은 **키를 만드는 곳**이다. 주소는 `.env` 에서만 온다.
+
+    저장소가 공개라 앱스 스크립트 주소를 파일에 박지 않는다. 안 넣으셨으면
+    버튼 대신 어디에 넣으라는 안내가 떠야 한다 — 버튼이 조용히 사라지면
+    키를 어디서 만드는지 알 길이 없다.
+    """
+    # 본문 설명에도 같은 낱말이 나오므로 **버튼**만 본다.
+    단추 = "🔑 접속키 발급하기 ↗</a>"
+
+    monkeypatch.delenv("KEYSERVER_URL", raising=False)
+    body = client.get("/programs/exam-drill").text
+    assert 단추 not in body
+    assert "KEYSERVER_URL" in body, "어디에 넣으라고 알려 줘야 한다"
+
+    monkeypatch.setenv("KEYSERVER_URL", "https://script.google.com/macros/s/TEST/exec")
+    body = client.get("/programs/exam-drill").text
+    assert 단추 in body
+    assert "https://script.google.com/macros/s/TEST/exec" in body

@@ -2,7 +2,7 @@
 # 규격 설명: core/manifest.py
 
 id: funnel-builder
-number: 1
+number: 5
 name: 퍼널 빌더
 tagline: 입력 한 장으로 랜딩 페이지와 이메일 5통 초안을 만듭니다
 status: ready
