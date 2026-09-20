@@ -397,11 +397,32 @@ def test_덮은_덩어리는_옆_파일에_있다(web):
 
 
 def test_옆_파일도_덮여_있다(web):
-    """따로 뺐다고 맨몸으로 두면 안 된다. 주소만 알면 그냥 받아진다."""
+    """따로 뺐다고 맨몸으로 두면 안 된다. 주소만 알면 그냥 받아진다.
+
+    첫 글자만 보고 판단하지 않는다. 덮은 덩어리의 첫 바이트는 무작위라
+    256번에 한 번은 `{` 가 나오고, 그러면 멀쩡한 판을 두고 시험이 깨진다.
+    실제로 한 번 깨졌다. 열어 **보려고 해서** 안 열리는 것을 확인한다.
+    """
     raw = (web / "data.bin").read_bytes()
 
-    assert not raw.startswith(b"{"), "덮지 않은 JSON 이다"
-    assert b"\x1f\x8b" != raw[:2], "덮지 않은 gzip 이다"
+    # 1) JSON 으로 읽히면 안 된다.
+    try:
+        json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        pass
+    else:
+        pytest.fail("덮지 않은 JSON 이다")
+
+    # 2) gzip 으로 풀리면 안 된다.
+    import gzip
+    try:
+        gzip.decompress(raw)
+    except Exception:
+        pass
+    else:
+        pytest.fail("덮지 않은 gzip 이다")
+
+    # 3) 안에 있던 글자가 그대로 비쳐도 안 된다.
     for phrase in ("공인중개사".encode(), b"exam-drill", b"<html"):
         assert phrase not in raw, f"{phrase!r} 가 그대로 보인다"
 
@@ -449,14 +470,36 @@ def test_잠근_표지는_빈_칸으로_눌러도_말을_한다(tmp_path):
     assert "키를 넣어 주세요." in js
 
 
-def test_폼마다_사진이라고_미리_말한다():
+def test_사진이라고_누르기_전에_말한다():
     """흐릿한 버튼만으로는 모른다. 키 발급 화면은 진짜처럼 보인다.
 
     눌러 보고 나서 경고창을 받으면, 프로그램이 고장난 줄 알게 된다.
     """
     assert "snapshot-nope" in FREEZE
     assert "이 화면은 사진입니다." in FREEZE
-    assert "form.insertBefore(note, form.firstChild)" in FREEZE
+    # 아래로 내려가면 위쪽 안내가 안 보인다. 버튼마다 짧게 한 번 더 말한다.
+    assert ".snapshot-dead::after" in FREEZE
+    assert "· 사진" in FREEZE
+
+
+def test_안내문은_화면마다_한_번만_나온다():
+    """폼마다 같은 문단을 되풀이하면 그건 안내가 아니라 소음이다.
+
+    실제로 접속키 화면에 세 번씩 나왔고, 사장님이 "모든 화면마다 이런
+    문구가 있는데 정상이냐" 고 물으셨다.
+    """
+    # 이미 있으면 안 붙인다 — 화면 하나에 하나.
+    assert 'document.querySelector(".snapshot-nope")' in FREEZE
+    assert "form.insertBefore(note, form.firstChild)" not in FREEZE, \
+        "폼마다 붙이던 코드가 남아 있습니다"
+    assert "querySelectorAll(\"form\").forEach" not in FREEZE.replace(" ", ""), \
+        "폼을 모두 돌며 붙이고 있습니다"
+
+
+def test_안내문이_실제로_어디서_하는지_알려_준다():
+    """"안 됩니다" 만 있고 "그럼 어디서" 가 없으면 사람은 멈춘다."""
+    assert "웹 관리자 화면" in FREEZE, "키 발급을 어디서 하는지 없습니다"
+    assert "대시보드_열기.bat" in FREEZE, "저장·실행을 어디서 하는지 없습니다"
 
 
 def test_안내문의_역슬래시가_자바스크립트에서_안_먹힌다():

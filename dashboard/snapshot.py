@@ -96,9 +96,12 @@ FREEZE = """<style>
 .snapshot-bar b { font-weight: 500; }
 .snapshot-bar span { margin-left: auto; opacity: .6; font-size: 12px; }
 .snapshot-dead { opacity: .45; cursor: not-allowed; }
-/* 폼마다 붙는다. 눌러 보고 나서야 아는 일이 없게, 누르기 전에 말한다. */
+/* 아래로 내려가면 위쪽 안내가 안 보인다. 버튼마다 짧게 한 번 더 말한다.
+   문단을 폼마다 되풀이하면 그건 안내가 아니라 소음이다. */
+.snapshot-dead::after { content: " · 사진"; font-size: .85em; opacity: .8; }
+/* 화면마다 **한 번만** 붙는다. 맨 위, 내용이 시작되기 전에. */
 .snapshot-nope {
-  margin: 0 0 12px; padding: 9px 12px; border-radius: 7px;
+  margin: 0 0 16px; padding: 10px 13px; border-radius: 7px;
   background: #3a2a12; border: 1px solid #6b4e1f; color: #f0d9a8;
   font: 13px/1.55 "Apple SD Gothic Neo", system-ui, sans-serif;
 }
@@ -124,19 +127,25 @@ document.addEventListener("DOMContentLoaded", function () {
     el.title = "정적 스냅샷에서는 눌러도 아무 일도 일어나지 않습니다";
   });
   // 흐릿한 버튼만으로는 모른다. 키 발급 화면은 진짜처럼 보여서, 눌러 놓고
-  // 프로그램이 고장난 줄 알게 된다. 폼마다 누르기 전에 말해 둔다.
-  document.querySelectorAll("form").forEach(function (form) {
-    if (!form.querySelector("button, input[type=submit]")) { return; }
-    if (form.querySelector(".snapshot-nope")) { return; }
+  // 프로그램이 고장난 줄 알게 된다. 누르기 전에 화면 맨 위에서 한 번 말한다.
+  //
+  // 폼마다 붙이면 한 화면에 같은 문단이 서너 번 나와 읽히지 않는다.
+  // 아래쪽 버튼은 `.snapshot-dead::after` 가 짧게 맡는다.
+  var 폼 = document.querySelector("form button, form input[type=submit]");
+  if (폼 && !document.querySelector(".snapshot-nope")) {
     var note = document.createElement("p");
     note.className = "snapshot-nope";
     note.innerHTML =
-      "<b>이 화면은 사진입니다.</b> 여기서 키를 발급하거나 값을 저장하실 수는 " +
-      "없습니다 \u2014 웹주소에는 서버가 없어 저장할 곳이 없습니다.<br>" +
-      "실제 발급\u00B7저장은 <b>집 컴퓨터</b>에서 " +
-      "<code>tools\\\\home\\\\대시보드_열기.bat</code> 을 눌러 여신 화면에서 하십니다.";
-    form.insertBefore(note, form.firstChild);
-  });
+      "<b>이 화면은 사진입니다.</b> 눌러서 돌아다니실 수는 있지만 " +
+      "저장\u00B7발급\u00B7실행은 되지 않습니다. 버튼 옆의 " +
+      "<b>\u00B7 사진</b> 표시가 그 뜻입니다.<br>" +
+      "실제로 하시는 곳 \u2014 " +
+      "<b>키 발급\u00B7정지</b>는 <b>웹 관리자 화면</b>(구글 앱스 스크립트 주소), " +
+      "<b>저장\u00B7실행</b>은 집 컴퓨터의 " +
+      "<code>tools\\\\home\\\\대시보드_열기.bat</code> 입니다.";
+    var 자리 = document.querySelector("main") || document.body;
+    자리.insertBefore(note, 자리.firstChild);
+  }
 });
 // 한 파일로 묶은 판에는 주소가 없다. 어느 화면으로 가고 싶은지 표지에 알려 준다.
 document.addEventListener("click", function (event) {
