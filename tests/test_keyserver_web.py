@@ -423,3 +423,68 @@ def test_묶음_파일이_붙여_넣을_만큼_작다():
     # 읽기 좋은 원본은 그대로 둔다 — 줄인 것은 만들어지는 판뿐이다.
     원본 = (Path(__file__).resolve().parent.parent / "server" / "keyserver.gs")
     assert "왜 이것인가" in 원본.read_text(encoding="utf-8"), "원본의 설명이 사라졌습니다"
+
+
+@pytest.mark.skipif(not Path(CHROMIUM).exists(), reason="크로미움이 없습니다")
+def test_구글이_내어_주는_판에서_저장소가_막혀도_돈다(시험서버):
+    """실제로 배포되면 화면은 구글 **샌드박스 안**에서 뜬다.
+
+    거기서는 쿠키를 막아 둔 브라우저면 `window.localStorage` **에 닿는
+    것만으로** 예외가 난다. 감싸지 않으면 그 한 줄에서 전체가 죽고,
+    화면은 아무 말 없이 빈 채로 남는다 — 무엇이 잘못됐는지 알 길이 없다.
+    """
+    playwright = pytest.importorskip("playwright.sync_api")
+
+    흉내 = """
+      for (const n of ['localStorage','sessionStorage'])
+        Object.defineProperty(window, n, { get() { throw new Error('막힘'); } });
+      window.google = { script: { run: (function () {
+        var ok = null, fail = null;
+        var api = {
+          withSuccessHandler(f) { ok = f; return api; },
+          withFailureHandler(f) { fail = f; return api; },
+          apiCall(payload) {
+            fetch('__BASE__/exec', { method: 'POST',
+              headers: { 'Content-Type': 'text/plain' }, body: payload })
+              .then(r => r.text()).then(t => ok && ok(t))
+              .catch(e => fail && fail(e));
+          }
+        };
+        return api;
+      })() } };
+    """.replace("__BASE__", 시험서버)
+
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch(executable_path=CHROMIUM)
+        page = browser.new_page()
+        오류: list[str] = []
+        page.on("pageerror", lambda e: 오류.append(str(e)))
+        page.add_init_script(흉내)
+        try:
+            page.goto(f"{시험서버}/admin.html", wait_until="domcontentloaded")
+            page.wait_for_timeout(400)
+
+            # 구글이 내어 주는 판에서는 주소를 물어볼 것이 없다.
+            assert page.is_hidden("#setup"), "주소 칸이 또 나옵니다"
+            assert not page.is_hidden("#login"), "비밀번호 칸이 안 보입니다"
+
+            page.fill("#pw", "주인비밀번호7")
+            page.click("#loginBtn")
+            page.wait_for_selector("#main:not(.hide)", timeout=10000)
+
+            page.select_option("#program", "agency-kit")
+            page.fill("#name", "김학원장")
+            page.fill("#email", "kim@example.com")
+            page.click("#issueBtn")
+            page.wait_for_selector("#issued:not(.hide)", timeout=10000)
+
+            발급됨 = page.inner_text("#issued")
+            키 = [x for x in 발급됨.split() if len(x) == 14 and x.count("-") == 2]
+            assert len(키) >= 4, f"1차 1 + 2차 3 이 안 나왔습니다: {키}"
+
+            page.wait_for_timeout(800)
+            assert page.eval_on_selector_all("#list tbody tr", "e => e.length") == 4
+
+            assert not 오류, f"저장소가 막히자 화면이 터졌습니다: {오류}"
+        finally:
+            browser.close()

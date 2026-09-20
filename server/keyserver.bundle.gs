@@ -2,7 +2,7 @@
 //  접속키 서버 — 구글 앱스 스크립트에 붙여 넣는 **한 장짜리** 판입니다.
 //
 //  ■ 붙여넣기 전에 꼭 보세요
-//    이 파일은 1,260줄입니다. 맨 아래에 ⛳ 표가 있습니다.
+//    이 파일은 1,287줄입니다. 맨 아래에 ⛳ 표가 있습니다.
 //    붙여 넣은 뒤 **맨 아래에 그 ⛳ 표가 보이는지** 확인하세요.
 //    안 보이면 잘린 것이고, 그대로 저장하면
 //      구문 오류: SyntaxError: Unexpected end of input
@@ -260,8 +260,35 @@ window.PROGRAMS = [
    * 스크립트를 바로 부른다. CORS 도, 주소를 어디 적어 둘 일도 없다.
    */
   var 구글안 = !!(window.google && window.google.script && window.google.script.run);
-  function serverUrl() { return localStorage.getItem(URL_KEY) || ""; }
-  function token() { return sessionStorage.getItem(TOKEN_KEY) || ""; }
+  /**
+   * 브라우저 저장소는 막힐 수 있다.
+   *
+   * 구글이 이 화면을 **샌드박스 안**에서 내어 주는데, 브라우저 설정이나
+   * 시크릿 창에서는 localStorage 를 읽는 것만으로 예외가 난다. 감싸지
+   * 않으면 그 한 줄에서 전체가 죽고, 화면은 아무 말 없이 빈 채로 남는다.
+   * 막혀 있으면 이번 창에서만 기억한다 — 쓰는 데는 지장이 없다.
+   */
+  // 쿠키를 막아 둔 브라우저에서는 \`window.localStorage\` **에 닿는 것만으로**
+  // 예외가 난다. 그래서 창고 자체를 넘기면 안 된다 — 이름만 넘기고,
+  // 닿는 일까지 try 안에서 한다.
+  var 기억 = {};
+  function 꺼내기(창고이름, 이름) {
+    try {
+      var 값 = window[창고이름].getItem(이름);
+      if (값 !== null) { return 값; }
+    } catch (_) { /* 막혀 있다 */ }
+    return 기억[이름] || "";
+  }
+  function 넣기(창고이름, 이름, 값) {
+    기억[이름] = 값;
+    try { window[창고이름].setItem(이름, 값); } catch (_) { /* 막혀 있다 */ }
+  }
+  function 지우기(창고이름, 이름) {
+    delete 기억[이름];
+    try { window[창고이름].removeItem(이름); } catch (_) { /* 막혀 있다 */ }
+  }
+  function serverUrl() { return 꺼내기("localStorage", URL_KEY); }
+  function token() { return 꺼내기("sessionStorage", TOKEN_KEY); }
   /**
    * 서버를 부른다.
    *
@@ -307,7 +334,7 @@ window.PROGRAMS = [
       say($("setupNote"), "앱스 스크립트 주소가 아닙니다. .../exec 으로 끝나야 합니다.", "bad");
       return;
     }
-    localStorage.setItem(URL_KEY, value);
+    넣기("localStorage", URL_KEY, value);
     say($("setupNote"), "확인하는 중...", "busy");
     api("ping").then(function (data) {
       if (data.ok) { say($("setupNote"), "서버가 살아 있습니다.", "good"); showStage(); }
@@ -325,7 +352,7 @@ window.PROGRAMS = [
     api("adminLogin", { password: pw }).then(function (data) {
       $("loginBtn").disabled = false;
       if (!data.ok) { say($("loginNote"), data.message || "들어가지 못했습니다.", "bad"); return; }
-      sessionStorage.setItem(TOKEN_KEY, data.token);
+      넣기("sessionStorage", TOKEN_KEY, data.token);
       $("pw").value = "";
       say($("loginNote"), "", "");
       showStage();
@@ -339,7 +366,7 @@ window.PROGRAMS = [
     if (e.key === "Enter") { $("loginBtn").click(); }
   });
   $("logoutBtn").onclick = function () {
-    sessionStorage.removeItem(TOKEN_KEY);
+    지우기("sessionStorage", TOKEN_KEY);
     showStage();
   };
   function showStage() {
@@ -423,7 +450,7 @@ window.PROGRAMS = [
         // 표가 만료됐으면 다시 로그인시킨다. 빈 목록을 보여 주면
         // 판 키가 사라진 줄 아시게 된다.
         if (data.reason === "unauthorized") {
-          sessionStorage.removeItem(TOKEN_KEY);
+          지우기("sessionStorage", TOKEN_KEY);
           showStage();
           say($("loginNote"), "시간이 지나 다시 들어가셔야 합니다.", "busy");
           return;
