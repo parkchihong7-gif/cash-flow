@@ -640,3 +640,13 @@ table.trouble td:first-child { width: 34%; }
 
 /* 파는 키와 쓰는 키를 한눈에 가른다 */
 .badge.sold { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+
+/* 매뉴얼 두 벌 사이를 오가는 줄. 한 벌만 열리면 다른 한 벌이 있는 줄도 모른다. */
+.manualswitch { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 0 0 18px; padding: 8px 12px; font-size: 13px;
+  background: var(--bg-soft); border: 1px solid var(--line); border-radius: var(--radius); }
+.manualswitch .dot { color: var(--line); }
+.manualswitch .grow { flex: 1; }
+.manualswitch a { padding: 3px 9px; border-radius: 999px; color: var(--ink-soft); }
+.manualswitch a:hover { color: var(--ink); text-decoration: none; background: var(--bg); }
+.manualswitch a.on { background: var(--accent); color: #fff; font-weight: 700; }

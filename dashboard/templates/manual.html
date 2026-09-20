@@ -1,6 +1,28 @@
 {% extends "base.html" %}
 {% block body %}
 {% if program is defined and program %}{% include "_tabs.html" %}{% endif %}
+
+{# 매뉴얼은 두 벌이다 — 내가 볼 것과 고객에게 보낼 것.
+   한 벌만 열리면 다른 한 벌이 있는 줄도 모른다. 기본은 **관리자**다.
+   파는 사람이 먼저 읽어야 할 쪽이고, 고객용은 거기서 보내면 된다. #}
+{% if program is defined and program %}
+<nav class="manualswitch">
+  <a href="/manual">📚 매뉴얼 전체 목록</a>
+  <span class="dot">·</span>
+  <a href="/programs/{{ program.id }}/manual/admin"
+     class="{% if audience == 'admin' %}on{% endif %}">관리자 매뉴얼</a>
+  <a href="/programs/{{ program.id }}/manual/client"
+     class="{% if audience == 'client' %}on{% endif %}">고객용 매뉴얼</a>
+  <span class="grow"></span>
+  {% if audience == 'admin' %}
+  <span class="muted">파는 사람이 볼 것입니다.</span>
+  {% else %}
+  <span class="muted">고객에게 그대로 보내는 글입니다.</span>
+  {% endif %}
+</nav>
+{% else %}
 <p class="muted"><a href="/manual">← 매뉴얼 목록</a></p>
+{% endif %}
+
 <article class="prose">{{ body|markdown|safe }}</article>
 {% endblock %}

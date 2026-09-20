@@ -65,7 +65,10 @@
       (<a href="/manual/admin">관리자 매뉴얼</a>)
     </div>
     {% endif %}
-    {% if not api_key_set %}
+    {# 본체가 밖에서 도는 프로그램 화면에서는 이 경고가 무관하다.
+       Claude 를 부르지 않는데 «키가 없다» 고 하면 고칠 수 없는 빨간 줄이
+       계속 붙어 있게 된다. 사람은 곧 모든 경고를 안 읽게 된다. #}
+    {% if not api_key_set and not (program is defined and program and program.live.elsewhere) %}
     <div class="note warn">
       <strong>Claude API 키가 설정되지 않았습니다.</strong>
       실제 실행은 되지 않고 모의 실행만 가능합니다.

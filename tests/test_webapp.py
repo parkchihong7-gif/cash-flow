@@ -194,7 +194,9 @@ def test_run_result_is_shown_on_the_screen(client):
     run_id = client.app.state.db.list_runs("exam-drill")[0]["id"]
     body = client.get(f"/apps/exam-drill/admin?run={run_id}").text
     assert "종료 코드" in body
-    assert "과락" in body, "실행 로그가 화면에 보여야 한다"
+    # 1번의 모의 실행은 이제 **연결 확인**이다 — 밖에서 도는 프로그램이라
+    # 여기서 돌릴 것이 없고, 고객이 들어갈 수 있는지를 본다.
+    assert "연결 확인" in body, "실행 로그가 화면에 보여야 한다"
 
 
 # ------------------------------------------------------------ 파일 편집
@@ -308,3 +310,81 @@ def test_outside_program_offers_the_key_issuing_door(client, monkeypatch):
     body = client.get("/programs/exam-drill").text
     assert 단추 in body
     assert "https://script.google.com/macros/s/TEST/exec" in body
+
+
+# ------------------------------------------------------- 1번 화면 다듬기
+def test_tab_click_keeps_the_view_where_it_was():
+    """탭을 누르면 **보던 자리**가 이어져야 한다.
+
+    탭은 그냥 링크라 누르면 새 화면이 맨 위에서 열린다. 화면 머리가 길어서
+    탭 한 줄 건너가는 데 매번 아래로 다시 스크롤해야 했다.
+
+    복원은 **본문이 다 그려진 뒤**에 해야 한다. 이 스크립트는 탭 줄 바로
+    밑에 있어서, 그 자리에서 바로 하면 문서가 짧아 스크롤이 안 내려간다.
+    한 번 그렇게 틀렸다.
+    """
+    from pathlib import Path
+
+    글 = (Path(__file__).resolve().parent.parent / "dashboard" / "templates"
+          / "_keepview.html").read_text(encoding="utf-8")
+    assert "DOMContentLoaded" in 글, "본문이 다 그려진 뒤에 맞춰야 한다"
+    assert "window.pageYOffset > 0" in 글, "안 내린 채 눌렀으면 건드리지 않는다"
+    assert "try {" in 글 and "catch" in 글, "저장소가 막혀 있어도 고장나면 안 된다"
+
+
+def test_outside_program_test_tab_checks_the_connection(client):
+    """밖에서 도는 프로그램의 [테스트] 는 '돌려 보기' 가 아니라 '살아 있나' 다."""
+    body = client.get("/programs/exam-drill/test").text
+    assert "연결 확인" in body
+    assert "지금 확인하기" in body
+    # 여기서 돌릴 것이 없으니 입력 파일·고객 지정·API 키는 뜻이 없다.
+    assert "입력 파일" not in body
+    assert "어떤 고객을 위한 실행인가요" not in body
+    assert "ANTHROPIC_API_KEY" not in body, (
+        "Claude 를 부르지 않는 화면이다. 고칠 수 없는 경고를 띄우면 "
+        "사람은 곧 모든 경고를 안 읽는다"
+    )
+
+
+def test_inside_program_test_tab_is_untouched(client):
+    """집에서 도는 프로그램은 지금까지처럼 '실행하기' 여야 한다."""
+    body = client.get("/programs/funnel-builder/test").text
+    assert "실행하기" in body
+    assert "입력 파일" in body
+    assert "연결 확인" not in body
+
+
+def test_members_tab_splits_keys_by_role(client):
+    """관리자 권한을 산 분과 그냥 쓰는 고객은 **다른 사람**이다."""
+    body = client.get("/programs/exam-drill/members").text
+    assert "접속키 — 관리자용" in body
+    assert "접속키 — 고객용" in body
+    assert body.index("접속키 — 관리자용") < body.index("접속키 — 고객용")
+    assert "1차키" in body and "2차키" in body
+
+
+@pytest.mark.parametrize("audience,다른쪽", [("admin", "고객용 매뉴얼"),
+                                              ("client", "관리자 매뉴얼")])
+def test_manual_offers_all_three_ways(client, audience, 다른쪽):
+    """매뉴얼은 두 벌이다. 한 벌만 열리면 다른 한 벌이 있는 줄도 모른다."""
+    body = client.get(f"/programs/exam-drill/manual/{audience}").text
+    assert "매뉴얼 전체 목록" in body
+    assert 다른쪽 in body
+    assert f'/programs/exam-drill/manual/{audience}"\n     class="on"' in body \
+        or f'manual/{audience}"\n     class="on"' in body, "지금 보는 쪽이 켜져 있어야 한다"
+
+
+def test_manual_tab_opens_on_the_admin_one(client):
+    """기본은 **관리자** 매뉴얼. 파는 사람이 먼저 읽어야 할 쪽이다.
+
+    열람 화면에도 매뉴얼 버튼이 따로 있으니 **탭 줄만** 본다.
+    """
+    import re
+
+    body = client.get("/programs/exam-drill").text
+    탭줄 = re.search(r'<nav class="tabs">(.*?)</nav>', body, re.S)
+    assert 탭줄, "탭 줄을 못 찾았습니다"
+    assert '/manual/admin"' in 탭줄.group(1)
+    assert '/manual/client"' not in 탭줄.group(1), (
+        "탭에서는 관리자 쪽으로만 들어간다 — 고객용은 그 안에서 고른다"
+    )

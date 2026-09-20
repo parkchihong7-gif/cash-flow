@@ -133,47 +133,52 @@ faq:
     audience: admin
 
 settings:
-  - key: MIN_SAMPLE
-    label: 단원별 표에 넣을 최소 문항 수
-    type: number
-    default: 3
+  - key: KEYSERVER_URL
+    label: 접속키 서버 주소 (앱스 스크립트)
+    type: text
+    default: ""
     help: >-
-      이보다 적게 푼 단원은 정답률을 계산하지 않습니다.
-      두 문제 중 하나를 50%라고 부르지 않기 위해서입니다.
-  - key: TARGET_SECONDS
-    label: 문항당 기준 시간(초)
+      구글 앱스 스크립트 배포 주소(`…/exec`). **여기 적지 마시고 `.env` 에
+      넣으십시오** — 저장소가 공개라 적는 순간 장부의 대문 주소가 공개됩니다.
+      넣으시면 [🔑 접속키 발급하기] 버튼이 생깁니다.
+  - key: DEFAULT_DAYS
+    label: 키 기본 유효기간(일)
     type: number
-    default: 75
-    help: 한 과목 50분 40문항 기준입니다. 실전보다 빡빡하게 잡으려면 65로 내리세요.
-  - key: CLAUDE_MODEL
-    label: 계획을 쓸 모델
-    type: select
-    default: claude-sonnet-4-6
-    options: [claude-sonnet-4-6, claude-opus-5]
-    help: "'다음 2주' 계획에만 씁니다. 안 써도 규칙으로 계획이 나옵니다."
+    default: 0
+    help: >-
+      발급 화면에 미리 채워 둘 값입니다. 0 이면 무제한으로 둡니다.
+      수강 기간이 정해진 상품이면 여기에 그 일수를 넣으세요.
   - key: AI_LABEL
     label: AI 생성물 표시
     type: boolean
     default: true
-    help: 계획을 Claude 가 쓴 보고서에 고지 한 줄을 붙입니다 (인공지능기본법).
+    help: >-
+      고객이 🤖 AI 문제풀이로 받은 글이 **초안**이라는 고지를 화면에 답니다
+      (인공지능기본법). 정답은 [✅ 정답 확인] 이라는 안내와 함께 나갑니다.
 
 editable_files:
-  - path: exam_drill/syllabus.py
-    label: 과목·단원 목록
-    kind: text
-    help: >-
-      **교재마다 단원 이름이 다릅니다.** 고객이 쓰는 교재에 맞춰 바꿔 주면
-      만족도가 확 오릅니다. 이 상품에서 가장 먼저 손볼 곳입니다.
-  - path: exam_drill/records.py
-    label: 틀린 이유와 처방 문장
-    kind: text
-    help: >-
-      REASON_FIX 가 이 상품에서 가장 값어치 있는 텍스트입니다.
-      이유마다 무엇을 해야 하는지 적힌 곳입니다.
   - path: README.md
     label: 상품 설명·판매 문구
     kind: markdown
-    help: 판매 문구 초안이 맨 아래에 있습니다.
+    help: >-
+      **이 상품에서 가장 먼저 손볼 곳입니다.** 맨 아래에 상세페이지 문구 초안이
+      있습니다. 프로그램 본체는 밖에 있어서 고칠 것이 없고, 파는 글이 실력입니다.
+  - path: docs/client.md
+    label: 고객용 사용 설명서
+    kind: markdown
+    help: >-
+      고객에게 그대로 보내는 글입니다. **성적이 브라우저에만 남는다**는 대목을
+      지우지 마세요 — 미리 말하지 않으면 환불 사유가 됩니다.
+  - path: docs/admin.md
+    label: 관리자 매뉴얼 (내가 볼 것)
+    kind: markdown
+    help: >-
+      파는 사람용입니다. 2장의 **기출 재배포 권리 확인**은 팔기 전에 꼭 읽으세요.
+  - path: check.py
+    label: 연결 확인 도구
+    kind: text
+    help: >-
+      [테스트] 탭이 돌리는 파일입니다. 확인할 주소를 더하거나 빼실 때 고칩니다.
 
 outputs:
   - path: (브라우저 안)
@@ -241,12 +246,14 @@ requirements:
 # 정기 실행 — 회차를 풀 때마다. 정해진 주기는 없다.
 schedule:
   cadence: manual
-  command: "python cli.py report --input data/records_36회.csv"
-  why: 한 회차를 다 풀고 나면 한 번. 보통 주 1회 정도가 됩니다.
+  command: "python check.py"
+  why: >-
+    고객에게 키를 보내기 전에 한 번. 셋(고객 주소·관리자 화면·키 서버) 중
+    하나라도 죽어 있으면 보내 봐야 소용없습니다.
 
 run:
-  input_file: data/records.csv
-  command: ["python", "cli.py", "report", "--input", "{input}"]
-  dry_run_command: ["python", "cli.py", "report", "--demo", "--dry-run"]
+  input_file: ""
+  command: ["python", "check.py"]
+  dry_run_command: ["python", "check.py", "--dry-run"]
   output_dir: outputs
-  timeout_seconds: 300
+  timeout_seconds: 120

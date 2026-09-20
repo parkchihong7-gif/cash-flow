@@ -2,7 +2,60 @@
 {% block body %}
 {% include "_tabs.html" %}
 
-<h2>이 프로그램을 산 고객</h2>
+{# ── 접속키 ──────────────────────────────────────────────────────────
+   **관리자 권한을 산 분과 그냥 쓰는 고객은 다른 사람이다.** 한 표에 섞으면
+   누구에게 무엇을 팔았는지가 안 보이고, 관리자 키를 고객에게 잘못 보낸 것도
+   눈에 안 띈다. 그래서 역할로 갈라 둔다.
+
+   결제(라이선스)와 접속키는 따로 논다. 결제 없이 시험용으로 키만 내주기도
+   하고, 결제했는데 아직 키를 안 보낸 경우도 있다. 둘 다 보여야 안다. #}
+{% macro 키표(rows, 비었을때) %}
+{% if rows %}
+<table>
+  <tr><th>받는 분</th><th>1차키</th><th>기기</th><th>상태</th>
+      <th>발급일</th><th>만료</th><th>마지막 사용</th></tr>
+  {% for row in rows %}
+  <tr>
+    <td><strong>{{ row.holder_name or '—' }}</strong>
+      {% if row.holder_email %}<br><span class="muted">{{ row.holder_email }}</span>{% endif %}</td>
+    <td><code>{{ row.code }}</code></td>
+    <td>{{ (key_devices | selectattr('parent_id', 'equalto', row.id) | list | length) or 0 }}개</td>
+    <td><span class="badge {{ 'ready' if row.usable else 'bad' }}">{{ row.state_label }}</span></td>
+    <td class="muted">{{ row.created_at[:10] }}</td>
+    <td class="muted">{{ row.expires_at or '무제한' }}</td>
+    <td class="muted">{{ row.last_used_at[:10] if row.last_used_at else '아직' }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="muted">{{ 비었을때 }}</p>
+{% endif %}
+{% endmacro %}
+
+<h2>접속키 — 관리자용 <span class="muted">({{ key_admins | length }}명)</span></h2>
+<p class="muted">이 키로 들어온 분은 <strong>자기 고객에게 키를 발급</strong>할 수 있습니다.
+  학원·강사에게 파실 때 쓰는 권한입니다. 다만 남의 키를 보거나 지우지는 못합니다.</p>
+{{ 키표(key_admins, '관리자 권한을 판 분이 아직 없습니다.') }}
+
+<h2>접속키 — 고객용 <span class="muted">({{ key_clients | length }}명)</span></h2>
+<p class="muted">프로그램을 쓰기만 하는 분들입니다. 키 발급 화면은 열리지 않습니다.</p>
+{{ 키표(key_clients, '아직 고객용 키를 발급하지 않았습니다.') }}
+
+<div class="note{{ '' if keyserver_on else ' warn' }}">
+  {% if program.live.elsewhere %}
+  키 발급은 <strong>구글 앱스 스크립트 화면</strong>에서 합니다 — 장부가 거기에 있어서
+  한 군데에서만 만듭니다.
+  {% if keyserver_on %}위 <strong>[🔑 접속키 발급하기]</strong> 버튼으로 가십시오.
+  {% else %}<code>.env</code> 에 <code>KEYSERVER_URL</code> 을 넣으시면 여기에 바로 가는
+  버튼이 생깁니다.{% endif %}
+  {% else %}
+  키 발급은 <a href="/apps/{{ program.id }}/admin/t/keys">접속키 화면</a>에서 합니다.
+  {% endif %}
+  <br><span class="muted">이 표는 <strong>1차키</strong>(사람) 기준입니다.
+  한 분에게 2차키(PC·노트북·휴대폰)가 따로 나갑니다.</span>
+</div>
+
+<h2>이 프로그램을 산 고객 <span class="muted">(결제 기록)</span></h2>
 {% if licenses %}
 <table>
   <tr><th>고객</th><th>플랜</th><th class="num">결제액</th><th class="num">월 유지</th>

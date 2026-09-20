@@ -1,0 +1,60 @@
+{# 탭을 눌렀을 때 **보던 자리가 유지되게** 한다.
+
+   탭은 그냥 링크라 누르면 새 화면이 맨 위에서 열린다. 화면 머리(제목·버튼·
+   설명)가 길어서, 탭을 누를 때마다 다시 아래로 스크롤해야 본문이 보인다.
+   탭 한 줄 건너뛰는 데 매번 손이 간다.
+
+   그래서 누르는 순간 **탭 줄이 화면 위에서 몇 px 에 있었는지**를 적어 두고,
+   다음 화면에서 같은 자리에 오도록 스크롤한다. 보던 시점이 그대로 이어진다.
+
+   저장소가 막혀 있을 수 있다(사생활 보호 창). 못 적으면 그냥 지금처럼
+   맨 위에서 열린다 — 불편할 뿐 고장은 아니다. #}
+<script>
+(function () {
+  var 이름 = "keepview";
+
+  function 적기(값) {
+    try { window.sessionStorage.setItem(이름, String(값)); } catch (_) { }
+  }
+  function 읽기() {
+    try {
+      var 값 = window.sessionStorage.getItem(이름);
+      window.sessionStorage.removeItem(이름);
+      return 값 === null ? null : parseFloat(값);
+    } catch (_) { return null; }
+  }
+
+  var 탭줄 = document.querySelector(".tabs");
+  if (!탭줄) { return; }
+
+  // 누를 때: 탭 줄이 화면 위에서 얼마나 떨어져 있었는지 적어 둔다.
+  //
+  // **화면을 안 내린 채 눌렀으면 적지 않는다.** 그때는 지금처럼 맨 위에서
+  // 열리는 것이 맞다. 내려서 보고 계셨을 때만 그 자리를 이어 준다.
+  탭줄.querySelectorAll("a").forEach(function (link) {
+    link.addEventListener("click", function () {
+      if (window.pageYOffset > 0) { 적기(탭줄.getBoundingClientRect().top); }
+    });
+  });
+
+  // 열릴 때: 같은 자리에 오도록 맞춘다.
+  //
+  // **본문이 다 그려진 뒤에 해야 한다.** 이 스크립트는 탭 줄 바로 밑에 있어서
+  // 지금 실행하면 아래 본문이 아직 없다. 문서가 짧으니 스크롤이 그만큼밖에
+  // 안 내려가고, 화면은 맨 위에 그대로 남는다. 한 번 데였다.
+  var 원래자리 = 읽기();
+  if (원래자리 === null || isNaN(원래자리)) { return; }
+
+  function 맞추기() {
+    var 지금 = 탭줄.getBoundingClientRect().top;
+    var 갈곳 = window.pageYOffset + (지금 - 원래자리);
+    window.scrollTo(0, Math.max(0, 갈곳));
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", 맞추기);
+  } else {
+    맞추기();
+  }
+})();
+</script>

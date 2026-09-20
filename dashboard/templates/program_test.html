@@ -7,7 +7,20 @@
 {% else %}
 
 {% if outcome %}
-  {% if outcome.status == 'success' %}
+  {% if program.live.elsewhere %}
+    {# 연결 확인은 산출물을 만들지 않는다. 종료 코드가 곧 답이다.
+       두드려 보지 않은 «주소만 확인» 을 '살아 있다' 라고 말하면 안 된다. #}
+    {% if outcome.exit_code != 0 %}
+      <div class="note bad"><strong>{{ '주소가 빠진 곳이 있습니다' if outcome.mode == 'dry'
+        else '응답하지 않는 곳이 있습니다' }}</strong> —
+        아래에서 어디인지 보시고, <strong>고객에게 키를 보내기 전에</strong> 고치세요.</div>
+    {% elif outcome.mode == 'dry' %}
+      <div class="note ok"><strong>주소는 다 적혀 있습니다</strong> —
+        실제로 열리는지는 [지금 확인하기] 로 보세요.</div>
+    {% else %}
+      <div class="note ok"><strong>살아 있습니다</strong> — 고객이 지금 들어갈 수 있습니다.</div>
+    {% endif %}
+  {% elif outcome.status == 'success' %}
     <div class="note ok"><strong>성공</strong> — 산출물이 만들어졌고 금지 문구도 없습니다.</div>
   {% elif outcome.status == 'warning' %}
     <div class="note warn"><strong>경고</strong> — 만들어졌지만 금지 문구가 남았습니다.
@@ -21,13 +34,44 @@
       <a class="btn primary" href="/programs/{{ program.id }}/outputs?run={{ outcome.id }}">산출물 보기</a>
       {% endif %}
       <a class="btn" href="/runs/{{ outcome.id }}">실행 상세</a>
-      <span class="muted">{{ '모의' if outcome.mode == 'dry' else '실제' }} 실행 ·
-        종료 코드 {{ outcome.exit_code }}</span>
+      <span class="muted">
+        {%- if program.live.elsewhere -%}
+          {{ '주소만 확인' if outcome.mode == 'dry' else '실제로 두드려 봄' }}
+        {%- else -%}
+          {{ '모의' if outcome.mode == 'dry' else '실제' }} 실행
+        {%- endif %} · 종료 코드 {{ outcome.exit_code }}</span>
     </div>
     <pre>{{ outcome.log }}</pre>
   </div>
 {% endif %}
 
+{# 프로그램에 따라 «실행» 의 뜻이 다르다.
+
+   본체가 밖에서 도는 상품은 여기서 돌릴 것이 없다. 대신 파는 사람이 정말
+   알고 싶은 것 — **고객이 지금 들어갈 수 있는가** — 를 확인한다.
+   입력 파일·고객 지정·API 키는 그 경우 아무 뜻이 없어서 감춘다. #}
+{% if program.live.elsewhere %}
+<h2>연결 확인</h2>
+<div class="card">
+  <p class="muted">이 프로그램의 본체는 <strong>밖에서 돕니다.</strong>
+    여기서 돌릴 것은 없고, 대신 <strong>고객이 지금 들어갈 수 있는지</strong>를 봅니다 —
+    고객이 들어가는 곳 · 관리자 화면 · 접속키 서버 세 군데입니다.</p>
+  <p class="help">셋 중 하나라도 죽어 있으면 키를 보내 봐야 소용없습니다.
+    <strong>고객에게 키를 보내기 전에</strong> 한 번 눌러 보세요.</p>
+
+  <form method="post" action="/programs/{{ program.id }}/test">
+    <div class="actions">
+      {% if program.run.dry_run_command %}
+      <button type="submit" name="mode" value="dry">무엇을 볼지만 보기</button>
+      {% endif %}
+      <button class="primary" type="submit" name="mode" value="real">지금 확인하기</button>
+    </div>
+    <p class="help">«무엇을 볼지만 보기» 는 바깥을 두드리지 않습니다.
+      주소가 제대로 적혀 있는지만 봅니다.</p>
+  </form>
+</div>
+
+{% else %}
 <h2>실행하기</h2>
 <div class="card">
   <p class="muted">입력 파일: <code>{{ program.run.input_file }}</code>
@@ -59,6 +103,7 @@
     {% endif %}
   </form>
 </div>
+{% endif %}
 
 <h2>실행 이력</h2>
 {% if runs %}

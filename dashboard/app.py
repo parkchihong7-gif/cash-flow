@@ -53,7 +53,8 @@ from core.registry import Registry
 from core.schedule import collect as collect_schedule, summarize as schedule_summary
 from core.runner import RunError, run_program
 from dashboard.charts import monthly_chart, program_chart
-from core.keyauth import KIND_PRIMARY, KIND_SECONDARY, KeyAuth, KeyError_
+from core.keyauth import (KIND_PRIMARY, KIND_SECONDARY, ROLE_ADMIN, KeyAuth,
+                          KeyError_)
 from dashboard.clientdoor import DOOR_PREFIX
 from dashboard.clientdoor import register as register_door
 from dashboard.webapp import register as register_apps
@@ -562,11 +563,20 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
     @app.get("/programs/{program_id}/members", response_class=HTMLResponse)
     def program_members(request: Request, program_id: str):
         program = program_or_404(program_id)
+        # 접속키를 **역할별로 갈라** 보여 준다. 관리자 권한을 판 사람과
+        # 그냥 쓰는 고객은 아예 다른 사람이라, 한 표에 섞으면 누구에게
+        # 무엇을 팔았는지가 안 보인다.
+        keys = KeyAuth(db().path)
+        primary = keys.list_keys(kind=KIND_PRIMARY, program_id=program_id)
         return page(
             request, "program_members.html",
             title=f"{program.name} 회원", program=program, tab="members",
             licenses=db().list_licenses(program_id=program_id),
             all_members=db().list_members(),
+            key_admins=[row for row in primary if row.role == ROLE_ADMIN],
+            key_clients=[row for row in primary if row.role != ROLE_ADMIN],
+            key_devices=keys.list_keys(kind=KIND_SECONDARY, program_id=program_id),
+            keyserver_on=bool(keyclient.admin_page_url()),
         )
 
     # ------------------------------------------------------------ 기타 설정
@@ -795,6 +805,7 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
         return page(
             request, "manual.html",
             title=heading, heading=heading, body=body, program=program, tab="manual",
+            audience=audience,
         )
 
     # -------------------------------------- 상품별 웹 화면 (관리자/클라이언트)
