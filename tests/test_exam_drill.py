@@ -325,3 +325,67 @@ def test_subject_lookup_accepts_short_names():
     assert subject_of("civil").key == "civil"
     with pytest.raises(ValueError, match="모르는 과목"):
         subject_of("영어")
+
+
+# ------------------------------------------------------ 매뉴얼이 프로그램을 따라오는가
+#
+# 본체가 GitHub Pages 로 옮겨 갔을 때 매뉴얼만 옛 파이썬 분석기 내용으로
+# 남아 있었다. 사장님이 화면에서 보고 "매뉴얼은 전혀 변경이 안 되어 있다"고
+# 짚으셨다. 번호만 바꾸고 내용을 안 봤던 것이다.
+#
+# 프로그램이 바뀌면 매뉴얼도 바뀌어야 한다. 사람이 기억하는 대신 여기서 막는다.
+
+def _manual(audience: str) -> str:
+    program = Registry().require("exam-drill")
+    relative = getattr(program.manuals, audience)
+    return program.resolve(relative).read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("audience", ["admin", "client"])
+def test_manuals_dropped_the_old_analyzer(audience):
+    """옛 '기출 풀이 분석기' 이야기가 한 줄도 남으면 안 된다.
+
+    남아 있으면 산 분이 없는 파이썬 프로그램을 설치하려 들고,
+    "기출문제는 들어 있지 않습니다" 라는 이제 거짓인 문장을 읽는다.
+    """
+    글 = _manual(audience)
+    for 옛것 in ("분석기", "cli.py", "기록표", "기출문제는 들어 있지 않습니다"):
+        assert 옛것 not in 글, f"{audience} 매뉴얼에 옛 분석기 내용이 남았습니다: {옛것}"
+
+
+@pytest.mark.parametrize("audience", ["admin", "client"])
+def test_manuals_describe_what_the_program_actually_is(audience):
+    """지금 프로그램의 뼈대가 두 매뉴얼에 다 들어 있어야 한다."""
+    글 = _manual(audience)
+    for 낱말 in ("4,400", "제15회", "제36회", "복습함", "모의", "통계", "2차키"):
+        assert 낱말 in 글, f"{audience} 매뉴얼에 '{낱말}' 설명이 없습니다"
+
+
+def test_client_manual_warns_that_scores_live_in_the_browser():
+    """가장 많이 들어올 문의이자 환불 사유다. 미리 적혀 있어야 한다."""
+    글 = _manual("client")
+    assert "브라우저" in 글
+    assert "사라집니다" in 글, "기록을 지우면 성적이 사라진다고 적어야 한다"
+
+
+def test_admin_manual_puts_the_copyright_check_before_selling():
+    """문항 4,400개를 담고 판다. 권리 확인을 넘기면 상품이 통째로 위험하다."""
+    글 = _manual("admin")
+    assert "재배포" in 글
+    assert "한국산업인력공단" in 글, "어디에 물어볼지가 적혀 있어야 한다"
+    assert "법률 자문이 아닙니다" in 글, "할 수 없는 말을 하지 않는다"
+
+
+def test_admin_manual_states_the_mail_quota():
+    """하루 몇 명까지 팔 수 있는지가 곧 사업 한도다."""
+    글 = _manual("admin")
+    assert "100통" in 글 and "1,500통" in 글
+
+
+@pytest.mark.parametrize("audience", ["admin", "client"])
+def test_manuals_promise_nothing_about_passing(audience):
+    """자격증 상품에서 가장 위험한 문구다. 두 매뉴얼 모두에서 막는다."""
+    글 = _manual(audience)
+    assert "합격을 약속하지 않습니다" in 글
+    for 위험 in ("합격 보장", "합격보장", "합격률 90", "반드시 합격"):
+        assert 위험 not in 글, f"{audience} 매뉴얼에 위험한 문구: {위험}"

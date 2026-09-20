@@ -205,7 +205,8 @@ def test_admin_can_edit_and_save_a_file(client, tmp_path):
     try:
         response = client.get("/apps/exam-drill/admin/file?path=README.md")
         assert response.status_code == 200
-        assert "13. 공인중개사" in response.text
+        # 번호는 언제든 바뀐다. 파일이 제대로 읽혔는지만 본다.
+        assert "공인중개사 기출문제" in response.text
 
         client.post("/apps/exam-drill/admin/file?path=README.md",
                     data={"path": "README.md", "content": before + "\n<!-- 테스트 -->\n"},
