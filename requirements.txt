@@ -29,6 +29,10 @@ openpyxl>=3.1.0
 # 외부 API
 google-api-python-client>=2.120.0
 google-auth>=2.28.0
+#   Cloud Run 에 올릴 때만 씁니다. 컨테이너가 꺼지면 디스크가 비워지므로
+#   고객 DB 와 세션 서명값을 버킷에 맞춰 둡니다 (`core/gcsstate.py`).
+#   집에서 쓰실 때는 `GCS_BUCKET` 이 없어 아무 일도 하지 않습니다.
+google-cloud-storage>=2.14.0
 
 # 테스트
 pytest>=8.0.0

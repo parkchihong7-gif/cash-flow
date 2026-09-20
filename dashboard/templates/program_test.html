@@ -52,24 +52,112 @@
    입력 파일·고객 지정·API 키는 그 경우 아무 뜻이 없어서 감춘다. #}
 {% if program.live.elsewhere %}
 <h2>연결 확인</h2>
-<div class="card">
+{# `data-live` — **이 화면은 사진이 아니다.** 브라우저가 직접 주소를 두드리므로
+   서버 없는 웹주소에서도 그대로 돈다. 스냅샷이 이 표시를 보고 "사진입니다"
+   안내를 붙이지 않는다 (`dashboard/snapshot.py` 의 FREEZE). #}
+<div class="card" data-live>
   <p class="muted">이 프로그램의 본체는 <strong>밖에서 돕니다.</strong>
-    여기서 돌릴 것은 없고, 대신 <strong>고객이 지금 들어갈 수 있는지</strong>를 봅니다 —
-    고객이 들어가는 곳 · 관리자 화면 · 접속키 서버 세 군데입니다.</p>
-  <p class="help">셋 중 하나라도 죽어 있으면 키를 보내 봐야 소용없습니다.
-    <strong>고객에게 키를 보내기 전에</strong> 한 번 눌러 보세요.</p>
+    여기서 돌릴 것은 없고, 대신 <strong>고객이 지금 들어갈 수 있는지</strong>를 봅니다.</p>
+  <p class="help"><strong>고객에게 키를 보내기 전에</strong> 한 번 눌러 보세요.
+    하나라도 죽어 있으면 키를 보내 봐야 소용없습니다.</p>
 
-  <form method="post" action="/programs/{{ program.id }}/test">
-    <div class="actions">
-      {% if program.run.dry_run_command %}
-      <button type="submit" name="mode" value="dry">무엇을 볼지만 보기</button>
-      {% endif %}
-      <button class="primary" type="submit" name="mode" value="real">지금 확인하기</button>
-    </div>
-    <p class="help">«무엇을 볼지만 보기» 는 바깥을 두드리지 않습니다.
-      주소가 제대로 적혀 있는지만 봅니다.</p>
-  </form>
+  {# **브라우저가 직접 두드린다.** 서버가 없는 웹주소(GitHub Pages)에서도
+     그대로 돈다 — 화면을 보고 계신 브라우저가 주소를 열어 보는 것뿐이라,
+     파이썬이 돌 필요가 없다. 그래서 이 버튼은 사진판에서도 살아 있다. #}
+  <div id="연결결과" class="checkrows"
+       data-client="{{ program.live.client }}"
+       data-admin="{{ program.live.admin }}"
+       data-keyserver="{{ keyserver_url() if keyserver_url().startswith('http') else '' }}"
+       data-console="{{ keyserver_url() }}"></div>
+  <div class="actions">
+    <button class="primary" type="button" id="연결확인">지금 확인하기</button>
+  </div>
 </div>
+
+<script>
+(function () {
+  var 판 = document.getElementById("연결결과");
+  var 단추 = document.getElementById("연결확인");
+  if (!판 || !단추) { return; }
+
+  // 앱스 스크립트 주소는 `.env` 말고 **브라우저가 기억한 것**도 본다.
+  // 접속키 관리자 화면(`web/admin.html`)이 같은 이름으로 넣어 둔다.
+  function 키서버() {
+    var 값 = 판.dataset.keyserver || "";
+    if (값) { return 값; }
+    try { return window.localStorage.getItem("keyserver.url") || ""; }
+    catch (_) { return ""; }
+  }
+
+  function 줄(표시, 이름, 말, 주소) {
+    var row = document.createElement("div");
+    row.className = "checkrow " + 표시;
+    row.innerHTML =
+      '<span class="mark"></span><span class="what"></span>' +
+      '<span class="said"></span><span class="addr"></span>';
+    row.querySelector(".mark").textContent =
+      표시 === "ok" ? "\u2713" : (표시 === "wait" ? "\u00B7" : "\u2717");
+    row.querySelector(".what").textContent = 이름;
+    row.querySelector(".said").textContent = 말;
+    row.querySelector(".addr").textContent = 주소 || "";
+    return row;
+  }
+
+  function 두드리기(주소) {
+    // 같은 출처면 상태 코드까지 읽는다. 다른 출처면 브라우저가 내용을 감추므로
+    // "응답은 왔다" 까지만 알 수 있다 — 그것도 없는 것보다 낫다.
+    return fetch(주소, { method: "GET", cache: "no-store" })
+      .then(function (r) {
+        return { ok: r.status >= 200 && r.status < 400, said: "HTTP " + r.status };
+      })
+      .catch(function () {
+        return fetch(주소, { method: "GET", mode: "no-cors", cache: "no-store" })
+          .then(function () { return { ok: true, said: "응답함 (내용은 못 읽음)" }; })
+          .catch(function (e) { return { ok: false, said: "닿지 못했습니다" }; });
+      });
+  }
+
+  단추.addEventListener("click", function () {
+    var 볼곳 = [
+      ["고객이 들어가는 곳", 판.dataset.client, "program.yaml 의 live.client 가 비었습니다"],
+      ["관리자 화면", 판.dataset.admin, "program.yaml 의 live.admin 이 비었습니다"],
+      ["접속키 서버", 키서버(),
+       "주소를 모릅니다 — [\uD83D\uDD11 접속키 발급하기] 에서 한 번 넣으시면 기억합니다"],
+    ];
+    판.textContent = "";
+    단추.disabled = true;
+    단추.textContent = "확인하는 중...";
+
+    var 남은 = 볼곳.length, 나쁨 = 0;
+    볼곳.forEach(function (것, i) {
+      var 이름 = 것[0], 주소 = 것[1], 없을때 = 것[2];
+      if (!주소) {
+        판.appendChild(줄("bad", 이름, 없을때, ""));
+        나쁨 += 1; 남은 -= 1; 끝났나(); return;
+      }
+      var 기다림 = 줄("wait", 이름, "두드리는 중...", 주소);
+      판.appendChild(기다림);
+      두드리기(주소).then(function (답) {
+        판.replaceChild(줄(답.ok ? "ok" : "bad", 이름, 답.said, 주소), 기다림);
+        if (!답.ok) { 나쁨 += 1; }
+        남은 -= 1; 끝났나();
+      });
+    });
+
+    function 끝났나() {
+      if (남은 > 0) { return; }
+      단추.disabled = false;
+      단추.textContent = "다시 확인하기";
+      var 맺음 = document.createElement("p");
+      맺음.className = 나쁨 ? "note bad" : "note ok";
+      맺음.textContent = 나쁨
+        ? 나쁨 + "군데가 응답하지 않습니다. 고객에게 키를 보내기 전에 고치세요."
+        : "셋 다 살아 있습니다. 키를 보내셔도 됩니다.";
+      판.appendChild(맺음);
+    }
+  });
+})();
+</script>
 
 {% else %}
 <h2>실행하기</h2>

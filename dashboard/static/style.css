@@ -650,3 +650,18 @@ table.trouble td:first-child { width: 34%; }
 .manualswitch a { padding: 3px 9px; border-radius: 999px; color: var(--ink-soft); }
 .manualswitch a:hover { color: var(--ink); text-decoration: none; background: var(--bg); }
 .manualswitch a.on { background: var(--accent); color: #fff; font-weight: 700; }
+
+/* 연결 확인 — 브라우저가 직접 두드린 결과. 서버 없이도 돈다. */
+.checkrows { margin: 14px 0 4px; }
+.checkrow { display: grid; grid-template-columns: 22px 150px auto; gap: 4px 10px;
+  align-items: baseline; padding: 7px 0; border-bottom: 1px solid var(--line);
+  font-size: 14px; }
+.checkrow .mark { font-weight: 700; }
+.checkrow.ok .mark { color: #2f9e5f; }
+.checkrow.bad .mark { color: #d0433a; }
+.checkrow.wait .mark { color: var(--ink-soft); }
+.checkrow .what { font-weight: 600; }
+.checkrow .said { color: var(--ink-soft); }
+.checkrow .addr { grid-column: 3; font-size: 12px; color: var(--ink-soft);
+  word-break: break-all; opacity: .75; }
+.checkrows .note { margin-top: 14px; }

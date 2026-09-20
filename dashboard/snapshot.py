@@ -116,13 +116,21 @@ document.addEventListener("submit", function (event) {
   event.preventDefault();
   alert("정적 스냅샷입니다. 저장·실행·검색은 서버를 띄워야 됩니다.\\n\\n  python -m dashboard");
 });
+// **여기서 정말로 되는 일**이 있는 화면인가.
+//
+// 브라우저가 직접 하는 일(연결 확인처럼)은 서버가 없어도 그대로 돈다.
+// 그런 화면에까지 "이 화면은 사진입니다" 를 붙이면 거짓말이 되고, 사람은
+// 곧 모든 안내를 안 읽게 된다. 화면이 `data-live` 로 스스로 밝힌다.
+function 살아있나() { return !!document.querySelector("[data-live]"); }
 document.addEventListener("DOMContentLoaded", function () {
   // 표지 안에서 볼 때는 위쪽 머리말이 이미 같은 말을 하고 있다. 두 번 하지 않는다.
   if (window.parent !== window) {
     var bar = document.querySelector(".snapshot-bar");
     if (bar) { bar.remove(); }
   }
+  // `data-live` 안에 있는 버튼은 진짜로 돈다. 흐리게 만들지 않는다.
   document.querySelectorAll("form button, form input[type=submit]").forEach(function (el) {
+    if (el.closest("[data-live]")) { return; }
     el.classList.add("snapshot-dead");
     el.title = "정적 스냅샷에서는 눌러도 아무 일도 일어나지 않습니다";
   });
@@ -132,7 +140,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // 폼마다 붙이면 한 화면에 같은 문단이 서너 번 나와 읽히지 않는다.
   // 아래쪽 버튼은 `.snapshot-dead::after` 가 짧게 맡는다.
   var 폼 = document.querySelector("form button, form input[type=submit]");
-  if (폼 && !document.querySelector(".snapshot-nope")) {
+  if (폼 && !살아있나() && !document.querySelector(".snapshot-nope")) {
     var note = document.createElement("p");
     note.className = "snapshot-nope";
     note.innerHTML =
@@ -173,6 +181,15 @@ def local_name(url: str) -> str:
     return f"{stem}.html"
 
 
+#: 스냅샷이 **뜨지 않고 진짜 주소로 내보내는** 화면.
+#:
+#: 접속키 관리자는 사진으로 떠 봐야 의미가 없다. 앱스 스크립트에 붙어
+#: 실제로 키를 발급하는 화면이라, 웹주소에도 `keys/` 로 따로 올라간다
+#: (`.github/workflows/pages.yml`). 눌렀을 때 사진이 아니라 **그 진짜 화면**이
+#: 열려야 한다.
+LIVE_PAGES = {"/keys/console": "keys/"}
+
+
 def should_follow(url: str) -> bool:
     split = urlsplit(url)
     if split.scheme or split.netloc:          # 바깥 주소는 그대로 둔다
@@ -181,6 +198,8 @@ def should_follow(url: str) -> bool:
     if not path.startswith("/") or path in SKIP_PATHS:
         return False
     if path.startswith("/static/"):
+        return False
+    if path in LIVE_PAGES:                    # 사진 말고 진짜 화면으로 나간다
         return False
     return True
 
@@ -241,6 +260,11 @@ def _rewrite(body: str, pages: dict[str, str], dangling: set[str],
             return match.group(0)      # 보내지 못하게 막아 두었으니 그대로 둔다
         if url.startswith("/static/"):
             return f'{attr}="{url[len("/static/"):]}"'
+        if url in LIVE_PAGES:
+            # 사진이 아니라 **진짜로 도는 화면**이다. 표지(`_site/index.html`)
+            # 옆의 `keys/` 로 내보낸다. 화면은 srcdoc 으로 끼워지므로 상대 주소가
+            # 표지 기준으로 풀린다 — 그래서 `keys/` 하나면 된다.
+            return f'{attr}="{LIVE_PAGES[url]}"'
         if not should_follow(url):
             return match.group(0)
         if url in pages:

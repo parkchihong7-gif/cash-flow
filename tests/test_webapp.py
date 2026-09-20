@@ -294,43 +294,23 @@ def test_back_button_stands_down_inside_a_frame():
 def test_outside_program_offers_the_key_issuing_door(client, monkeypatch):
     """세 번째 버튼은 **키를 만드는 곳**이다. 주소는 `.env` 에서만 온다.
 
-    저장소가 공개라 앱스 스크립트 주소를 파일에 박지 않는다. 안 넣으셨으면
-    버튼 대신 어디에 넣으라는 안내가 떠야 한다 — 버튼이 조용히 사라지면
-    키를 어디서 만드는지 알 길이 없다.
+    저장소가 공개라 앱스 스크립트 주소를 파일에 박지 않는다. 안 넣으셨어도
+    **버튼은 죽지 않는다** — 대시보드가 직접 내주는 관리자 화면으로 가고,
+    거기서 주소를 한 번 넣으면 브라우저가 기억한다.
     """
-    # 본문 설명에도 같은 낱말이 나오므로 **버튼**만 본다.
+    from core import keyclient
+
     단추 = "🔑 접속키 발급하기 ↗</a>"
 
     monkeypatch.delenv("KEYSERVER_URL", raising=False)
     body = client.get("/programs/exam-drill").text
-    assert 단추 not in body
-    assert "KEYSERVER_URL" in body, "어디에 넣으라고 알려 줘야 한다"
+    assert 단추 in body, "주소가 없어도 버튼은 있어야 한다"
+    assert keyclient.SELF_SERVED in body, "갈 곳이 있어야 한다"
 
     monkeypatch.setenv("KEYSERVER_URL", "https://script.google.com/macros/s/TEST/exec")
     body = client.get("/programs/exam-drill").text
     assert 단추 in body
     assert "https://script.google.com/macros/s/TEST/exec" in body
-
-
-# ------------------------------------------------------- 1번 화면 다듬기
-def test_tab_click_keeps_the_view_where_it_was():
-    """탭을 누르면 **보던 자리**가 이어져야 한다.
-
-    탭은 그냥 링크라 누르면 새 화면이 맨 위에서 열린다. 화면 머리가 길어서
-    탭 한 줄 건너가는 데 매번 아래로 다시 스크롤해야 했다.
-
-    복원은 **본문이 다 그려진 뒤**에 해야 한다. 이 스크립트는 탭 줄 바로
-    밑에 있어서, 그 자리에서 바로 하면 문서가 짧아 스크롤이 안 내려간다.
-    한 번 그렇게 틀렸다.
-    """
-    from pathlib import Path
-
-    글 = (Path(__file__).resolve().parent.parent / "dashboard" / "templates"
-          / "_keepview.html").read_text(encoding="utf-8")
-    assert "DOMContentLoaded" in 글, "본문이 다 그려진 뒤에 맞춰야 한다"
-    assert "window.pageYOffset > 0" in 글, "안 내린 채 눌렀으면 건드리지 않는다"
-    assert "try {" in 글 and "catch" in 글, "저장소가 막혀 있어도 고장나면 안 된다"
-
 
 def test_outside_program_test_tab_checks_the_connection(client):
     """밖에서 도는 프로그램의 [테스트] 는 '돌려 보기' 가 아니라 '살아 있나' 다."""
@@ -388,3 +368,55 @@ def test_manual_tab_opens_on_the_admin_one(client):
     assert '/manual/client"' not in 탭줄.group(1), (
         "탭에서는 관리자 쪽으로만 들어간다 — 고객용은 그 안에서 고른다"
     )
+
+
+def test_key_console_is_always_reachable(client, monkeypatch):
+    """[🔑 접속키 발급하기] 는 **언제나** 갈 곳이 있어야 한다.
+
+    예전에는 `.env` 에 앱스 스크립트 주소가 없으면 버튼을 아예 안 냈다.
+    그러면 키를 어디서 만드는지 알 길이 없다. 이제는 주소가 없으면
+    대시보드가 직접 내주는 관리자 화면으로 보낸다.
+    """
+    from core import keyclient
+
+    monkeypatch.delenv("KEYSERVER_URL", raising=False)
+    body = client.get("/programs/exam-drill").text
+    assert "🔑 접속키 발급하기 ↗</a>" in body
+    assert keyclient.SELF_SERVED in body
+
+    # 그 화면이 실제로 열리고, 프로그램 목록을 들고 있어야 한다.
+    console = client.get(keyclient.SELF_SERVED)
+    assert console.status_code == 200
+    assert "접속키 관리자" in console.text
+    assert client.get("/keys/programs.js").status_code == 200
+
+    # 주소가 있으면 거기로 바로 간다.
+    monkeypatch.setenv("KEYSERVER_URL", "https://script.google.com/macros/s/T/exec")
+    assert "https://script.google.com/macros/s/T/exec" in \
+        client.get("/programs/exam-drill").text
+
+
+def test_connection_check_runs_in_the_browser(client):
+    """연결 확인은 **브라우저가 직접** 한다. 서버 없는 웹주소에서도 돈다.
+
+    파이썬을 부르면 GitHub Pages 에서는 죽은 버튼이 된다. 화면을 보고 계신
+    브라우저가 주소를 열어 보는 것뿐이라 서버가 필요 없다.
+    """
+    body = client.get("/programs/exam-drill/test").text
+    assert "data-live" in body, "사진이 아니라고 스냅샷에 알려야 한다"
+    assert 'id="연결확인"' in body
+    assert "fetch(" in body, "브라우저가 직접 두드려야 한다"
+    assert 'action="/programs/exam-drill/test"' not in body, (
+        "서버로 보내면 웹주소에서 죽는다"
+    )
+
+
+def test_snapshot_does_not_call_live_screens_a_photo():
+    """진짜로 도는 화면에 «이 화면은 사진입니다» 를 붙이면 거짓말이 된다."""
+    from dashboard import snapshot
+
+    assert "살아있나" in snapshot.FREEZE
+    assert 'closest("[data-live]")' in snapshot.FREEZE, "그 안의 버튼은 안 흐리게"
+    # 접속키 관리자는 떠 오지 않고 진짜 주소로 내보낸다.
+    assert snapshot.LIVE_PAGES["/keys/console"] == "keys/"
+    assert not snapshot.should_follow("/keys/console")

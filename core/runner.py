@@ -77,8 +77,14 @@ def run_program(
         env_overrides: 자식 프로세스에 넘길 추가 환경 변수 (프로그램 설정값 등).
 
     Raises:
-        RunError: 실행 정의가 없거나 모의 실행을 지원하지 않을 때.
+        RunError: 실행 정의가 없거나, 모의 실행을 지원하지 않거나,
+            `paused` 로 막아 둔 프로그램일 때.
     """
+    # 손보는 중인 프로그램은 여기서 막는다. **화면에서 버튼을 감추는 것만으로는
+    # 부족하다** — 주소를 직접 치거나 예약 실행이 부르면 그대로 돈다. 실행으로
+    # 가는 길이 여럿(상세 화면·운영 콘솔·예약)이라 길목 하나에서 닫는다.
+    if program.blocked:
+        raise RunError(f"{program.name} 은(는) 지금 실행을 막아 두었습니다 — {program.paused.strip()}")
     if program.run is None:
         raise RunError(f"{program.name} 에는 실행 정의(run)가 없습니다.")
 

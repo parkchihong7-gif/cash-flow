@@ -325,6 +325,15 @@ class ProgramManifest(BaseModel):
     name: str
     tagline: str = ""
     status: Status = "wip"
+    #: 값이 있으면 **실행을 막고** 그 이유를 화면에 보여 준다.
+    #:
+    #: `status` 와 다르다. `status` 는 상품이 어디까지 왔는지고, 이건
+    #: "지금 돌리지 마세요" 다. 손보는 중인 프로그램을 실수로 돌려서
+    #: 산출물이 덮이거나 바깥 API 를 부르는 일을 막는다.
+    #:
+    #: 한 줄로 **왜** 막았는지 적는다. 이유 없이 막으면 나중에 자기도
+    #: 왜 안 되는지 모른다.
+    paused: str = Field(default="", description="비면 정상. 값이 있으면 실행을 막고 그 이유를 보여 준다")
     version: str = "0.1.0"
     owner: str = ""
 
@@ -357,6 +366,11 @@ class ProgramManifest(BaseModel):
     def recurring(self) -> bool:
         """매일·매주처럼 되풀이해 돌려야 하는 프로그램인가."""
         return self.schedule.recurring
+
+    @property
+    def blocked(self) -> bool:
+        """지금 돌리면 안 되는 프로그램인가."""
+        return bool(self.paused.strip())
 
     @property
     def runs_at_home(self) -> bool:

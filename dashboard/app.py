@@ -43,6 +43,9 @@ from core import auth
 from core.db import Database, DEFAULT_DB_PATH
 from core.access import collect as collect_access, summarize as access_summary
 from core.backup import backup_name, copy_db
+from contextlib import asynccontextmanager
+
+from core import gcsstate
 from core import keyclient
 from core.compliance import audit as compliance_audit, RULES as COMPLIANCE_RULES
 from core.health import checklist
@@ -152,7 +155,30 @@ def render_inline(text: str) -> str:
 def create_app(db_path: str | Path = DEFAULT_DB_PATH,
                products_dir: Path | None = None) -> FastAPI:
     """대시보드 앱을 만든다. 테스트에서는 임시 DB 경로를 넘긴다."""
-    app = FastAPI(title="통합 관리자 대시보드", docs_url=None, redoc_url=None)
+    # 클라우드에서는 컨테이너가 꺼질 때마다 디스크가 비워진다. **DB 를 열기
+    # 전에** 버킷에서 받아 와야 한다 — 열고 나서 덮으면 그 사이에 쓴 것이
+    # 날아가고, SQLite 가 열어 둔 파일을 갈아 끼우는 일이 된다.
+    #
+    # 집에서 쓸 때는 `GCS_BUCKET` 이 없어 아무 일도 하지 않는다.
+    if db_path == DEFAULT_DB_PATH:
+        gcsstate.restore()
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        # 켤 때: 60초마다 버킷에 올려 두는 뒷일꾼을 띄운다. 컨테이너를 접을 때
+        # 마지막 한 번을 못 올릴 수 있어서 주기를 짧게 잡았다 (maim 과 같은 값).
+        #
+        # 받아 오는 것은 여기가 아니라 **DB 를 열기 전**에 이미 했다.
+        # 열고 나서 덮으면 그 사이에 쓴 것이 날아간다.
+        if gcsstate.enabled():
+            gcsstate.start_autosave()
+        yield
+        # 끌 때: 마지막으로 한 번 더 올린다.
+        if gcsstate.enabled():
+            gcsstate.save()
+
+    app = FastAPI(title="통합 관리자 대시보드", docs_url=None, redoc_url=None,
+                  lifespan=lifespan)
     app.state.db = Database(db_path)
     app.state.registry = Registry(products_dir) if products_dir else Registry()
     app.state.gatekeeper = auth.Gatekeeper()
@@ -164,8 +190,13 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
     # 접속키 관리자(앱스 스크립트) 주소. `_tabs.html` 이 여덟 화면에 끼어들기
     # 때문에 각 화면마다 넘기면 반드시 한 군데를 빠뜨린다. 전역으로 둔다.
     # 값은 `.env` 에서 읽는다 — 공개 저장소에 주소를 박지 않으려는 것.
-    templates.env.globals["keyserver_url"] = keyclient.admin_page_url
+    # [🔑 접속키 발급하기] 가 갈 곳. **언제나 값이 있다** — `.env` 에 앱스
+    # 스크립트 주소가 있으면 거기로, 없으면 대시보드가 직접 내주는 화면으로.
+    # 예전에는 주소가 없으면 버튼을 안 냈는데, 그러면 키를 어디서 만드는지
+    # 알 길이 없었다.
+    templates.env.globals["keyserver_url"] = keyclient.key_console_url
     app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+
 
     def db() -> Database:
         return app.state.db
@@ -629,6 +660,25 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
                     keyserver_on=server is not None,
                     rows=rows, counts=keys.counts(), live=keys.live_sessions(),
                     saved=saved, error=error)
+
+    @app.get("/keys/console", response_class=HTMLResponse)
+    def keys_console() -> HTMLResponse:
+        """접속키 관리자 화면 — **스냅샷과 달리 진짜로 돈다.**
+
+        `web/admin.html` 그대로다. 구글 앱스 스크립트 키 서버에 붙어 발급·
+        정지·초기화를 실제로 한다. 서버 주소와 비밀번호는 **쓰는 사람이 화면에서
+        넣는다** — 저장소가 공개라 파일에 박지 않는다.
+
+        같은 파일이 웹주소(GitHub Pages)에도 `keys/` 로 올라간다. 그래서 집
+        컴퓨터든 웹이든 같은 화면이고, `.env` 가 비어 있어도 버튼이 죽지 않는다.
+        """
+        source = (BASE_DIR.parent / "web" / "admin.html").read_text(encoding="utf-8")
+        return HTMLResponse(source)
+
+    @app.get("/keys/programs.js", response_class=PlainTextResponse)
+    def keys_programs() -> PlainTextResponse:
+        source = (BASE_DIR.parent / "web" / "programs.js").read_text(encoding="utf-8")
+        return PlainTextResponse(source, media_type="application/javascript")
 
     @app.post("/keys/reset")
     async def keys_reset_all(request: Request):

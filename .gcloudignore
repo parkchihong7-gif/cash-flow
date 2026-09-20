@@ -1,0 +1,26 @@
+# Cloud Run 에 올릴 때 **빼는 것**.
+#
+# 여기가 비면 저장소를 통째로 올린다. 그러면 빌드가 느려지고, 무엇보다
+# 고객 자료나 시험 산출물이 컨테이너에 섞여 들어간다.
+.git/
+.github/
+__pycache__/
+*.pyc
+.pytest_cache/
+node_modules/
+
+# 고객 자료. **절대 올리지 않는다** — 상태는 GCS 버킷에서 받아 온다.
+data/
+*.db
+.env
+.dashboard_secret
+
+# 다시 만들면 되는 것들. 쌓이면 시작이 느려진다 (maim 이 그래서 배포가 멎었다).
+products/*/outputs/
+dashboard-snapshot/
+_site/
+_build/
+
+# 시험·문서. 서버가 도는 데 필요 없다.
+tests/
+docs/training/

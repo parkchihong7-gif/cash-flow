@@ -3,6 +3,8 @@ number: 4
 name: 해외 연사 초청 관리
 tagline: 비자·원천징수·일정에서 어긋나는 세 지점을 미리
 status: ready
+paused: >-
+  아직 손보는 중입니다. 1번부터 차례로 마무리하고 있어서, 그때까지 실수로 돌아가지 않게 막아 두었습니다.
 version: "1.0.0"
 
 summary: |

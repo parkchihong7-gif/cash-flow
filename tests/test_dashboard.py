@@ -204,7 +204,9 @@ def test_run_history(db):
 # -------------------------------------------------------------------- 실행기
 def test_dry_run_produces_outputs(db, tmp_path):
     """실제 퍼널 빌더를 모의 실행해 산출물이 나오는지 본다."""
-    program = load_manifest(PRODUCTS_DIR / "funnel-builder")
+    # 손보는 중이라 막아 두었지만 **코드가 멀쩡한지**는 계속 본다.
+    # 막았다고 시험까지 끄면 그 사이에 깨진 것을 아무도 모른다.
+    program = load_manifest(PRODUCTS_DIR / "funnel-builder").model_copy(update={"paused": ""})
     outcome = run_program(program, db, mode="dry")
 
     assert outcome.status == "success", outcome.log
@@ -362,14 +364,11 @@ def test_settings_page_lists_banned_phrases(client):
     assert str(len(banned_phrases.BANNED)) in body
 
 
-def test_dry_run_through_ui(client):
-    response = client.post(
-        "/programs/funnel-builder/test", data={"mode": "dry", "member_id": ""},
-        follow_redirects=True,
-    )
-    assert response.status_code == 200
-    assert "성공" in response.text or "경고" in response.text
-    assert "산출물 보기" in response.text
+def test_dry_run_through_ui(tmp_path):
+    """산출물까지 나오는지 본다. 손보는 중이라 화면에서는 막혀 있다."""
+    outcome = _dry_run_even_if_paused("funnel-builder", tmp_path)
+    assert outcome.output_dir, "산출물이 나와야 한다"
+
 
 
 def test_reload_button_works(client):
@@ -494,13 +493,9 @@ def test_program_pages_render_for_each_program(client, program_id):
         assert response.status_code == 200, f"{program_id}{suffix}"
 
 
-def test_hook_script_dry_run_through_ui(client):
-    response = client.post(
-        "/programs/hook-script/test", data={"mode": "dry", "member_id": ""},
-        follow_redirects=True,
-    )
-    assert response.status_code == 200
-    assert "성공" in response.text or "경고" in response.text
+def test_hook_script_dry_run_through_ui(tmp_path):
+    """손보는 중이라 화면에서는 막혀 있다. 코드는 계속 확인한다."""
+    _dry_run_even_if_paused("hook-script", tmp_path)
 
 
 def test_ebook_gen_is_registered():
@@ -510,13 +505,9 @@ def test_ebook_gen_is_registered():
     assert program.number == 7
 
 
-def test_ebook_gen_dry_run_through_ui(client):
-    response = client.post(
-        "/programs/ebook-gen/test", data={"mode": "dry", "member_id": ""},
-        follow_redirects=True,
-    )
-    assert response.status_code == 200
-    assert "성공" in response.text or "경고" in response.text
+def test_ebook_gen_dry_run_through_ui(tmp_path):
+    """손보는 중이라 화면에서는 막혀 있다. 코드는 계속 확인한다."""
+    _dry_run_even_if_paused("ebook-gen", tmp_path)
 
 
 def test_lecture_deck_is_registered():
@@ -526,13 +517,9 @@ def test_lecture_deck_is_registered():
     assert program.runnable and program.run.dry_run_command
 
 
-def test_lecture_deck_dry_run_through_ui(client):
-    response = client.post(
-        "/programs/lecture-deck/test", data={"mode": "dry", "member_id": ""},
-        follow_redirects=True,
-    )
-    assert response.status_code == 200
-    assert "성공" in response.text or "경고" in response.text
+def test_lecture_deck_dry_run_through_ui(tmp_path):
+    """손보는 중이라 화면에서는 막혀 있다. 코드는 계속 확인한다."""
+    _dry_run_even_if_paused("lecture-deck", tmp_path)
 
 
 def test_kmong_copy_is_registered():
@@ -542,13 +529,9 @@ def test_kmong_copy_is_registered():
     assert program.runnable and program.run.dry_run_command
 
 
-def test_kmong_copy_dry_run_through_ui(client):
-    response = client.post(
-        "/programs/kmong-copy/test", data={"mode": "dry", "member_id": ""},
-        follow_redirects=True,
-    )
-    assert response.status_code == 200
-    assert "성공" in response.text or "경고" in response.text
+def test_kmong_copy_dry_run_through_ui(tmp_path):
+    """손보는 중이라 화면에서는 막혀 있다. 코드는 계속 확인한다."""
+    _dry_run_even_if_paused("kmong-copy", tmp_path)
 
 
 def test_n8n_gen_is_registered():
@@ -558,13 +541,9 @@ def test_n8n_gen_is_registered():
     assert program.runnable and program.run.dry_run_command
 
 
-def test_n8n_gen_dry_run_through_ui(client):
-    response = client.post(
-        "/programs/n8n-gen/test", data={"mode": "dry", "member_id": ""},
-        follow_redirects=True,
-    )
-    assert response.status_code == 200
-    assert "성공" in response.text or "경고" in response.text
+def test_n8n_gen_dry_run_through_ui(tmp_path):
+    """손보는 중이라 화면에서는 막혀 있다. 코드는 계속 확인한다."""
+    _dry_run_even_if_paused("n8n-gen", tmp_path)
 
 
 def test_groupbuy_ledger_is_registered():
@@ -574,13 +553,9 @@ def test_groupbuy_ledger_is_registered():
     assert program.runnable and program.run.dry_run_command
 
 
-def test_groupbuy_ledger_dry_run_through_ui(client):
-    response = client.post(
-        "/programs/groupbuy-ledger/test", data={"mode": "dry", "member_id": ""},
-        follow_redirects=True,
-    )
-    assert response.status_code == 200
-    assert "성공" in response.text or "경고" in response.text
+def test_groupbuy_ledger_dry_run_through_ui(tmp_path):
+    """손보는 중이라 화면에서는 막혀 있다. 코드는 계속 확인한다."""
+    _dry_run_even_if_paused("groupbuy-ledger", tmp_path)
 
 
 def test_income_sim_is_registered():
@@ -590,13 +565,9 @@ def test_income_sim_is_registered():
     assert program.runnable and program.run.dry_run_command
 
 
-def test_income_sim_dry_run_through_ui(client):
-    response = client.post(
-        "/programs/income-sim/test", data={"mode": "dry", "member_id": ""},
-        follow_redirects=True,
-    )
-    assert response.status_code == 200
-    assert "성공" in response.text or "경고" in response.text
+def test_income_sim_dry_run_through_ui(tmp_path):
+    """손보는 중이라 화면에서는 막혀 있다. 코드는 계속 확인한다."""
+    _dry_run_even_if_paused("income-sim", tmp_path)
 
 
 def test_notion_template_kit_is_registered():
@@ -606,13 +577,9 @@ def test_notion_template_kit_is_registered():
     assert program.runnable and program.run.dry_run_command
 
 
-def test_notion_template_kit_dry_run_through_ui(client):
-    response = client.post(
-        "/programs/notion-template-kit/test", data={"mode": "dry", "member_id": ""},
-        follow_redirects=True,
-    )
-    assert response.status_code == 200
-    assert "성공" in response.text or "경고" in response.text
+def test_notion_template_kit_dry_run_through_ui(tmp_path):
+    """손보는 중이라 화면에서는 막혀 있다. 코드는 계속 확인한다."""
+    _dry_run_even_if_paused("notion-template-kit", tmp_path)
 
 
 def test_affiliate_matcher_is_registered():
@@ -622,13 +589,9 @@ def test_affiliate_matcher_is_registered():
     assert program.runnable and program.run.dry_run_command
 
 
-def test_affiliate_matcher_dry_run_through_ui(client):
-    response = client.post(
-        "/programs/affiliate-matcher/test", data={"mode": "dry", "member_id": ""},
-        follow_redirects=True,
-    )
-    assert response.status_code == 200
-    assert "성공" in response.text or "경고" in response.text
+def test_affiliate_matcher_dry_run_through_ui(tmp_path):
+    """손보는 중이라 화면에서는 막혀 있다. 코드는 계속 확인한다."""
+    _dry_run_even_if_paused("affiliate-matcher", tmp_path)
 
 
 def test_agency_kit_is_registered():
@@ -638,14 +601,10 @@ def test_agency_kit_is_registered():
     assert program.runnable and program.run.dry_run_command
 
 
-def test_agency_kit_dry_run_through_ui(client):
-    """세 모듈을 한 번에 돌려 본다. 대행 상담에서 그대로 보여 주는 화면이다."""
-    response = client.post(
-        "/programs/agency-kit/test", data={"mode": "dry", "member_id": ""},
-        follow_redirects=True,
-    )
-    assert response.status_code == 200
-    assert "성공" in response.text or "경고" in response.text
+def test_agency_kit_dry_run_through_ui(tmp_path):
+    """세 모듈을 한 번에 돌려 본다. 대행 상담에서 그대로 보여 주는 화면이다. 손보는 중이라 화면에서는 막혀 있다."""
+    outcome = _dry_run_even_if_paused("agency-kit", tmp_path)
+
 
 
 def test_niche_research_is_registered():
@@ -655,14 +614,10 @@ def test_niche_research_is_registered():
     assert program.runnable and program.run.dry_run_command
 
 
-def test_niche_research_dry_run_through_ui(client):
-    """샘플 자료 3일치로 보고서를 만든다. 유튜브도 Claude 도 부르지 않는다."""
-    response = client.post(
-        "/programs/niche-research/test", data={"mode": "dry", "member_id": ""},
-        follow_redirects=True,
-    )
-    assert response.status_code == 200
-    assert "성공" in response.text or "경고" in response.text
+def test_niche_research_dry_run_through_ui(tmp_path):
+    """샘플 자료 3일치로 보고서를 만든다. 유튜브도 Claude 도 부르지 않는다. 손보는 중이라 화면에서는 막혀 있다."""
+    outcome = _dry_run_even_if_paused("niche-research", tmp_path)
+
 
 
 # ------------------------------------------------------------ 정기 실행
@@ -853,3 +808,59 @@ def test_access_summary_counts_add_up():
     assert counts["total"] == len(rows)
     assert counts["now"] + counts["setup"] + counts["wait"] + counts["hard"] \
         == counts["total"]
+
+
+
+def _dry_run_even_if_paused(program_id: str, tmp_path):
+    """막아 둔 프로그램이라도 **코드가 멀쩡한지**는 계속 본다.
+
+    `paused` 는 "손보는 중이니 지금 돌리지 마세요" 지 "코드가 고장났다" 가
+    아니다. 막았다고 시험까지 꺼 버리면, 나중에 풀었을 때 그 사이에 깨진
+    것을 아무도 모른다. 그래서 막는 표시만 잠깐 떼고 돌려 본다.
+    """
+    from core.db import Database
+    from core.runner import run_program
+
+    program = Registry().require(program_id).model_copy(update={"paused": ""})
+    outcome = run_program(program, Database(str(tmp_path / f"{program_id}.db")), mode="dry")
+    assert outcome.exit_code == 0, outcome.log[-800:]
+    return outcome
+
+
+# ------------------------------------------------------- 손보는 중 실행 막기
+def test_paused_programs_refuse_to_run(tmp_path):
+    """막아 둔 프로그램은 **서버에서** 거부해야 한다.
+
+    화면에서 버튼을 감추는 것만으로는 부족하다. 주소를 직접 치거나 예약
+    실행이 부르면 그대로 돈다. 실행으로 가는 길이 여럿(상세 화면·운영 콘솔·
+    예약)이라 길목 하나(`core.runner.run_program`)에서 닫는다.
+    """
+    import pytest
+
+    from core.db import Database
+    from core.runner import RunError, run_program
+
+    registry = Registry()
+    막힌것 = [p for p in registry.programs if p.blocked]
+    assert 막힌것, "막아 둔 프로그램이 하나도 없습니다"
+
+    db = Database(str(tmp_path / "t.db"))
+    for program in 막힌것:
+        with pytest.raises(RunError, match="막아 두었습니다"):
+            run_program(program, db, mode="dry")
+
+
+def test_paused_says_why():
+    """이유 없이 막으면 나중에 자기도 왜 안 되는지 모른다."""
+    for program in Registry().programs:
+        if program.blocked:
+            assert len(program.paused.strip()) > 10, f"{program.id} 의 이유가 너무 짧습니다"
+
+
+def test_the_ones_actually_in_use_are_not_blocked():
+    """쓰고 있는 것까지 막으면 안 된다."""
+    registry = Registry()
+    for program_id in ("exam-drill", "senior-video", "naver-blog"):
+        assert not registry.require(program_id).blocked, (
+            f"{program_id} 은(는) 실제로 쓰는 중이라 막으면 안 된다"
+        )

@@ -29,7 +29,8 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any
 
-__all__ = ["KeyServer", "KeyServerError", "from_env", "admin_page_url"]
+__all__ = ["KeyServer", "KeyServerError", "from_env", "admin_page_url",
+           "key_console_url", "SELF_SERVED"]
 
 #: 서버가 느릴 때 화면이 영영 안 돌아오지 않게.
 TIMEOUT = 25.0
@@ -171,3 +172,19 @@ def admin_page_url() -> str:
     비밀번호와 같은 칸에 둔다.
     """
     return (os.getenv("KEYSERVER_URL") or "").strip()
+
+
+#: `.env` 가 비어 있을 때 대신 여는 곳. 대시보드가 직접 내주는 관리자 화면이다.
+#: 거기서 서버 주소를 한 번 넣으면 브라우저가 기억한다 — 저장소에 비밀이
+#: 들어가지 않고, 버튼이 죽지도 않는다.
+SELF_SERVED = "/keys/console"
+
+
+def key_console_url() -> str:
+    """[🔑 접속키 발급하기] 가 갈 곳. **언제나 값이 있다.**
+
+    `.env` 에 앱스 스크립트 주소가 있으면 거기로 바로 보내고, 없으면
+    대시보드가 직접 내주는 관리자 화면으로 보낸다. 예전에는 주소가 없으면
+    버튼 자체를 안 냈는데, 그러면 **키를 어디서 만드는지 알 길이 없었다.**
+    """
+    return admin_page_url() or SELF_SERVED
