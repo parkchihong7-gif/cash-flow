@@ -105,3 +105,61 @@ def test_pages_workflow_runs_every_evening():
     assert 예약, "시각 예약이 없습니다"
     분, 시 = 예약[0]["cron"].split()[:2]
     assert 분 == "0" and 시 == "11", "11:00 UTC = 한국 20:00"
+
+
+def test_one_command_script_exists_and_asks_only_for_the_code():
+    """콘솔을 처음 쓰시는 분이 지역·버킷을 직접 찾게 하면 안 된다.
+
+    "maim 이 어느 지역에 있는지" 를 물었더니 무슨 말인지 모르겠다고 하셨다.
+    맞는 반응이다 — 그건 내가 찾아야 하는 것이지 사장님이 찾을 것이 아니다.
+    """
+    글 = (ROOT / "deploy" / "올리기.sh").read_text(encoding="utf-8")
+    # 지역과 버킷을 스스로 찾는다
+    assert "gcloud run services list" in 글, "지역을 스스로 찾아야 한다"
+    assert "gcloud storage buckets list" in 글, "버킷을 스스로 찾아야 한다"
+    # 접속 코드는 화면에 안 보이게 받는다
+    assert "read -rs" in 글, "접속 코드가 화면에 보이면 안 된다"
+    assert "--data-file=-" in 글, "명령줄에 적으면 셸 기록에 남는다"
+    # 요금이 갈리는 값
+    assert "--min-instances 0" in 글
+    # 여러 번 돌려도 되어야 한다
+    assert "gcloud secrets describe" in 글, "이미 있으면 넘어가야 한다"
+
+
+def test_the_guide_leads_with_the_script():
+    """긴 설명 앞에 **한 줄로 끝내는 법**이 먼저 나와야 한다."""
+    글 = (ROOT / "deploy" / "cloudrun.md").read_text(encoding="utf-8")
+    첫머리 = 글[:600]
+    assert "deploy/올리기.sh" in 첫머리
+    assert "Cloud Shell" in 첫머리
+
+
+def test_script_uses_ascii_variable_names():
+    """**bash 는 변수 이름에 한글을 못 쓴다.**
+
+    파이썬·자바스크립트에서는 되길래 그대로 썼다가 첫 줄에서 멎었다
+    (`서비스=cash-flow: command not found`). 이름만 영문으로 두고 설명은
+    한글로 둔다. 다시 한글 이름을 쓰면 여기서 걸린다.
+    """
+    import re
+
+    글 = (ROOT / "deploy" / "올리기.sh").read_text(encoding="utf-8")
+    나쁜줄 = []
+    for 번호, 줄 in enumerate(글.split("\n"), 1):
+        벗긴줄 = 줄.split("#", 1)[0]          # 주석은 한글이어도 된다
+        if re.search(r"(^|\s)[가-힣][가-힣\w]*=", 벗긴줄):
+            나쁜줄.append(f"{번호}: {줄.strip()}")
+        if re.search(r"(read\s+-\w+|unset)\s+[가-힣]", 벗긴줄):
+            나쁜줄.append(f"{번호}: {줄.strip()}")
+        if re.search(r"\$\{?#?[가-힣]", 벗긴줄):
+            나쁜줄.append(f"{번호}: {줄.strip()}")
+    assert not 나쁜줄, "bash 가 못 읽는 한글 변수 이름:\n" + "\n".join(나쁜줄)
+
+
+def test_script_parses_as_bash():
+    """붙여 넣었을 때 문법 오류로 멎으면 안 된다."""
+    import subprocess
+
+    done = subprocess.run(["bash", "-n", str(ROOT / "deploy" / "올리기.sh")],
+                          capture_output=True, text=True)
+    assert done.returncode == 0, done.stderr
