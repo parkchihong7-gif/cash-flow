@@ -69,10 +69,20 @@ fi
 if gcloud secrets describe "$SECRET" >/dev/null 2>&1; then
   echo "접속코드 : 이미 넣어 두신 것을 씁니다"
 else
-  gcloud services enable secretmanager.googleapis.com >/dev/null 2>&1 || true
+  # 이 기능을 켜는 데 30~60초 걸린다. 조용히 두면 멈춘 줄 안다.
   echo
-  echo "이 대시보드를 열 때 쓸 **접속 코드**를 정하세요."
-  echo "(화면에 안 보입니다. 잊으면 다시 만들어야 하니 적어 두세요)"
+  echo "비밀 보관 기능을 켜는 중입니다 (처음 한 번, 30초~1분)..."
+  gcloud services enable secretmanager.googleapis.com >/dev/null 2>&1 || true
+  echo "           켰습니다."
+  echo
+  echo "────────────────────────────────────────────────────"
+  echo " 이 대시보드를 열 때 쓸 **접속 코드**를 정하세요."
+  echo
+  echo "  · 여섯 자 이상"
+  echo "  · **치셔도 화면에 아무것도 안 보입니다** (비밀번호라서)"
+  echo "    그냥 치고 Enter 를 누르세요"
+  echo "  · 잊으면 다시 만들어야 하니 적어 두세요"
+  echo "────────────────────────────────────────────────────"
   printf "  접속 코드: "
   read -rs CODE
   echo
@@ -87,7 +97,10 @@ fi
 
 # ── 5. 올리기 ───────────────────────────────────────────
 echo
-echo "올리는 중입니다. 처음에는 3~5분 걸립니다..."
+echo "────────────────────────────────────────────────────"
+echo " 올리는 중입니다. **처음에는 3~5분 걸립니다.**"
+echo " 중간에 멈춘 것처럼 보여도 기다려 주세요."
+echo "────────────────────────────────────────────────────"
 echo
 
 gcloud run deploy "$SERVICE" \
