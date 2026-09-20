@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import re
+from pathlib import Path
 
 import pytest
 
@@ -524,3 +525,24 @@ def test_떠_온_화면마다_안내문_스크립트가_실려_나간다(tmp_pat
     for f in 폼있는화면[:5]:
         글 = f.read_text(encoding="utf-8")
         assert "snapshot-nope" in 글, f"{f.name} 에 안내문 코드가 없습니다"
+
+
+def test_사진에서_진짜_관리자_화면으로_건너갈_수_있다(web):
+    """이게 없어서 사장님이 사진에서 발급 버튼을 누르고 계셨다.
+
+    "안 됩니다" 만 있고 건너갈 자리가 없으면, 사람은 그 화면에서 계속
+    눌러 본다. 사진 맨 위에 진짜로 되는 곳을 걸어 둔다.
+    """
+    page = (web / "index.html").read_text(encoding="utf-8")
+    assert 'href="keys/"' in page, "진짜 관리자 화면으로 가는 링크가 없습니다"
+    assert "키를 발급하실 곳은 여기가 아닙니다" in page
+    # 같은 주소 안이라 바깥에서 받아 오는 것이 아니다 — 그건 화면을 멎게 한다.
+    assert 'href="https://' not in page.split("realdoor")[1][:400]
+
+
+def test_진짜_관리자_화면도_같이_올라간다():
+    """링크만 걸고 파일을 안 올리면 404 가 뜬다."""
+    workflow = (Path(__file__).resolve().parent.parent
+                / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8")
+    assert "_site/keys/index.html" in workflow, "관리자 화면을 안 싣고 있습니다"
+    assert "cp web/admin.html _site/keys/index.html" in workflow

@@ -248,6 +248,18 @@
     font-size: 12px; color: var(--muted);
   }
   .gatestamp { margin: 8px 0 0; font-size: 11px; color: var(--muted); opacity: .75; }
+  /* 사진을 보시다가 "그럼 키는 어디서" 하실 때 건너가실 자리.
+     이것이 없어 사장님이 사진에서 발급 버튼을 누르고 계셨다. */
+  .realdoor {
+    margin: 10px 0 0 !important; padding: 8px 12px; border-radius: 7px;
+    background: #2a1f0c; border: 1px solid #6b4e1f; color: #f0d9a8;
+    font-size: 13px !important;
+  }
+  .realdoor b { color: #ffc96b; }
+  .realdoor a {
+    color: #1a1206; background: var(--amber); text-decoration: none;
+    padding: 3px 10px; border-radius: 6px; font-weight: 600; white-space: nowrap;
+  }
 </style>
 
 <header class="bar">
@@ -260,6 +272,11 @@
     눌러서 돌아다니실 수 있지만, 서버가 아니라 화면만 있어서
     <b>저장·실행·검색은 되지 않습니다.</b>
     각 프로그램의 메뉴·매뉴얼·설정값을 보시는 용도입니다.
+  </p>
+  <p class="realdoor">
+    <b>키를 발급하실 곳은 여기가 아닙니다.</b>
+    <a href="keys/" target="_blank" rel="noopener">🔑 진짜 관리자 화면 열기</a>
+    — 여기는 사진이고, 저쪽은 실제로 발급되고 이메일이 나갑니다.
   </p>
   <p class="stamp">{{STAMP}}</p>
 </header>
