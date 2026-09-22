@@ -74,8 +74,12 @@
   {% endif %}
 
   {% if issued %}
-  {# 안내문은 **완성품이 아니라 출발점**이다. 고객마다 덧붙일 말이 다르다.
-     그래서 읽기 전용을 풀고, 고친 그대로 보낸다. #}
+  {# **고치는 곳과 자동인 곳을 가른다.**
+
+     접속키 안내 글만 사람이 고친다 — 고객마다 덧붙일 말이 다르다.
+     매뉴얼은 프로그램에 든 파일 그대로, 꾸민 채로 자동으로 붙는다.
+     예전에는 둘을 한 칸에 섞어 놓았는데, 매뉴얼이 글자로 풀어헤쳐지면서
+     `────────` 같은 영문 모를 줄이 보이고 지저분했다. #}
   <div class="issued">
     <h4>{{ issued.holder_name }}님께 보낼 안내문</h4>
     {# 주소는 늘 붙인다. 보낼 수 없을 때는 버튼이 흐려서 못 누른다 —
@@ -85,13 +89,33 @@
         <input type="email" name="email" value="{{ issued.holder_email }}" required></label>
       <label><span class="ltext">제목</span>
         <input type="text" name="subject" value="{{ issued.mail_subject(program.name) }}" required></label>
-      <textarea id="issued-text" name="body" rows="20"
-                spellcheck="false">{{ issued.draft(program.name, manual_text) }}</textarea>
+      <textarea id="issued-text" name="body" rows="12"
+                spellcheck="false">{{ issued.mail_body(program.name) }}</textarea>
       <p class="help">
-        <strong>여기서 바로 고치실 수 있습니다.</strong> 인사말을 바꾸거나 덧붙일 말을
-        적으세요. 아래 <strong>{{ '관리자 매뉴얼' if issued.for_admin else '사용 설명서' }}</strong>이
-        같이 붙어 있습니다 — 길면 지우셔도 됩니다.
+        <strong>접속키 부분입니다. 여기서 바로 고치실 수 있습니다.</strong>
+        인사말을 바꾸거나 덧붙일 말을 적으세요.
+        {% if manual_html %}
+        <strong>{{ '관리자 매뉴얼' if issued.for_admin else '사용 설명서' }}</strong>은
+        아래 보이는 그대로 <strong>자동으로 붙어서</strong> 나갑니다 — 여기에
+        옮겨 적지 않으셔도 됩니다.
+        {% endif %}
       </p>
+
+      {% if manual_html %}
+      {# 붙을 것을 **보여는 준다.** 안 보여 주면 무엇이 나가는지 모른 채
+         보내게 된다. 다만 고치지는 못한다 — 보내는 사람마다 매뉴얼이
+         달라지면 나중에 «매뉴얼에 이렇게 쓰여 있었다» 를 확인할 수 없다. #}
+      <details class="mailmanual">
+        <summary>같이 나갈 {{ '관리자 매뉴얼' if issued.for_admin else '사용 설명서' }} 미리 보기</summary>
+        <div class="mailpreview">{{ manual_html | safe }}</div>
+        <p class="help">
+          이 부분은 여기서 고칠 수 없습니다. 내용을 바꾸시려면
+          <strong>매뉴얼 탭</strong>에서 문서 자체를 고쳐 주세요 — 그래야 다음에
+          보내는 분께도 같은 글이 갑니다.
+        </p>
+      </details>
+      {% endif %}
+
       {% if not through_door %}
       {# 못 보낼 때도 **버튼은 보인다.** 아예 없으면 «어떻게 보내지» 가 되고,
          무엇을 준비하면 되는지도 알 수 없다. 흐리게 두고 이유를 적는다. #}
@@ -108,6 +132,8 @@
       <p class="help">
         위 글을 <strong>복사해서</strong> 메일이나 카톡으로 보내 주세요.
         고치셔도 됩니다 — 덧붙일 말을 적으시면 됩니다.
+        {% if manual_html %}매뉴얼은 프로그램 안 <strong>매뉴얼 탭</strong>에서
+        보실 수 있다고 알려 주시면 됩니다.{% endif %}
       </p>
       {% else %}
       <p class="help warn">

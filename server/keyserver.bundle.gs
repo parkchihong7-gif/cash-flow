@@ -2,7 +2,7 @@
 //  접속키 서버 — 구글 앱스 스크립트에 붙여 넣는 **한 장짜리** 판입니다.
 //
 //  ■ 붙여넣기 전에 꼭 보세요
-//    이 파일은 1,507줄입니다. 맨 아래에 ⛳ 표가 있습니다.
+//    이 파일은 1,509줄입니다. 맨 아래에 ⛳ 표가 있습니다.
 //    붙여 넣은 뒤 **맨 아래에 그 ⛳ 표가 보이는지** 확인하세요.
 //    안 보이면 잘린 것이고, 그대로 저장하면
 //      구문 오류: SyntaxError: Unexpected end of input
@@ -1433,6 +1433,7 @@ function adminSendText(p) {
   var email = String(p.email || '').trim();
   var subject = String(p.subject || '').trim();
   var body = String(p.body || '');
+  var html = String(p.html || '');
   if (!email || email.indexOf('@') < 1) {
     return { ok: false, reason: 'bad_email', message: '받는 분 메일 주소를 확인해 주세요.' };
   }
@@ -1450,8 +1451,9 @@ function adminSendText(p) {
                       '워크스페이스 계정을 쓰세요.' };
   }
   try {
-    MailApp.sendEmail(email, subject, body,
-                      { name: prop('MAIL_FROM_NAME') || undefined });
+    var 옵션 = { name: prop('MAIL_FROM_NAME') || undefined };
+    if (html) { 옵션.htmlBody = html; }
+    MailApp.sendEmail(email, subject, body, 옵션);
     log('mail-sent', String(p.program || ''), email);
     return { ok: true, sentTo: email, remaining: 남음 > 0 ? 남음 - 1 : 남음 };
   } catch (err) {

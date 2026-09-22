@@ -57,8 +57,9 @@ from typing import Any
 from fastapi import Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from core.keymail import manual_html
 from core.keyauth import (
-    KIND_PRIMARY, KIND_SECONDARY, ROLE_ADMIN, ROLE_CLIENT, KeyAuth, KeyError_, manual_for_mail)
+    KIND_PRIMARY, KIND_SECONDARY, ROLE_ADMIN, ROLE_CLIENT, KeyAuth, KeyError_)
 from core.webui import load_handler
 
 __all__ = ["register", "DOOR_PREFIX", "COOKIE_PREFIX"]
@@ -220,7 +221,7 @@ def register(app, templates, registry, db, program_or_404, console_for) -> None:
                 # 안내문에 붙일 매뉴얼. 산 분이 자기 고객에게 보내는 것이라
                 # **고객용 설명서**가 맞다 — 관리자 매뉴얼에는 그분 고객이
                 # 볼 필요 없는 값·마진 이야기가 들어 있다.
-                "manual_text": manual_for_mail(program, for_admin=False),
+                "manual_html": manual_html(program, for_admin=False),
                 # **산 분은 우리 계정으로 메일을 못 보낸다.** 열어 주면
                 # 사장님 구글 계정이 남의 발송기가 된다. 글은 만들어 드리고
                 # 보내는 것은 그분이 직접 하신다.

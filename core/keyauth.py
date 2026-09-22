@@ -263,21 +263,23 @@ class IssuedSet:
         """보낼 글 전체. 제목 한 줄 + 본문."""
         return f"{self.mail_subject(product)}\n\n{self.mail_body(product)}"
 
-    def draft(self, product: str, manual: str = "") -> str:
-        """화면에 **처음 채워 둘** 글.
+    def plain_mail(self, note: str, manual: str = "") -> str:
+        """**글자판 대비.** HTML 을 못 읽는 메일 앱에서 대신 보일 글.
 
-        여기서부터 사람이 고친다. 고객마다 덧붙일 말이 다르므로 이 글은
-        완성품이 아니라 **출발점**이다.
+        본판은 :func:`core.keymail.mail_html` 이 만드는 꾸민 판이다. 여기는
+        그것이 통하지 않을 때만 쓰인다 — 그래서 모양을 내려 애쓰지 않는다.
+        예전에는 `────────` 로 칸을 갈랐는데 받는 분 화면에서는 영문 모를
+        줄로만 보였다. 빈 줄과 이름표면 충분하다.
 
-        `manual` 을 넘기면 아래에 붙인다. 받는 분이 관리자냐 고객이냐에 따라
-        다른 매뉴얼이 와야 한다 — 고객에게 관리자 매뉴얼을 보내면 «접속 코드
-        관리» 같은, 그분 화면에 없는 것을 찾게 된다.
+        :param note: 사람이 고친 접속키 안내 글.
+        :param manual: 붙일 매뉴얼. 관리자냐 고객이냐에 따라 다른 것이 와야
+            한다 — 고객에게 관리자 매뉴얼을 보내면 «접속 코드 관리» 같은,
+            그분 화면에 없는 것을 찾게 된다.
         """
-        글 = self.mail_body(product)
+        글 = note.strip()
         if manual.strip():
-            글 += ("\n\n" + "─" * 40 + "\n"
-                   + ("관리자 매뉴얼" if self.for_admin else "사용 설명서")
-                   + "\n" + "─" * 40 + "\n\n" + manual.strip())
+            이름 = "관리자 매뉴얼" if self.for_admin else "사용 설명서"
+            글 += f"\n\n\n[{이름}]\n\n{manual.strip()}"
         return 글
 
 

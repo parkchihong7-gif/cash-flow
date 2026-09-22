@@ -42,6 +42,7 @@ from core import keyclient
 from core.keyauth import (
     DEFAULT_BULK, KIND_LEGACY, KIND_PRIMARY, KIND_SECONDARY, ROLE_ADMIN,
     KeyAuth, KeyError_, manual_for_mail)
+from core.keymail import mail_html, manual_html
 from core.manifest import ProgramManifest
 from core.registry import Registry
 from core.runner import RunError, run_program
@@ -185,8 +186,8 @@ def register(app, page, registry, db, program_or_404):
             # 것이 와야 한다 — 고객에게 관리자 매뉴얼을 보내면 «접속 코드
             # 관리» 처럼 그분 화면에 없는 것을 찾게 된다.
             보낼것 = base.get("issued")
-            base["manual_text"] = (
-                manual_for_mail(program, 보낼것.for_admin) if 보낼것 else "")
+            base["manual_html"] = (
+                manual_html(program, 보낼것.for_admin) if 보낼것 else "")
             base["send_action"] = (
                 f"{APPS_PREFIX}/{program.id}/{mode}/keys/send"
                 f"?issued={base['issued_token']}")
@@ -428,11 +429,24 @@ def register(app, page, registry, db, program_or_404):
                            mail_error="메일 서버가 연결되지 않았습니다. "
                                       "KEYSERVER_URL 과 KEYSERVER_PASSWORD 를 넣어 주세요"),
                 status_code=303)
+        # 사람이 고친 것은 **접속키 부분뿐**이다. 매뉴얼은 여기서 붙인다 —
+        # 화면에서 고칠 수 없게 한 것과 같은 이유로, 넘어온 글을 믿지 않고
+        # 프로그램에 든 파일을 그대로 읽어서 쓴다.
+        보낼것 = _fresh.get(token)
+        쓴글 = str(form.get("body") or "")
+        글자매뉴얼 = (manual_for_mail(program, 보낼것.for_admin)
+                      if 보낼것 else "")
+        꾸민판 = (mail_html(program_name=program.name, issued=보낼것, note=쓴글,
+                            manual=manual_html(program, 보낼것.for_admin))
+                  if 보낼것 else "")
         try:
             answer = server.send_text(
                 email=str(form.get("email") or "").strip(),
                 subject=str(form.get("subject") or "").strip(),
-                body=str(form.get("body") or ""),
+                # 글자판은 HTML 을 못 읽는 메일 앱에서만 보인다. 한쪽만
+                # 보내면 그런 앱에서 글이 통째로 안 보인다.
+                body=(보낼것.plain_mail(쓴글, 글자매뉴얼) if 보낼것 else 쓴글),
+                html=꾸민판,
                 program_id=program.id)
         except keyclient.KeyServerError as exc:
             return RedirectResponse(

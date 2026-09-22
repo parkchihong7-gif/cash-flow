@@ -108,7 +108,7 @@ class KeyServer:
             return False
 
     def send_text(self, *, email: str, subject: str, body: str,
-                  program_id: str = "") -> dict:
+                  html: str = "", program_id: str = "") -> dict:
         """**손질한 안내문을 그대로** 보낸다.
 
         발급할 때 서버가 만들어 보내는 글과 다르다. 그 글은 한 글자도 못
@@ -123,7 +123,7 @@ class KeyServer:
                 썼을 때도 여기로 온다.
         """
         return self._call("adminSendText", email=email, subject=subject,
-                          body=body, program=program_id)
+                          body=body, html=html, program=program_id)
 
     # ────────────────────────────────────────────────────────── 발급
     def issue_set(self, *, program_id: str, name: str, email: str,

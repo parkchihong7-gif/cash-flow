@@ -92,10 +92,28 @@ def test_the_right_manual_is_attached(client, role, 와야할것, 오면안될�
     없는 것을 찾게 된다.
     """
     body = _issue(client, role=role).text
+    assert 와야할것 in body
+    assert 오면안될것 not in body
+
+
+@pytest.mark.parametrize("role", ["admin", "client"])
+def test_the_edit_box_holds_only_the_keys(client, role):
+    """**고치는 곳과 자동인 곳을 가른다.**
+
+    편집 칸에는 접속키 안내 글만 있다. 매뉴얼까지 한 칸에 섞어 놓았더니
+    `────────` 같은 영문 모를 줄이 보이고 지저분했다. 게다가 보내는 사람이
+    매뉴얼을 고칠 수 있으면 받는 분마다 내용이 달라져, 나중에 «매뉴얼에
+    이렇게 쓰여 있었다» 를 확인할 길이 없다.
+    """
+    body = _issue(client, role=role).text
     칸 = re.search(r'<textarea id="issued-text"[^>]*>(.*?)</textarea>', body, re.S)
     글 = 칸.group(1)
-    assert 와야할것 in 글
-    assert 오면안될것 not in 글
+
+    assert "1차 인증키" in 글, "접속키는 칸 안에 있어야 고칠 수 있습니다"
+    assert "관리자 매뉴얼" not in 글 and "사용 설명서" not in 글
+    assert "─" not in 글, "영문 모를 줄이 다시 들어왔습니다"
+    # 매뉴얼은 칸 **밖**에 미리 보기로 있다.
+    assert "mailpreview" in body
 
 
 def test_the_manual_does_not_swallow_the_mail():
@@ -170,3 +188,68 @@ def test_the_gs_refuses_a_reseller():
     # 하루 한도를 다 썼을 때 무엇을 하면 되는지도 알려 줘야 한다.
     assert "getRemainingDailyQuota" in 몸통
     assert "워크스페이스" in 몸통
+
+
+def _붙은_매뉴얼(role: str = "admin"):
+    from core.keymail import manual_html
+    return manual_html(Registry().require("naver-blog"), role == "admin")
+
+
+def test_the_mail_is_designed_not_bare_text():
+    """메일도 화면이다.
+
+    글자만 보내던 시절에는 매뉴얼의 `##` 가 제목으로 안 보이고 `#` 이 그냥
+    찍혔다. 기호를 떼고 `────────` 로 칸을 나눴더니 이번에는 그 줄이 영문
+    모를 것으로 보였다. 이제는 제목·표·카드 그대로 보낸다.
+    """
+    from core.keyauth import IssuedSet, ROLE_ADMIN
+    from core.keymail import mail_html
+
+    한벌 = IssuedSet(holder_name="박치홍", holder_email="a@b.example",
+                     primary="AAAA-1111", secondary={"PC": "BBBB-2222"},
+                     service_url="https://example.test/c/x", role=ROLE_ADMIN)
+    글 = mail_html(program_name="프로그램", issued=한벌,
+                   note=한벌.mail_body("프로그램"), manual=_붙은_매뉴얼())
+
+    assert "─" not in 글, "영문 모를 줄이 다시 들어왔습니다"
+    assert "<h2" in 글 or "<h3" in 글, "매뉴얼 제목이 제목으로 나와야 합니다"
+    assert "<table" in 글, "매뉴얼 표가 표로 나와야 합니다"
+    assert "https://example.test/c/x" in 글
+
+
+def test_every_style_survives_the_attribute():
+    """바깥 CSS 를 믿지 않으므로 `style="…"` 가 **끊기지 않아야** 한다.
+
+    한 번 데였다. 글꼴 이름을 큰따옴표로 감쌌더니 `style="` 가 거기서 끊겨
+    꾸민 것이 통째로 무시됐다. 화면에서는 멀쩡하고 메일에서만 날것으로
+    보이는, 찾기 어려운 사고였다.
+    """
+    import core.keymail as keymail
+
+    assert '"' not in keymail._글꼴
+    for 태그, 꾸밈 in {**keymail._모양, **keymail._매뉴얼_제목}.items():
+        assert '"' not in 꾸밈, f"{태그} 의 꾸밈이 style=\" 를 끊습니다"
+
+
+def test_the_manual_is_not_taken_from_the_form():
+    """보내는 사람이 고친 글에서 매뉴얼을 읽어 오지 않는다.
+
+    매뉴얼은 프로그램에 든 파일 그대로 나가야 한다. 넘어온 글을 그대로
+    믿으면 «매뉴얼» 이라는 이름으로 아무 글이나 실어 보낼 수 있다.
+    """
+    보내는곳 = Path("dashboard/webapp.py").read_text(encoding="utf-8")
+    조각 = 보내는곳[보내는곳.index("async def keys_send"):]
+    조각 = 조각[:조각.index("@app.post", 10)]
+    assert "manual_html(program," in 조각
+    assert 'form.get("manual' not in 조각
+
+
+def test_plain_text_goes_along_for_old_mail_apps():
+    """꾸민 판만 보내면 HTML 을 못 읽는 앱에서 글이 통째로 안 보인다."""
+    from core.keyauth import IssuedSet
+
+    한벌 = IssuedSet(holder_name="가", holder_email="a@b.example",
+                     primary="AAAA", secondary={})
+    글 = 한벌.plain_mail("안내 글", "매뉴얼 본문")
+    assert "안내 글" in 글 and "매뉴얼 본문" in 글
+    assert "─" not in 글 and "<" not in 글

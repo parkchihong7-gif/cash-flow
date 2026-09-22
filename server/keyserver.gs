@@ -1061,6 +1061,10 @@ function adminSendText(p) {
   var email = String(p.email || '').trim();
   var subject = String(p.subject || '').trim();
   var body = String(p.body || '');
+  // 꾸민 판. 있으면 이것이 보이고, 메일 앱이 HTML 을 못 읽으면 위의 `body`
+  // 가 대신 보인다. 둘 다 보내야 하는 이유다 — 한쪽만 보내면 옛 메일
+  // 프로그램에서 글자가 통째로 안 보이거나 태그가 그대로 찍힌다.
+  var html = String(p.html || '');
   if (!email || email.indexOf('@') < 1) {
     return { ok: false, reason: 'bad_email', message: '받는 분 메일 주소를 확인해 주세요.' };
   }
@@ -1080,8 +1084,9 @@ function adminSendText(p) {
   }
 
   try {
-    MailApp.sendEmail(email, subject, body,
-                      { name: prop('MAIL_FROM_NAME') || undefined });
+    var 옵션 = { name: prop('MAIL_FROM_NAME') || undefined };
+    if (html) { 옵션.htmlBody = html; }
+    MailApp.sendEmail(email, subject, body, 옵션);
     log('mail-sent', String(p.program || ''), email);
     return { ok: true, sentTo: email, remaining: 남음 > 0 ? 남음 - 1 : 남음 };
   } catch (err) {

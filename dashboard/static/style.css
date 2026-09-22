@@ -665,3 +665,17 @@ table.trouble td:first-child { width: 34%; }
 .checkrow .addr { grid-column: 3; font-size: 12px; color: var(--ink-soft);
   word-break: break-all; opacity: .75; }
 .checkrows .note { margin-top: 14px; }
+
+/* 안내문에 자동으로 붙는 매뉴얼 미리 보기.
+   고칠 수 없는 곳이라는 것이 한눈에 보여야 한다 — 그래서 편집 칸(textarea)
+   과 달리 접어 두고, 배경을 눌러 둔다. */
+.mailmanual { margin: 4px 0 14px; border: 1px solid var(--line);
+  border-radius: var(--radius); background: var(--bg-soft); }
+.mailmanual > summary { cursor: pointer; padding: 10px 14px; font-size: 13px;
+  font-weight: 700; color: var(--ink-soft); }
+.mailmanual > summary:hover { color: var(--accent); }
+.mailmanual > .help { margin: 0; padding: 0 14px 12px; }
+.mailpreview { max-height: 420px; overflow-y: auto; margin: 0 14px 10px;
+  padding: 16px 18px; background: var(--bg); border: 1px solid var(--line);
+  border-radius: 8px; }
+.mailpreview > :first-child { margin-top: 0; }

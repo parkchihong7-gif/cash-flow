@@ -91,3 +91,21 @@ test('보내다 실패하면 속사정을 흘리지 않는다', () => {
   assert.equal(답.reason, 'mail_failed');
   assert.ok(!/한도를 넘었습니다/.test(답.message), '예외 문구가 그대로 나가면 안 된다');
 });
+
+test('꾸민 판과 글자 판을 **둘 다** 보낸다', () => {
+  const s = 주인으로();
+  const 답 = s.call({ action: 'adminSendText', token: PW,
+                      email: 'a@b.example', subject: '안내',
+                      body: '글자만 보는 분용', html: '<p>꾸민 판</p>' });
+  assert.equal(답.ok, true);
+  assert.equal(s.mails[0].body, '글자만 보는 분용',
+               '메일 앱이 HTML 을 못 읽으면 이것이 보인다');
+  assert.equal(s.mails[0].options.htmlBody, '<p>꾸민 판</p>');
+});
+
+test('꾸민 판이 없으면 글자만 보낸다', () => {
+  const s = 주인으로();
+  s.call({ action: 'adminSendText', token: PW,
+           email: 'a@b.example', subject: 'x', body: 'y' });
+  assert.equal(s.mails[0].options.htmlBody, undefined);
+});
