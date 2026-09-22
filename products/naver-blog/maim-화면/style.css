@@ -1,0 +1,1152 @@
+/* ──────────────────────────────────────────────────────────────────────
+   색·글꼴은 통합 관리자 대시보드(cash-flow)의 것을 그대로 쓴다.
+
+   왜 바꿨나
+     같은 사람이 파는 프로그램인데 하나는 어두운 인디고, 하나는 밝은 파랑
+     이면 쓰는 분이 "다른 회사 것"으로 읽는다. 매뉴얼에 붙는 화면 사진도
+     둘이 따로 논다.
+
+   무엇을 안 바꿨나
+     **변수 이름은 그대로 둔다.** `--gold` 는 이제 금색이 아니라 파랑이지만,
+     이름을 고치면 1,100줄을 다 건드려야 하고 그만큼 잘못 건드릴 자리가
+     늘어난다. 앞선 리디자인(골드 → 인디고)도 같은 방법을 썼다.
+
+   밝은 바탕에서 달라지는 것
+     어두운 화면에서는 "더 밝은 면"이 떠 보였다. 밝은 화면에서는 반대로
+     "더 눌린 면"이 들어가 보인다. 그래서 겹쳐 놓는 면과 마우스 올린 면을
+     `--bg-sunk` 로 따로 뒀다 — 안 그러면 흰 위에 흰이 되어 아무것도 안
+     보인다.
+   ────────────────────────────────────────────────────────────────────── */
+:root {
+  color-scheme: light;
+
+  --bg: #f7f8fa;            /* 페이지 바탕 */
+  --bg-elevated: #ffffff;   /* 카드·입력칸 — 페이지 위로 떠 있는 면 */
+  --bg-card: #f7f8fa;       /* 카드 **안**에 겹쳐 놓는 칸 */
+  --bg-sunk: #eef0f4;       /* 마우스 올린 면, 코드 상자 */
+  --border: #e4e7ec;
+
+  --text: #14161a;
+  --text-muted: #545c6b;
+  --text-faint: #8b93a1;
+
+  /* 이름은 금색이지만 값은 대시보드의 파랑이다. 위 설명을 보라. */
+  --gold: #1f5eff;
+  --gold-hover: #1747c4;    /* 밝은 바탕에서는 **더 진한** 쪽이 눌린 느낌이다 */
+  --gold-text: #ffffff;
+  --gold-soft: #eaf0ff;
+
+  --success: #0f8a4f;
+  --success-bg: #e7f6ee;
+  --success-line: #b7e3cb;
+  --danger: #c1341f;
+  --danger-bg: #fdeceb;
+  --danger-line: #f3c3bd;
+  --info: #1f5eff;
+  --info-bg: #eaf0ff;
+  --info-line: #c3d5ff;
+  --violet: #6b3fb5;
+  --violet-bg: #f1ebfb;
+
+  --sidebar-bg: #ffffff;
+  --sidebar-width: 250px;
+  --radius: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+    "Pretendard", "Malgun Gothic", "Noto Sans KR", sans-serif;
+  margin: 0;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1.65;
+  word-break: keep-all;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* --- 사이드바 --- */
+
+.sidebar {
+  width: var(--sidebar-width);
+  flex-shrink: 0;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px 18px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-brand-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--gold);
+  color: var(--gold-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.sidebar-brand-name {
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.01em;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 12px;
+  flex: 1;
+}
+
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+
+.sidebar-nav-item:hover {
+  background: var(--bg-sunk);
+  color: var(--text);
+}
+
+.sidebar-nav-item.active {
+  background: var(--gold-soft);
+  color: var(--gold);
+  font-weight: 700;
+}
+
+/* --- 메인 컨텐츠 --- */
+
+.main-content {
+  flex: 1;
+  min-width: 0;
+  padding: 28px 32px 72px;
+  max-width: 1180px;
+}
+
+[data-view-panel] {
+  animation: view-fade-in 0.12s ease;
+}
+
+@keyframes view-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.page-header h1 {
+  font-size: 1.5rem;
+  margin: 0 0 6px;
+  font-weight: 700;
+}
+
+.page-header-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0 0 14px;
+  color: var(--text);
+}
+
+h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 8px;
+  color: var(--text-muted);
+}
+
+.card {
+  margin-bottom: 24px;
+  padding: 20px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  gap: 10px;
+}
+
+.card-header h2 {
+  margin: 0;
+}
+
+.card-header a {
+  font-size: 0.82rem;
+  color: var(--gold-hover);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.card-header a:hover {
+  text-decoration: underline;
+}
+
+.subsection {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--border);
+}
+
+/* --- 홈: 통계 카드 / 최근 활동 --- */
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.stat-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.stat-card-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.stat-card-icon {
+  font-size: 1.1rem;
+}
+
+.stat-card-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.stat-card-sub {
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+}
+
+.home-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .home-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.activity-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.activity-icon {
+  font-size: 1.05rem;
+  flex-shrink: 0;
+}
+
+.activity-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.activity-title {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.activity-sub {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activity-time {
+  font-size: 0.74rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th, td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.badge {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: var(--info-bg);
+  color: var(--info);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.badge-active {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.badge-inactive {
+  background: var(--bg-sunk);
+  color: var(--text-muted);
+}
+
+.badge-ready {
+  background: var(--info-bg);
+  color: var(--info);
+}
+
+.badge-published {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.badge-failed,
+.badge-draft {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.muted {
+  opacity: 0.75;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  transition: transform 0.06s ease, opacity 0.15s ease, background 0.15s ease;
+}
+
+button:active {
+  transform: scale(0.97);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-primary {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--gold-text);
+}
+
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bg-sunk);
+  border-color: var(--gold);
+}
+
+.btn-success {
+  background: var(--success-bg);
+  color: var(--success);
+  border-color: var(--success-line);
+}
+
+.btn-success:hover:not(:disabled) {
+  background: var(--success-bg);
+  border-color: var(--success);
+}
+
+.btn-danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: var(--danger-line);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+}
+
+form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+input {
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  flex: 1;
+  min-width: 160px;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+/* 고르는 칸도 적는 칸과 같은 모양으로.
+
+   예전에는 아무 꾸밈이 없어 브라우저가 주는 대로 나왔다. 어두운 화면
+   에서는 `color-scheme: dark` 덕에 그럭저럭 어울렸지만, 밝은 화면으로
+   오니 혼자만 테두리가 시커멓게 도드라진다. */
+select {
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+select:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+input[type="radio"],
+input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+}
+
+textarea {
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  width: 100%;
+  resize: vertical;
+  display: block;
+  margin-bottom: 10px;
+}
+
+textarea:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+.post-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+  transition: border-color 0.15s ease;
+}
+
+.post-card:hover {
+  border-color: var(--gold);
+}
+
+.post-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.post-card-header strong {
+  font-size: 1.02rem;
+}
+
+.category-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 4px;
+}
+
+.category-edit-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.category-edit-form input,
+.category-edit-form textarea {
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  width: 100%;
+  resize: vertical;
+}
+
+.category-edit-form input:focus,
+.category-edit-form textarea:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+.category-edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.post-title-toggle {
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.post-title-toggle:hover {
+  color: var(--gold-hover);
+}
+
+.title-variants {
+  margin: 4px 0 12px;
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.title-variants-label {
+  margin: 0 0 8px;
+}
+
+.title-variant-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.title-variant-row:not(:last-child) {
+  border-bottom: 1px dashed var(--border);
+}
+
+.title-variant-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.88rem;
+}
+
+.post-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--border);
+}
+
+.post-quality-checklist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.post-quality-checklist .badge-failed {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.post-preview {
+  white-space: pre-wrap;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  max-height: none;
+  overflow: hidden;
+}
+
+.post-preview.collapsed {
+  max-height: 4.8em;
+  -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+}
+
+.post-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 0;
+}
+
+.post-tag {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--gold-soft);
+  color: var(--gold);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.post-images-section {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-elevated);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.post-images {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.post-image-item {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  flex-shrink: 0;
+  width: 200px;
+}
+
+.post-thumb {
+  height: 160px;
+  width: auto;
+  flex-shrink: 0;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+}
+
+.post-image-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-copy-image {
+  padding: 4px 10px;
+  font-size: 0.78rem;
+}
+
+.post-image-alt-box {
+  background: var(--info-bg);
+  border: 1px solid var(--info-line);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.post-image-alt-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--info);
+  margin-bottom: 3px;
+}
+
+.post-image-alt-text {
+  font-size: 0.8rem;
+  color: var(--text);
+  margin: 0;
+  white-space: normal;
+  word-break: keep-all;
+}
+
+.post-image-alt-missing {
+  font-size: 0.76rem;
+  margin: 0;
+}
+
+.post-image-hint {
+  margin: 10px 0 0;
+}
+
+/* --- 관리자 설정 --- */
+
+.setup-progress {
+  font-weight: 600;
+  color: var(--gold-hover);
+  margin: 0 0 14px;
+}
+
+.setup-step {
+  padding: 14px;
+  margin-bottom: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.setup-step-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.setup-step-badge {
+  font-size: 1rem;
+}
+
+.setup-code {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.setup-input-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.setup-current-value {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+}
+
+.setup-step-result {
+  margin-left: 8px;
+  font-size: 0.85rem;
+}
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.preset-card {
+  position: relative;
+  cursor: pointer;
+  padding: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.preset-card:hover {
+  border-color: var(--gold);
+}
+
+.preset-card.selected {
+  border-color: var(--gold);
+  background: var(--gold-soft);
+}
+
+.preset-card strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.9rem;
+}
+
+.preset-card p {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.preset-delete {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.preset-delete:hover {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.preset-card-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 1.4rem;
+  color: var(--text-muted);
+  border-style: dashed;
+  text-align: center;
+}
+
+.preset-card-add span {
+  font-size: 0.75rem;
+}
+
+.preset-card-add:hover {
+  color: var(--gold-hover);
+  border-color: var(--gold);
+}
+
+.preset-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.preset-add-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.preset-add-form input,
+.preset-add-form textarea {
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* --- AI 커넥트 연결: 매뉴얼 토글, 명령어 복사, 단계별 체크리스트 --- */
+
+.manual-toggle {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--gold-hover);
+  text-decoration: none;
+}
+
+.manual-toggle:hover {
+  text-decoration: underline;
+}
+
+.setup-code-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.setup-code-row .setup-code {
+  flex: 1;
+  margin: 0;
+}
+
+.setup-manual {
+  margin-top: 12px;
+  padding: 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.86rem;
+}
+
+.setup-manual .setup-code {
+  margin: 6px 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.final-direction-list {
+  padding-left: 18px;
+  margin: 8px 0 0;
+}
+
+.final-direction-list li {
+  margin-bottom: 6px;
+  line-height: 1.5;
+}
+
+/* --- 접속 코드 관리 (1차 → 2차 기기 코드 트리) --- */
+
+.access-code-group {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.access-code-group:last-child {
+  border-bottom: none;
+}
+
+.access-code-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.access-code-row code {
+  font-size: 0.85rem;
+  background: var(--bg);
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.access-code-children {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0 0 20px;
+  padding-left: 14px;
+  border-left: 2px solid var(--border);
+}
+
+.access-code-child {
+  font-size: 0.85rem;
+}
+
+.access-code-child .muted {
+  min-width: 44px;
+  font-size: 0.78rem;
+}
+
+/* 체크리스트형 매뉴얼 — 단계 구간마다 색을 달리해서(준비/설치/권한/로그인/마무리/확인)
+   지금 어느 구간을 하고 있는지 한눈에 구분되게 한다. */
+.checklist-stage {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border-left: 3px solid var(--border);
+  background: var(--bg-card);
+}
+
+.checklist-stage[data-tone="info"] { border-left-color: var(--info); }
+.checklist-stage[data-tone="success"] { border-left-color: var(--success); }
+.checklist-stage[data-tone="indigo"] { border-left-color: var(--gold); }
+.checklist-stage[data-tone="violet"] { border-left-color: var(--violet); }
+.checklist-stage[data-tone="danger"] { border-left-color: var(--danger); }
+
+.checklist-stage-title {
+  font-weight: 700;
+  font-size: 0.88rem;
+  margin: 0 0 8px;
+}
+
+.checklist-stage[data-tone="info"] .checklist-stage-title { color: var(--info); }
+.checklist-stage[data-tone="success"] .checklist-stage-title { color: var(--success); }
+.checklist-stage[data-tone="indigo"] .checklist-stage-title { color: var(--gold-hover); }
+.checklist-stage[data-tone="violet"] .checklist-stage-title { color: var(--violet); }
+.checklist-stage[data-tone="danger"] .checklist-stage-title { color: var(--danger); }
+
+.checklist-item {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.checklist-item:last-child {
+  margin-bottom: 0;
+}
+
+.checklist-item-box {
+  flex-shrink: 0;
+  font-size: 0.95rem;
+}
+
+.checklist-item-why {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+/* --- 사용법 --- */
+
+.guide-step {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.guide-step-num {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--gold-soft);
+  color: var(--gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.guide-step-body h4 {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+}
+
+.guide-step-body p {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* --- 반응형: 좁은 화면에서는 사이드바를 상단 가로 바로 --- */
+
+@media (max-width: 760px) {
+  .app-shell {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: static;
+    flex-direction: row;
+    align-items: center;
+    padding: 12px;
+    overflow-x: auto;
+  }
+
+  .sidebar-brand {
+    border-bottom: none;
+    border-right: 1px solid var(--border);
+    padding: 0 14px 0 4px;
+    margin-bottom: 0;
+    flex-shrink: 0;
+  }
+
+  .sidebar-nav {
+    flex-direction: row;
+    padding: 0 0 0 10px;
+  }
+
+  .sidebar-nav-item span {
+    display: none;
+  }
+
+  .main-content {
+    padding: 20px 16px 56px;
+  }
+}

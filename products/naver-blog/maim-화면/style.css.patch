@@ -1,0 +1,302 @@
+diff --git a/src/web/public/style.css b/src/web/public/style.css
+index 0b59e96..dde8b86 100644
+--- a/src/web/public/style.css
++++ b/src/web/public/style.css
+@@ -1,26 +1,56 @@
++/* ──────────────────────────────────────────────────────────────────────
++   색·글꼴은 통합 관리자 대시보드(cash-flow)의 것을 그대로 쓴다.
++
++   왜 바꿨나
++     같은 사람이 파는 프로그램인데 하나는 어두운 인디고, 하나는 밝은 파랑
++     이면 쓰는 분이 "다른 회사 것"으로 읽는다. 매뉴얼에 붙는 화면 사진도
++     둘이 따로 논다.
++
++   무엇을 안 바꿨나
++     **변수 이름은 그대로 둔다.** `--gold` 는 이제 금색이 아니라 파랑이지만,
++     이름을 고치면 1,100줄을 다 건드려야 하고 그만큼 잘못 건드릴 자리가
++     늘어난다. 앞선 리디자인(골드 → 인디고)도 같은 방법을 썼다.
++
++   밝은 바탕에서 달라지는 것
++     어두운 화면에서는 "더 밝은 면"이 떠 보였다. 밝은 화면에서는 반대로
++     "더 눌린 면"이 들어가 보인다. 그래서 겹쳐 놓는 면과 마우스 올린 면을
++     `--bg-sunk` 로 따로 뒀다 — 안 그러면 흰 위에 흰이 되어 아무것도 안
++     보인다.
++   ────────────────────────────────────────────────────────────────────── */
+ :root {
+-  color-scheme: dark;
+-  --bg: #13151c;
+-  --bg-elevated: #1a1d27;
+-  --bg-card: #20232f;
+-  --border: #2c3040;
+-  --text: #e9eaf2;
+-  --text-muted: #8b8fa6;
+-  /* 예전엔 골드 계열이었는데, 이번 리디자인에서 인디고 계열로 톤을 바꿨다.
+-     변수 이름은 그대로 두고(수정 범위를 줄이기 위해) 값만 교체했다. */
+-  --gold: #6366f1;
+-  --gold-hover: #818cf8;
++  color-scheme: light;
++
++  --bg: #f7f8fa;            /* 페이지 바탕 */
++  --bg-elevated: #ffffff;   /* 카드·입력칸 — 페이지 위로 떠 있는 면 */
++  --bg-card: #f7f8fa;       /* 카드 **안**에 겹쳐 놓는 칸 */
++  --bg-sunk: #eef0f4;       /* 마우스 올린 면, 코드 상자 */
++  --border: #e4e7ec;
++
++  --text: #14161a;
++  --text-muted: #545c6b;
++  --text-faint: #8b93a1;
++
++  /* 이름은 금색이지만 값은 대시보드의 파랑이다. 위 설명을 보라. */
++  --gold: #1f5eff;
++  --gold-hover: #1747c4;    /* 밝은 바탕에서는 **더 진한** 쪽이 눌린 느낌이다 */
+   --gold-text: #ffffff;
+-  --success: #34d399;
+-  --success-bg: rgba(52, 211, 153, 0.15);
+-  --danger: #f87171;
+-  --danger-bg: rgba(248, 113, 113, 0.12);
+-  --info: #60a5fa;
+-  --info-bg: rgba(96, 165, 250, 0.15);
+-  --violet: #c084fc;
+-  --violet-bg: rgba(192, 132, 252, 0.15);
+-  --sidebar-bg: #0e1016;
+-  --sidebar-width: 224px;
++  --gold-soft: #eaf0ff;
++
++  --success: #0f8a4f;
++  --success-bg: #e7f6ee;
++  --success-line: #b7e3cb;
++  --danger: #c1341f;
++  --danger-bg: #fdeceb;
++  --danger-line: #f3c3bd;
++  --info: #1f5eff;
++  --info-bg: #eaf0ff;
++  --info-line: #c3d5ff;
++  --violet: #6b3fb5;
++  --violet-bg: #f1ebfb;
++
++  --sidebar-bg: #ffffff;
++  --sidebar-width: 250px;
++  --radius: 10px;
+ }
+ 
+ * {
+@@ -28,10 +58,13 @@
+ }
+ 
+ body {
+-  font-family: -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
++  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
++    "Pretendard", "Malgun Gothic", "Noto Sans KR", sans-serif;
+   margin: 0;
+   padding: 0;
+-  line-height: 1.6;
++  font-size: 15px;
++  line-height: 1.65;
++  word-break: keep-all;
+   background: var(--bg);
+   color: var(--text);
+ }
+@@ -70,7 +103,7 @@ body {
+   width: 32px;
+   height: 32px;
+   border-radius: 9px;
+-  background: linear-gradient(135deg, var(--gold), var(--gold-hover));
++  background: var(--gold);
+   color: var(--gold-text);
+   display: flex;
+   align-items: center;
+@@ -111,13 +144,13 @@ body {
+ }
+ 
+ .sidebar-nav-item:hover {
+-  background: var(--bg-card);
++  background: var(--bg-sunk);
+   color: var(--text);
+ }
+ 
+ .sidebar-nav-item.active {
+-  background: rgba(99, 102, 241, 0.16);
+-  color: var(--gold-hover);
++  background: var(--gold-soft);
++  color: var(--gold);
+   font-weight: 700;
+ }
+ 
+@@ -349,7 +382,7 @@ th {
+ }
+ 
+ .badge-inactive {
+-  background: rgba(139, 143, 166, 0.15);
++  background: var(--bg-sunk);
+   color: var(--text-muted);
+ }
+ 
+@@ -397,7 +430,8 @@ button:disabled {
+ }
+ 
+ .btn-primary {
+-  background: linear-gradient(135deg, var(--gold), var(--gold-hover));
++  background: var(--gold);
++  border-color: var(--gold);
+   color: var(--gold-text);
+ }
+ 
+@@ -412,28 +446,30 @@ button:disabled {
+ }
+ 
+ .btn-secondary:hover:not(:disabled) {
+-  background: var(--bg-card);
++  background: var(--bg-sunk);
+   border-color: var(--gold);
+ }
+ 
+ .btn-success {
+   background: var(--success-bg);
+   color: var(--success);
+-  border-color: rgba(52, 211, 153, 0.35);
++  border-color: var(--success-line);
+ }
+ 
+ .btn-success:hover:not(:disabled) {
+-  background: rgba(52, 211, 153, 0.25);
++  background: var(--success-bg);
++  border-color: var(--success);
+ }
+ 
+ .btn-danger {
+   background: var(--danger-bg);
+   color: var(--danger);
+-  border-color: rgba(248, 113, 113, 0.35);
++  border-color: var(--danger-line);
+ }
+ 
+ .btn-danger:hover:not(:disabled) {
+-  background: rgba(248, 113, 113, 0.22);
++  background: var(--danger-bg);
++  border-color: var(--danger);
+ }
+ 
+ form {
+@@ -449,7 +485,7 @@ input {
+   padding: 9px 12px;
+   border-radius: 8px;
+   border: 1px solid var(--border);
+-  background: var(--bg-card);
++  background: var(--bg-elevated);
+   color: var(--text);
+   flex: 1;
+   min-width: 160px;
+@@ -460,6 +496,26 @@ input:focus {
+   border-color: var(--gold);
+ }
+ 
++/* 고르는 칸도 적는 칸과 같은 모양으로.
++
++   예전에는 아무 꾸밈이 없어 브라우저가 주는 대로 나왔다. 어두운 화면
++   에서는 `color-scheme: dark` 덕에 그럭저럭 어울렸지만, 밝은 화면으로
++   오니 혼자만 테두리가 시커멓게 도드라진다. */
++select {
++  font-family: inherit;
++  font-size: 0.9rem;
++  padding: 9px 12px;
++  border-radius: 8px;
++  border: 1px solid var(--border);
++  background: var(--bg-elevated);
++  color: var(--text);
++}
++
++select:focus {
++  outline: none;
++  border-color: var(--gold);
++}
++
+ input[type="radio"],
+ input[type="checkbox"] {
+   flex: 0 0 auto;
+@@ -473,7 +529,7 @@ textarea {
+   padding: 9px 12px;
+   border-radius: 8px;
+   border: 1px solid var(--border);
+-  background: var(--bg-card);
++  background: var(--bg-elevated);
+   color: var(--text);
+   width: 100%;
+   resize: vertical;
+@@ -492,12 +548,11 @@ textarea:focus {
+   border-radius: 10px;
+   padding: 16px;
+   margin-bottom: 16px;
+-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+   transition: border-color 0.15s ease;
+ }
+ 
+ .post-card:hover {
+-  border-color: rgba(99, 102, 241, 0.4);
++  border-color: var(--gold);
+ }
+ 
+ .post-card-header {
+@@ -534,7 +589,7 @@ textarea:focus {
+   padding: 9px 12px;
+   border-radius: 8px;
+   border: 1px solid var(--border);
+-  background: var(--bg-card);
++  background: var(--bg-elevated);
+   color: var(--text);
+   width: 100%;
+   resize: vertical;
+@@ -606,7 +661,7 @@ textarea:focus {
+ }
+ 
+ .post-quality-checklist .badge-failed {
+-  background: rgba(248, 113, 113, 0.12);
++  background: var(--danger-bg);
+   color: var(--danger);
+ }
+ 
+@@ -635,8 +690,8 @@ textarea:focus {
+   display: inline-block;
+   padding: 3px 10px;
+   border-radius: 999px;
+-  background: rgba(99, 102, 241, 0.14);
+-  color: var(--gold-hover);
++  background: var(--gold-soft);
++  color: var(--gold);
+   font-size: 0.78rem;
+   font-weight: 600;
+ }
+@@ -687,7 +742,7 @@ textarea:focus {
+ 
+ .post-image-alt-box {
+   background: var(--info-bg);
+-  border: 1px solid rgba(96, 165, 250, 0.4);
++  border: 1px solid var(--info-line);
+   border-radius: 6px;
+   padding: 6px 8px;
+ }
+@@ -791,12 +846,12 @@ textarea:focus {
+ }
+ 
+ .preset-card:hover {
+-  border-color: rgba(99, 102, 241, 0.5);
++  border-color: var(--gold);
+ }
+ 
+ .preset-card.selected {
+   border-color: var(--gold);
+-  background: rgba(99, 102, 241, 0.1);
++  background: var(--gold-soft);
+ }
+ 
+ .preset-card strong {
+@@ -1036,8 +1091,8 @@ textarea:focus {
+   width: 28px;
+   height: 28px;
+   border-radius: 999px;
+-  background: rgba(99, 102, 241, 0.16);
+-  color: var(--gold-hover);
++  background: var(--gold-soft);
++  color: var(--gold);
+   display: flex;
+   align-items: center;
+   justify-content: center;
