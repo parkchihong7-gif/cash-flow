@@ -25,6 +25,31 @@ echo "  통합 관리자 대시보드 — Cloud Run 에 올리기"
 echo "════════════════════════════════════════════════════"
 echo
 
+# ── 0. 여기 코드가 최신인가 ─────────────────────────────
+#
+# 한 번 데였다. 저장소에는 고친 코드가 올라가 있는데 Cloud Run 에는 옛 판이
+# 돌고 있었다. 고객에게 나가는 메일이 그대로 옛 모양이었고, 사장님은 "왜
+# 수정이 안 되었지" 하셨다. 이 폴더가 낡았으면 이 스크립트가 아무리 잘
+# 돌아도 **옛 코드를 올리게 된다.** 조용한 실패가 시끄러운 실패보다 나쁘다.
+if [ -d .git ]; then
+  BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+  if [ -n "$BRANCH" ] && git fetch --quiet origin "$BRANCH" 2>/dev/null; then
+    BEHIND=$(git rev-list --count "HEAD..origin/$BRANCH" 2>/dev/null || echo 0)
+    if [ "$BEHIND" != "0" ]; then
+      echo "⚠ 이 폴더가 저장소보다 $BEHIND 개 뒤처져 있습니다."
+      echo "  이대로 올리면 **옛 코드**가 올라갑니다."
+      echo
+      echo "  먼저 이것을 도세요 :  git pull"
+      echo
+      printf "  그래도 이대로 올릴까요? (y 를 치면 진행) : "
+      read -r GOAHEAD
+      [ "$GOAHEAD" = "y" ] || exit 1
+    else
+      echo "코드     : 최신입니다"
+    fi
+  fi
+fi
+
 # ── 1. 프로젝트 확인 ────────────────────────────────────
 PROJECT=$(gcloud config get-value project 2>/dev/null || true)
 if [ -z "$PROJECT" ] || [ "$PROJECT" = "(unset)" ]; then

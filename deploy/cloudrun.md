@@ -139,11 +139,37 @@ echo "$URL"                       # 이 주소로 들어가십니다
 
 ## 7. 고칠 것이 생기면
 
+**코드를 고쳤을 때** — 이것이 «다시 올리기» 입니다.
+
 ```bash
+git pull                                              # ← 이것을 빠뜨리면 옛 코드가 올라갑니다
 gcloud run deploy cash-flow --source . --region us-central1
 ```
 
 환경변수는 그대로 남습니다. 다시 적을 필요가 없습니다.
+
+**설정값만 바꿀 때** — 주소나 비밀번호 같은 것.
+
+```bash
+gcloud run services update cash-flow --region us-central1 \
+  --update-env-vars KEYSERVER_URL=https://script.google.com/macros/s/.../exec
+```
+
+### 이 둘은 다릅니다
+
+한 번 데였습니다. 코드를 고쳐 저장소에 올린 뒤 `services update` 만 돌렸더니,
+환경변수는 바뀌었는데 **코드는 옛 판 그대로**였습니다. 고객에게 나가는 메일이
+예전 모양으로 계속 나갔고, 어디가 잘못인지 한참 못 찾았습니다.
+
+| 무엇을 고쳤나 | 무엇을 도나 |
+|---|---|
+| 파이썬·화면 코드 | `git pull` → `gcloud run deploy --source .` |
+| 주소·비밀번호 같은 설정값 | `gcloud run services update --update-env-vars …` |
+| 앱스 스크립트(메일 보내는 쪽) | 구글 편집기에 다시 붙여넣기 → [배포 관리] → 새 버전 |
+
+셋은 **각각 따로** 올라갑니다. 하나를 올렸다고 나머지가 따라오지 않습니다.
+
+`bash deploy/올리기.sh` 를 쓰시면 폴더가 낡았을 때 먼저 말려 줍니다.
 
 ---
 

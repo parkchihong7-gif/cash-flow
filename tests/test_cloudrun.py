@@ -228,3 +228,31 @@ def test_revert_also_checks_the_file_is_editable(client_free=None):
     글 = (ROOT / "dashboard" / "app.py").read_text(encoding="utf-8")
     되돌리기 = 글[글.index("def file_revert"):글.index("def file_revert") + 900]
     assert "editable_files" in 되돌리기
+
+
+def test_낡은_폴더로_올리면_먼저_말린다():
+    """한 번 데였다.
+
+    저장소에는 고친 코드가 올라가 있는데 Cloud Run 에는 옛 판이 돌고 있었다.
+    고객에게 나가는 메일이 옛 모양 그대로였고, 사장님은 "왜 수정이 안 되었지"
+    하셨다. 스크립트가 아무리 잘 돌아도 **폴더가 낡았으면 옛 코드를 올린다.**
+    """
+    글 = Path("deploy/올리기.sh").read_text(encoding="utf-8")
+    assert "git fetch" in 글, "저장소와 견주지 않습니다"
+    assert "rev-list --count" in 글, "얼마나 뒤처졌는지 안 셉니다"
+    assert "git pull" in 글, "무엇을 하라는 말이 없습니다"
+    # 말리기만 하고 그냥 진행하면 뜻이 없다. 사람 대답을 받아야 한다.
+    자리 = 글[글.index("뒤처져"):글.index("뒤처져") + 700]
+    assert "read -r" in 자리, "묻지 않고 그냥 올립니다"
+    assert "exit 1" in 자리, "아니라고 해도 멈추지 않습니다"
+
+
+def test_배포_안내서가_코드도_다시_올리라고_말한다():
+    """환경변수만 고치는 것과 코드를 다시 올리는 것은 다르다.
+
+    `gcloud run services update` 는 환경변수만 바꾼다. 코드를 고쳤으면
+    `deploy` 를 다시 해야 하는데, 그 둘을 헷갈리면 "고쳤는데 그대로"가 된다.
+    """
+    글 = Path("deploy/cloudrun.md").read_text(encoding="utf-8")
+    assert "services update" in 글 and "run deploy" in 글, (
+        "환경변수만 바꾸는 길과 코드를 올리는 길을 나눠 적지 않았습니다")
