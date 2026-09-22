@@ -286,3 +286,28 @@ def test_올린_뒤_키서버가_연결됐는지_말해_준다():
     assert "KEYSERVER_URL" in 뒷부분, "올린 뒤 확인하지 않습니다"
     assert "비어 있습니다" in 뒷부분, "비었을 때 말해 주지 않습니다"
     assert "update-env-vars KEYSERVER_URL" in 뒷부분, "어떻게 넣는지 안 알려 줍니다"
+
+
+@pytest.mark.parametrize("클라우드냐,나와야할것,나오면안될것", [
+    (True, "gcloud secrets versions access", ".env"),
+    (False, ".env", "gcloud secrets"),
+])
+def test_코드를_잊었을_때_있는_곳을_알려_준다(monkeypatch, 클라우드냐, 나와야할것, 나오면안될것):
+    """한 번 데였다.
+
+    클라우드에 올려 두고 «서버의 .env 파일을 보세요» 라고만 해 놓으니,
+    그런 파일이 없는 곳에서 찾으시게 됐다. 어디를 보라고 할지는 **어디서
+    돌고 있느냐**에 달렸다.
+    """
+    from fastapi.testclient import TestClient
+
+    from dashboard.app import app
+
+    if 클라우드냐:
+        monkeypatch.setenv("GCS_BUCKET", "어떤버킷")
+    else:
+        monkeypatch.delenv("GCS_BUCKET", raising=False)
+
+    body = TestClient(app).get("/login").text
+    assert 나와야할것 in body
+    assert 나오면안될것 not in body

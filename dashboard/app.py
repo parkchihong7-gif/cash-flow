@@ -261,6 +261,14 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
                 "locked_minutes": max(1, round(locked / 60)),
                 "lockout_minutes": round(auth.LOCKOUT_SECONDS / 60),
                 "next_path": safe_next(next_path),
+                # 어디를 보라고 할지는 **어디서 돌고 있느냐**에 달렸다. 클라우드
+                # 에는 `.env` 파일이 없다 — 비밀 저장소에 들어 있다.
+                #
+                # `enabled()` 가 아니라 `bucket_name()` 을 본다. 앞의 것은
+                # 라이브러리와 자격증명까지 따지는데, 그게 안 됐다고 해서
+                # 여기가 클라우드가 아닌 것은 아니다. 오히려 그때야말로
+                # 비밀 저장소를 보시라고 해야 한다.
+                "on_cloud": bool(gcsstate.bucket_name()),
             },
             status_code=status,
         )

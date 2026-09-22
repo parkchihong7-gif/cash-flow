@@ -36,9 +36,18 @@
         <button type="submit" class="primary" {% if locked %}disabled{% endif %}>들어가기</button>
       </form>
 
+      {# 어디를 보라고 할지는 **어디서 돌고 있느냐**에 달렸다. 한 번 데였다 —
+         클라우드에 올려 두고 «.env 파일을 보세요» 라고만 해 놓으니, 그런
+         파일이 없는 곳에서 찾으시게 됐다. #}
       <p class="gate-foot">
-        코드를 잊으셨다면 서버의 <code>.env</code> 파일에서
-        <code>DASHBOARD_ACCESS_CODE</code> 를 확인하세요.
+        코드를 잊으셨다면 —<br>
+        {% if on_cloud %}
+        <strong>클라우드에서 돌고 있습니다.</strong> 비밀 저장소에 있습니다:<br>
+        <code>gcloud secrets versions access latest --secret=dashboard-access-code</code>
+        {% else %}
+        서버의 <code>.env</code> 파일에서 <code>DASHBOARD_ACCESS_CODE</code> 를
+        확인하세요.
+        {% endif %}
       </p>
     </div>
   </main>
