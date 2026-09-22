@@ -37,6 +37,7 @@ from hashlib import sha256
 from pathlib import Path
 
 __all__ = [
+    "manual_for_mail",
     "KeyAuth", "KeyError_", "IssuedSet", "KeyRow", "SessionRow",
     "DEVICES", "KIND_PRIMARY", "KIND_SECONDARY", "KIND_LEGACY",
     "ROLE_ADMIN", "ROLE_CLIENT", "ROLE_LABEL",
@@ -259,8 +260,25 @@ class IssuedSet:
         return "\n".join(lines)
 
     def copy_text(self, product: str) -> str:
-        """[전체 복사] 버튼이 클립보드에 넣는 것. 카톡으로도 보내야 해서."""
+        """보낼 글 전체. 제목 한 줄 + 본문."""
         return f"{self.mail_subject(product)}\n\n{self.mail_body(product)}"
+
+    def draft(self, product: str, manual: str = "") -> str:
+        """화면에 **처음 채워 둘** 글.
+
+        여기서부터 사람이 고친다. 고객마다 덧붙일 말이 다르므로 이 글은
+        완성품이 아니라 **출발점**이다.
+
+        `manual` 을 넘기면 아래에 붙인다. 받는 분이 관리자냐 고객이냐에 따라
+        다른 매뉴얼이 와야 한다 — 고객에게 관리자 매뉴얼을 보내면 «접속 코드
+        관리» 같은, 그분 화면에 없는 것을 찾게 된다.
+        """
+        글 = self.mail_body(product)
+        if manual.strip():
+            글 += ("\n\n" + "─" * 40 + "\n"
+                   + ("관리자 매뉴얼" if self.for_admin else "사용 설명서")
+                   + "\n" + "─" * 40 + "\n\n" + manual.strip())
+        return 글
 
 
 class KeyAuth:
@@ -744,3 +762,37 @@ class KeyAuth:
         return hmac.compare_digest(
             sha256((given or "").strip().encode()).hexdigest(),
             sha256((expected or "").strip().encode()).hexdigest())
+
+
+#: 안내문에 붙일 매뉴얼의 최대 길이.
+#:
+#: 매뉴얼이 통째로 들어가면 메일이 스크롤 지옥이 된다. 받는 분은 키를 보러
+#: 열었는데 본문이 5천 자다. 앞부분만 넣고 나머지는 화면에서 보시게 한다.
+MANUAL_IN_MAIL = 2500
+
+
+def manual_for_mail(program, for_admin: bool) -> str:
+    """안내문에 붙일 매뉴얼 글.
+
+    관리자에게는 관리자 매뉴얼, 고객에게는 사용 설명서. 반대로 보내면
+    그분 화면에 없는 기능을 찾게 된다.
+
+    마크다운 기호는 덜어 낸다. 메일은 글자 그대로 보이는 곳이라
+    `## 1. 무엇` 이 제목으로 안 보이고 `#` 이 그냥 찍힌다.
+    """
+    상대 = program.manuals.admin if for_admin else program.manuals.client
+    if not 상대:
+        return ""
+    path = program.resolve(상대)
+    if not path.is_file():
+        return ""
+
+    쓸것 = []
+    for 줄 in path.read_text(encoding="utf-8").split("\n"):
+        벗김 = 줄.lstrip("#").strip() if 줄.lstrip().startswith("#") else 줄
+        쓸것.append(벗김.replace("**", "").replace("`", ""))
+    글 = "\n".join(쓸것).strip()
+
+    if len(글) > MANUAL_IN_MAIL:
+        글 = 글[:MANUAL_IN_MAIL].rstrip() + "\n\n(줄임 — 나머지는 프로그램 안 매뉴얼에서 보세요)"
+    return 글

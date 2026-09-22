@@ -232,6 +232,7 @@ function handle(e) {
       case 'adminList':        return json(adminList(p));
       case 'adminCreateKeys':  return json(adminCreateKeys(p));
       case 'adminCreateInvite':return json(adminCreateInvite(p));
+      case 'adminSendText':    return json(adminSendText(p));
       case 'adminSuspendKey':  return json(adminSetStatus(p, 'suspended'));
       case 'adminResumeKey':   return json(adminSetStatus(p, 'active'));
       case 'adminDeleteKey':   return json(adminDeleteKey(p));
@@ -1037,6 +1038,60 @@ function countRows(rows) {
  * 키를 보낸다. 못 보내도 **키는 이미 만들어져 있다** — 화면이 그것을
  * 보여 주므로, 복사해서 직접 보내시면 된다.
  */
+/**
+ * **손질한 안내문을 그대로** 보낸다.
+ *
+ * `sendInvite` 는 글을 여기서 만들어 보낸다. 그러면 보내는 사람이 한 글자도
+ * 못 고친다 — 고객마다 덧붙일 말이 다른데 그걸 할 수가 없다.
+ *
+ * 이 길은 대시보드가 **완성된 글**을 넘겨 주면 그대로 보낸다. 매뉴얼을
+ * 덧붙이든 인사말을 바꾸든 보내는 쪽에서 정한다.
+ *
+ * 주인만 쓸 수 있다. 산 분에게 열어 주면 우리 계정으로 아무 글이나
+ * 아무에게나 보낼 수 있게 된다 — 스팸 발송기가 된다.
+ */
+function adminSendText(p) {
+  var who = whoAmI(p);
+  if (!who.ok) { return who; }
+  if (who.scope !== 'owner') {
+    return { ok: false, reason: 'forbidden',
+             message: '메일 보내기는 주인만 할 수 있습니다.' };
+  }
+
+  var email = String(p.email || '').trim();
+  var subject = String(p.subject || '').trim();
+  var body = String(p.body || '');
+  if (!email || email.indexOf('@') < 1) {
+    return { ok: false, reason: 'bad_email', message: '받는 분 메일 주소를 확인해 주세요.' };
+  }
+  if (!subject) {
+    return { ok: false, reason: 'bad_subject', message: '제목이 비었습니다.' };
+  }
+  if (!body.trim()) {
+    return { ok: false, reason: 'bad_body', message: '본문이 비었습니다.' };
+  }
+  // 구글 한도(개인 100통/일)를 넘으면 예외가 난다. 남은 통수를 미리 본다.
+  var 남음 = -1;
+  try { 남음 = MailApp.getRemainingDailyQuota(); } catch (_) { }
+  if (남음 === 0) {
+    return { ok: false, reason: 'quota',
+             message: '오늘 보낼 수 있는 메일을 다 썼습니다. 내일 다시 하시거나 ' +
+                      '워크스페이스 계정을 쓰세요.' };
+  }
+
+  try {
+    MailApp.sendEmail(email, subject, body,
+                      { name: prop('MAIL_FROM_NAME') || undefined });
+    log('mail-sent', String(p.program || ''), email);
+    return { ok: true, sentTo: email, remaining: 남음 > 0 ? 남음 - 1 : 남음 };
+  } catch (err) {
+    log('mail-fail', String(p.program || ''), email + ' — ' + String((err && err.message) || err));
+    return { ok: false, reason: 'mail_failed',
+             message: '보내지 못했습니다. 주소를 확인해 주세요.' };
+  }
+}
+
+
 function sendInvite(email, name, program, primaryKey, secondaries, url, role, expiry) {
   var lines = [];
   lines.push(name + '님, 안녕하세요.');

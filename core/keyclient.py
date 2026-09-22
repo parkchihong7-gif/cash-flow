@@ -107,6 +107,24 @@ class KeyServer:
         except Exception:
             return False
 
+    def send_text(self, *, email: str, subject: str, body: str,
+                  program_id: str = "") -> dict:
+        """**손질한 안내문을 그대로** 보낸다.
+
+        발급할 때 서버가 만들어 보내는 글과 다르다. 그 글은 한 글자도 못
+        고치는데, 고객마다 덧붙일 말이 다르다. 이 길은 화면에서 고친 글을
+        그대로 넘긴다.
+
+        주인 비밀번호로만 된다. 산 분에게 열어 주면 우리 계정으로 아무 글이나
+        아무에게나 보낼 수 있게 된다.
+
+        Raises:
+            KeyServerError: 닿지 않거나 서버가 거절할 때. 하루 한도를 다
+                썼을 때도 여기로 온다.
+        """
+        return self._call("adminSendText", email=email, subject=subject,
+                          body=body, program=program_id)
+
     # ────────────────────────────────────────────────────────── 발급
     def issue_set(self, *, program_id: str, name: str, email: str,
                   role: str = "admin", expires_days: int | None = None,

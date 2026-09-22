@@ -2,7 +2,7 @@
 //  접속키 서버 — 구글 앱스 스크립트에 붙여 넣는 **한 장짜리** 판입니다.
 //
 //  ■ 붙여넣기 전에 꼭 보세요
-//    이 파일은 1,467줄입니다. 맨 아래에 ⛳ 표가 있습니다.
+//    이 파일은 1,507줄입니다. 맨 아래에 ⛳ 표가 있습니다.
 //    붙여 넣은 뒤 **맨 아래에 그 ⛳ 표가 보이는지** 확인하세요.
 //    안 보이면 잘린 것이고, 그대로 저장하면
 //      구문 오류: SyntaxError: Unexpected end of input
@@ -208,7 +208,9 @@ window.PROGRAMS = [
   },
   {
     "id": "naver-blog",
-    "name": "네이버 블로그 초안 생성기"
+    "name": "네이버 블로그 초안 생성기",
+    "url": "https://maim-1048530680370.us-central1.run.app/",
+    "adminUrl": "https://maim-1048530680370.us-central1.run.app/"
   },
   {
     "id": "speaker-desk",
@@ -821,6 +823,7 @@ function handle(e) {
       case 'adminList':        return json(adminList(p));
       case 'adminCreateKeys':  return json(adminCreateKeys(p));
       case 'adminCreateInvite':return json(adminCreateInvite(p));
+      case 'adminSendText':    return json(adminSendText(p));
       case 'adminSuspendKey':  return json(adminSetStatus(p, 'suspended'));
       case 'adminResumeKey':   return json(adminSetStatus(p, 'active'));
       case 'adminDeleteKey':   return json(adminDeleteKey(p));
@@ -1419,6 +1422,43 @@ function countRows(rows) {
     if (r.live) { out.live++; }
   }
   return out;
+}
+function adminSendText(p) {
+  var who = whoAmI(p);
+  if (!who.ok) { return who; }
+  if (who.scope !== 'owner') {
+    return { ok: false, reason: 'forbidden',
+             message: '메일 보내기는 주인만 할 수 있습니다.' };
+  }
+  var email = String(p.email || '').trim();
+  var subject = String(p.subject || '').trim();
+  var body = String(p.body || '');
+  if (!email || email.indexOf('@') < 1) {
+    return { ok: false, reason: 'bad_email', message: '받는 분 메일 주소를 확인해 주세요.' };
+  }
+  if (!subject) {
+    return { ok: false, reason: 'bad_subject', message: '제목이 비었습니다.' };
+  }
+  if (!body.trim()) {
+    return { ok: false, reason: 'bad_body', message: '본문이 비었습니다.' };
+  }
+  var 남음 = -1;
+  try { 남음 = MailApp.getRemainingDailyQuota(); } catch (_) { }
+  if (남음 === 0) {
+    return { ok: false, reason: 'quota',
+             message: '오늘 보낼 수 있는 메일을 다 썼습니다. 내일 다시 하시거나 ' +
+                      '워크스페이스 계정을 쓰세요.' };
+  }
+  try {
+    MailApp.sendEmail(email, subject, body,
+                      { name: prop('MAIL_FROM_NAME') || undefined });
+    log('mail-sent', String(p.program || ''), email);
+    return { ok: true, sentTo: email, remaining: 남음 > 0 ? 남음 - 1 : 남음 };
+  } catch (err) {
+    log('mail-fail', String(p.program || ''), email + ' — ' + String((err && err.message) || err));
+    return { ok: false, reason: 'mail_failed',
+             message: '보내지 못했습니다. 주소를 확인해 주세요.' };
+  }
 }
 function sendInvite(email, name, program, primaryKey, secondaries, url, role, expiry) {
   var lines = [];

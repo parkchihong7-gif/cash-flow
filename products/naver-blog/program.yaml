@@ -136,6 +136,13 @@ editable_files:
   - path: docs/admin.md
     label: 관리자 매뉴얼 (내가 볼 것)
     kind: markdown
+    help: >-
+      파는 사람용입니다. 2장의 **자동 발행 금지**는 한 번 데인 기록이라
+      지우지 마세요.
+  - path: check.py
+    label: 연결 확인 도구
+    kind: text
+    help: '[테스트] 탭이 돌리는 파일입니다.'
 
 outputs:
   - path: (프로그램 안)
@@ -151,13 +158,15 @@ outputs:
 pricing:
   - plan: 기본
     price: 49000
-    description: 프로그램 + 사용 설명서
-  - plan: 세팅
-    price: 250000
-    description: 위 + 네이버 키 발급 대행 + 키워드 20개 조사
+    description: 프로그램 + 사용 설명서 + 접속 코드
+  - plan: 세팅 포함
+    price: 120000
+    description: 위 + 화상 1회로 AI 연결·주제·톤까지 같이 잡기
   - plan: 월 관리
-    price: 150000
-    description: 월 8편 초안 + 수요 조사 + 검사 (발행은 고객이 합니다)
+    price: 100000
+    description: >-
+      쌓인 초안 품질 점검 · 톤 조정 · 카테고리 정리
+      (글을 대신 올려 드리지는 않습니다)
 
 manuals:
   admin: docs/admin.md
@@ -212,16 +221,15 @@ requirements:
 
 # 정기 실행 — 글 쓰는 주기를 따라간다. 보통 주 1~2회.
 schedule:
-  cadence: weekly
-  at: 주 1회
-  cron: ""
-  command: "python cli.py draft --input request.yaml"
-  why: 꾸준히 한 편씩이 몰아 쓰는 것보다 낫습니다. 네이버는 주제 일관성을 봅니다.
-  skipped: 한 달을 쉬면 블로그 지수가 떨어집니다. 다시 올리는 데 더 걸립니다.
+  cadence: manual
+  command: "python check.py"
+  why: >-
+    고객에게 접속 코드를 보내기 전에 한 번. 서버가 죽어 있으면 코드를
+    보내 봐야 소용없습니다.
 
 run:
-  input_file: request.yaml
-  command: ["python", "cli.py", "draft", "--input", "{input}"]
-  dry_run_command: ["python", "cli.py", "draft", "--dry-run"]
+  input_file: ""
+  command: ["python", "check.py"]
+  dry_run_command: ["python", "check.py", "--dry-run"]
   output_dir: outputs
-  timeout_seconds: 300
+  timeout_seconds: 120

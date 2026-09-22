@@ -41,8 +41,7 @@ from core.db import Database
 from core import keyclient
 from core.keyauth import (
     DEFAULT_BULK, KIND_LEGACY, KIND_PRIMARY, KIND_SECONDARY, ROLE_ADMIN,
-    KeyAuth, KeyError_,
-)
+    KeyAuth, KeyError_, manual_for_mail)
 from core.manifest import ProgramManifest
 from core.registry import Registry
 from core.runner import RunError, run_program
@@ -165,8 +164,10 @@ def register(app, page, registry, db, program_or_404):
                 program, database.get_program_settings(program.id))
         if render == "keys":
             keys = _keys()
-            base["issued"] = _fresh.pop(
-                str(request.query_params.get("issued") or ""), None)
+            쪽지 = str(request.query_params.get("issued") or "")
+            보낼것 = _fresh.get(쪽지)
+            base["issued"] = 보낼것
+            base["issued_token"] = 쪽지 if 보낼것 else ""
             base["bulk_codes"] = _fresh.pop(
                 str(request.query_params.get("bulk") or ""), None)
             want = str(request.query_params.get("k") or "primary")
@@ -180,6 +181,20 @@ def register(app, page, registry, db, program_or_404):
                 "key_counts": keys.counts(program_id=program.id),
                 "live_sessions": keys.live_sessions(program_id=program.id),
             })
+            # 안내문에 붙일 매뉴얼. 받는 분이 관리자냐 고객이냐에 따라 다른
+            # 것이 와야 한다 — 고객에게 관리자 매뉴얼을 보내면 «접속 코드
+            # 관리» 처럼 그분 화면에 없는 것을 찾게 된다.
+            보낼것 = base.get("issued")
+            base["manual_text"] = (
+                manual_for_mail(program, 보낼것.for_admin) if 보낼것 else "")
+            base["send_action"] = (
+                f"{APPS_PREFIX}/{program.id}/{mode}/keys/send"
+                f"?issued={base['issued_token']}")
+            base["can_send"] = keyclient.from_env() is not None
+            # `app_tab` 이 넘겨준 것이 있으면 그것을 쓴다.
+            base.setdefault("mail_sent", "")
+            base.setdefault("mail_error", "")
+            base.setdefault("mail_left", None)
         return base
 
     # ------------------------------------------------------------ 화면
@@ -196,11 +211,14 @@ def register(app, page, registry, db, program_or_404):
              response_class=HTMLResponse)
     def app_tab(request: Request, program_id: str, mode: str, tab_key: str,
                 run: int | None = None, saved: str = "", error: str = "",
-                flash: str = "", flash_tone: str = ""):
+                flash: str = "", flash_tone: str = "",
+                mail_sent: str = "", mail_error: str = "", mail_left: str = ""):
         """탭 하나. **주소가 따로 있어 팝업으로 열 수 있다.**"""
         return _render_tab(request, program_id, mode, tab_key,
                            run=run, saved=saved, error=error,
-                           flash=flash, flash_tone=flash_tone)
+                           flash=flash, flash_tone=flash_tone,
+                           mail_sent=mail_sent, mail_error=mail_error,
+                           mail_left=int(mail_left) if mail_left.isdigit() else None)
 
     def _render_tab(request: Request, program_id: str, mode: str, tab_key: str,
                     run: int | None = None, **extra: Any):
@@ -387,6 +405,44 @@ def register(app, page, registry, db, program_or_404):
         token = _stash(issued)
         return RedirectResponse(_keys_back(program_id, issued=token),
                                 status_code=303)
+
+    @app.post(APPS_PREFIX + "/{program_id}/{mode}/keys/send")
+    async def keys_send(request: Request, program_id: str, mode: str):
+        """화면에서 **고친 그대로** 안내문을 보낸다.
+
+        메일은 구글 앱스 스크립트가 보낸다. 우리 서버에 메일 기능을 붙이면
+        SMTP 비밀번호를 하나 더 둬야 하는데, 이미 있는 것으로 된다.
+
+        보낸 뒤에도 **키를 다시 보여 준다.** 메일이 안 갔을 수도 있고,
+        카톡으로도 보내실 수 있어서 이 화면을 여기서 닫으면 안 된다.
+        """
+        program = program_or_404(program_id)
+        mode = _mode_or_404(mode)
+        form = await request.form()
+        token = str(request.query_params.get("issued") or "")
+
+        server = keyclient.from_env()
+        if server is None:
+            return RedirectResponse(
+                _keys_back(program_id, issued=token,
+                           mail_error="메일 서버가 연결되지 않았습니다. "
+                                      "KEYSERVER_URL 과 KEYSERVER_PASSWORD 를 넣어 주세요"),
+                status_code=303)
+        try:
+            answer = server.send_text(
+                email=str(form.get("email") or "").strip(),
+                subject=str(form.get("subject") or "").strip(),
+                body=str(form.get("body") or ""),
+                program_id=program.id)
+        except keyclient.KeyServerError as exc:
+            return RedirectResponse(
+                _keys_back(program_id, issued=token, mail_error=str(exc)),
+                status_code=303)
+        left = answer.get("remaining")
+        return RedirectResponse(
+            _keys_back(program_id, issued=token, mail_sent="1",
+                       mail_left="" if left is None else str(left)),
+            status_code=303)
 
     @app.post(APPS_PREFIX + "/{program_id}/admin/keys/bulk")
     async def keys_bulk(request: Request, program_id: str):

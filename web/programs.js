@@ -13,7 +13,9 @@ window.PROGRAMS = [
   },
   {
     "id": "naver-blog",
-    "name": "네이버 블로그 초안 생성기"
+    "name": "네이버 블로그 초안 생성기",
+    "url": "https://maim-1048530680370.us-central1.run.app/",
+    "adminUrl": "https://maim-1048530680370.us-central1.run.app/"
   },
   {
     "id": "speaker-desk",

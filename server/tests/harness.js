@@ -177,6 +177,10 @@ function makeServer(props = {}, gsPath = GS_PATH) {
         if (props.__MAIL_FAILS__) { throw new Error('메일 한도를 넘었습니다'); }
         mails.push({ to, subject, body, options });
       },
+      // 하루 한도. 실제로는 개인 100통 / 워크스페이스 1,500통.
+      // `__QUOTA__` 를 0 으로 두면 «오늘 다 썼다» 를 흉내 낼 수 있다.
+      getRemainingDailyQuota: () =>
+        (props.__QUOTA__ === undefined ? 100 : Number(props.__QUOTA__)),
     },
     ContentService: {
       MimeType: { JSON: 'application/json' },

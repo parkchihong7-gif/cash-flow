@@ -64,17 +64,63 @@
     <button class="btn primary" type="submit">발급하고 안내문 만들기</button>
   </form>
 
+  {% if mail_sent %}
+  <div class="note ok"><strong>보냈습니다</strong>
+    {%- if issued %} — {{ issued.holder_email }}{% endif %}
+    {% if mail_left is not none and mail_left >= 0 %}
+    <span class="muted">(오늘 {{ mail_left }}통 더 보낼 수 있습니다)</span>{% endif %}</div>
+  {% elif mail_error %}
+  <div class="note bad"><strong>보내지 못했습니다</strong> — {{ mail_error }}</div>
+  {% endif %}
+
   {% if issued %}
+  {# 안내문은 **완성품이 아니라 출발점**이다. 고객마다 덧붙일 말이 다르다.
+     그래서 읽기 전용을 풀고, 고친 그대로 보낸다. #}
   <div class="issued">
     <h4>{{ issued.holder_name }}님께 보낼 안내문</h4>
-    <textarea id="issued-text" rows="12" readonly>{{ issued.copy_text(program.name) }}</textarea>
-    <div class="actions">
-      <button class="btn primary" type="button" data-copy="#issued-text">전체 복사</button>
-      <a class="btn" href="mailto:{{ issued.holder_email }}?subject={{ issued.mail_subject(program.name) | urlencode }}&body={{ issued.mail_body(program.name) | urlencode }}">메일 앱으로 열기</a>
-    </div>
+    {# 주소는 늘 붙인다. 보낼 수 없을 때는 버튼이 흐려서 못 누른다 —
+       주소까지 빼면 «다시 보기» 로 돌아올 길이 없어진다. #}
+    <form method="post" action="{{ send_action }}">
+      <label><span class="ltext">받는 분</span>
+        <input type="email" name="email" value="{{ issued.holder_email }}" required></label>
+      <label><span class="ltext">제목</span>
+        <input type="text" name="subject" value="{{ issued.mail_subject(program.name) }}" required></label>
+      <textarea id="issued-text" name="body" rows="20"
+                spellcheck="false">{{ issued.draft(program.name, manual_text) }}</textarea>
+      <p class="help">
+        <strong>여기서 바로 고치실 수 있습니다.</strong> 인사말을 바꾸거나 덧붙일 말을
+        적으세요. 아래 <strong>{{ '관리자 매뉴얼' if issued.for_admin else '사용 설명서' }}</strong>이
+        같이 붙어 있습니다 — 길면 지우셔도 됩니다.
+      </p>
+      {% if not through_door %}
+      {# 못 보낼 때도 **버튼은 보인다.** 아예 없으면 «어떻게 보내지» 가 되고,
+         무엇을 준비하면 되는지도 알 수 없다. 흐리게 두고 이유를 적는다. #}
+      <div class="actions">
+        <button class="btn primary" type="submit"
+                {% if not can_send %}disabled
+                title="메일 서버가 연결되지 않았습니다"{% endif %}>발송</button>
+      </div>
+      {% endif %}
+      {% if can_send %}
+      {% elif through_door %}
+      {# 산 분은 우리 계정으로 메일을 못 보낸다. 열어 주면 사장님 구글
+         계정이 남의 발송기가 된다. 글은 만들어 드리고 보내는 것은 직접. #}
+      <p class="help">
+        위 글을 <strong>복사해서</strong> 메일이나 카톡으로 보내 주세요.
+        고치셔도 됩니다 — 덧붙일 말을 적으시면 됩니다.
+      </p>
+      {% else %}
+      <p class="help warn">
+        <strong>지금은 발송이 안 됩니다.</strong> 메일은 구글 앱스 스크립트가 보냅니다 —
+        <code>KEYSERVER_URL</code> 과 <code>KEYSERVER_PASSWORD</code> 를 넣어 주세요.
+        그때까지는 위 글을 복사해 쓰시면 됩니다.
+      </p>
+      {% endif %}
+    </form>
+
     <p class="help">
       이 화면을 벗어나면 키는 <strong>다시 볼 수 없습니다</strong>(목록에는 남습니다).
-      먼저 복사하거나 메일을 보내세요.
+      먼저 보내시거나 복사해 두세요.
     </p>
   </div>
   {% endif %}

@@ -58,8 +58,7 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from core.keyauth import (
-    KIND_PRIMARY, KIND_SECONDARY, ROLE_ADMIN, ROLE_CLIENT, KeyAuth, KeyError_,
-)
+    KIND_PRIMARY, KIND_SECONDARY, ROLE_ADMIN, ROLE_CLIENT, KeyAuth, KeyError_, manual_for_mail)
 from core.webui import load_handler
 
 __all__ = ["register", "DOOR_PREFIX", "COOKIE_PREFIX"]
@@ -215,9 +214,21 @@ def register(app, templates, registry, db, program_or_404, console_for) -> None:
                 "key_counts": keys.counts(program_id=program.id,
                                           issued_by=issuer_id),
                 "live_sessions": 0,
-                "issued": _fresh.pop(
-                    str(request.query_params.get("issued") or ""), None),
+                # 꺼내되 **지우지 않는다.** 보낸 뒤에도 키가 보여야 한다.
+                "issued": _fresh.get(str(request.query_params.get("issued") or "")),
                 "bulk_codes": None,
+                # 안내문에 붙일 매뉴얼. 산 분이 자기 고객에게 보내는 것이라
+                # **고객용 설명서**가 맞다 — 관리자 매뉴얼에는 그분 고객이
+                # 볼 필요 없는 값·마진 이야기가 들어 있다.
+                "manual_text": manual_for_mail(program, for_admin=False),
+                # **산 분은 우리 계정으로 메일을 못 보낸다.** 열어 주면
+                # 사장님 구글 계정이 남의 발송기가 된다. 글은 만들어 드리고
+                # 보내는 것은 그분이 직접 하신다.
+                "send_action": "",
+                "can_send": False,
+                "mail_sent": "",
+                "mail_error": "",
+                "mail_left": None,
             }
 
         return templates.TemplateResponse(

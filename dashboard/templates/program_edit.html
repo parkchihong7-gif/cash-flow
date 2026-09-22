@@ -32,7 +32,7 @@
         <input type="text" id="{{ spec.key }}" name="{{ spec.key }}" value="{{ values[spec.key] or '' }}">
       {% endif %}
     {% endif %}
-    {% if spec.help %}<p class="help">{{ spec.help }}</p>{% endif %}
+    {% if spec.help %}<p class="help">{{ spec.help | md }}</p>{% endif %}
   </div>
   {% else %}
   <p class="muted">이 프로그램에는 설정 항목이 없습니다.</p>
@@ -47,7 +47,7 @@
   {% for f in program.editable_files %}
   <tr>
     <td><strong>{{ f.label }}</strong><br><code>{{ f.path }}</code></td>
-    <td class="muted">{{ f.help }}</td>
+    <td class="muted">{{ f.help | md }}</td>
     <td><a class="btn" href="/programs/{{ program.id }}/file?path={{ f.path }}">편집</a></td>
   </tr>
   {% else %}

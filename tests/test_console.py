@@ -223,8 +223,14 @@ def test_키를_발급하면_안내문이_한_번_나온다(client):
     assert "1차 인증키" in body and "2차 인증키" in body
     assert "PC :" in body and "노트북 :" in body and "휴대폰 :" in body
 
+    # 예전에는 한 번 보고 나면 사라졌다. 그런데 **보낸 뒤에도 키가 보여야**
+    # 한다 — 메일이 안 갔을 수도 있고, 카톡으로도 보내실 수 있다. 꺼내는
+    # 순간 지우면 [발송] 을 누른 뒤 화면이 닫히고 키를 다시 볼 수 없다.
+    #
+    # 진짜 보호는 그대로다 — **키가 주소에 실리지 않는다**(위 줄에서 확인).
+    # 쪽지는 메모리에 서른두 개까지만 남고 서버를 다시 띄우면 사라진다.
     again = client.get(location).text
-    assert "님께 보낼 안내문" not in again, "안내문이 두 번 보인다"
+    assert "님께 보낼 안내문" in again, "보낸 뒤에도 키가 보여야 한다"
 
 
 def test_이름_없이_발급하면_이유를_알려_준다(client):
