@@ -2,6 +2,19 @@
    규격은 공인중개사·maim 관리자 매뉴얼에서 그대로 가져왔다. 사용자가 이미
    고객에게 배포한 안내문과 동작이 어긋나면 안 된다. #}
 
+{# 설정이 잘못되었으면 **맨 위에서** 말한다.
+
+   잘못된 주소를 들고 있으면 키 서버를 안 쓰는 것으로 치고 넘어가는데,
+   그것을 조용히 하면 키가 구글 시트에 안 올라간 줄도 모르고 고객에게
+   보내게 된다. 조용한 실패가 시끄러운 실패보다 나쁘다. #}
+{% if keyserver_problem and not through_door %}
+<div class="note bad">
+  <strong>키 서버 설정이 잘못되었습니다</strong> — {{ keyserver_problem }}.<br>
+  지금은 <strong>이 대시보드에만</strong> 키를 적습니다. 구글 시트 장부에는
+  안 올라가고, 메일도 못 보냅니다. Cloud Run 의 환경변수를 고쳐 주세요.
+</div>
+{% endif %}
+
 <div class="card">
   <h3>{% if through_door %}고객에게 드릴 접속키{% else %}이 프로그램의 접속키{% endif %}</h3>
   <div class="tiles small">
@@ -137,8 +150,11 @@
       </p>
       {% else %}
       <p class="help warn">
-        <strong>지금은 발송이 안 됩니다.</strong> 메일은 구글 앱스 스크립트가 보냅니다 —
+        <strong>지금은 발송이 안 됩니다.</strong>
+        {% if keyserver_problem %}{{ keyserver_problem }}.
+        {% else %}메일은 구글 앱스 스크립트가 보냅니다 —
         <code>KEYSERVER_URL</code> 과 <code>KEYSERVER_PASSWORD</code> 를 넣어 주세요.
+        {% endif %}
         그때까지는 위 글을 복사해 쓰시면 됩니다.
       </p>
       {% endif %}

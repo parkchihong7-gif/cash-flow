@@ -192,6 +192,8 @@ def register(app, page, registry, db, program_or_404):
                 f"{APPS_PREFIX}/{program.id}/{mode}/keys/send"
                 f"?issued={base['issued_token']}")
             base["can_send"] = keyclient.from_env() is not None
+            # 왜 못 보내는지. "안 됩니다" 만으로는 어디를 고칠지 모른다.
+            base["keyserver_problem"] = keyclient.env_problem()
             # `app_tab` 이 넘겨준 것이 있으면 그것을 쓴다.
             base.setdefault("mail_sent", "")
             base.setdefault("mail_error", "")

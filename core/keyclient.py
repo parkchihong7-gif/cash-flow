@@ -24,13 +24,14 @@ from __future__ import annotations
 
 import json
 import os
+from urllib.parse import urlparse
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from typing import Any
 
 __all__ = ["KeyServer", "KeyServerError", "from_env", "admin_page_url",
-           "key_console_url", "SELF_SERVED"]
+           "key_console_url", "url_problem", "env_problem", "SELF_SERVED"]
 
 #: 서버가 느릴 때 화면이 영영 안 돌아오지 않게.
 TIMEOUT = 25.0
@@ -165,17 +166,63 @@ class KeyServer:
                               confirm="초기화").get("deleted", 0))
 
 
+def url_problem(url: str) -> str:
+    """주소가 **주소 모양인가.** 모양이면 빈 글자, 아니면 무엇이 잘못인지.
+
+    한 번 데였다. 안내서에 적어 둔 «여기에_새_주소_붙여넣기» 를 그대로
+    넣으신 적이 있는데, 우리는 그것을 아무 말 없이 받아 두었다가 키를
+    발급할 때가 되어서야 파이썬 속내(`unknown url type`)를 그대로 화면에
+    뱉었다. 어디를 고쳐야 하는지 알 길이 없는 말이다.
+
+    **받을 때 막는다.** 주소가 아니면 키 서버를 안 쓰는 것으로 치고, 화면은
+    "주소를 넣어 주세요" 라고 말한다.
+    """
+    글 = (url or "").strip()
+    if not 글:
+        return ""
+    if not 글.lower().startswith(("http://", "https://")):
+        return (f"주소가 아닙니다 — {글[:40]!r}. "
+                "https:// 로 시작하는 앱스 스크립트 /exec 주소를 넣어 주세요")
+    if 글.lower().startswith("http://"):
+        return "http:// 는 안 됩니다. https:// 주소를 넣어 주세요"
+    if not urlparse(글).netloc:
+        return f"주소에 서버 이름이 없습니다 — {글[:40]!r}"
+    return ""
+
+
 def from_env() -> KeyServer | None:
     """`.env` 에 설정이 있으면 키 서버를, 없으면 None 을 준다.
 
     None 이면 대시보드는 지금까지처럼 자기 SQLite 에만 적는다 —
     집에서 혼자 쓰실 때가 그 경우다.
+
+    주소가 **주소 모양이 아니면** 없는 것으로 친다. 잘못된 주소를 들고
+    있다가 부를 때 터지는 것보다, 처음부터 없는 편이 낫다 — 화면이
+    :func:`env_problem` 으로 무엇이 잘못인지 말해 준다.
     """
     url = (os.getenv("KEYSERVER_URL") or "").strip()
     password = (os.getenv("KEYSERVER_PASSWORD") or "").strip()
-    if not url or not password:
+    if not url or not password or url_problem(url):
         return None
     return KeyServer(url=url, password=password)
+
+
+def env_problem() -> str:
+    """지금 설정이 왜 못 쓰는 상태인지. 쓸 수 있으면 빈 글자.
+
+    화면이 그대로 보여 줄 말이다. "안 됩니다" 만으로는 무엇을 고쳐야 할지
+    알 수 없다.
+    """
+    url = (os.getenv("KEYSERVER_URL") or "").strip()
+    password = (os.getenv("KEYSERVER_PASSWORD") or "").strip()
+    탈 = url_problem(url)
+    if 탈:
+        return f"KEYSERVER_URL 이 잘못되었습니다 — {탈}"
+    if not url:
+        return "KEYSERVER_URL 이 비었습니다"
+    if not password:
+        return "KEYSERVER_PASSWORD 가 비었습니다"
+    return ""
 
 
 def admin_page_url() -> str:
@@ -189,7 +236,10 @@ def admin_page_url() -> str:
     앱스 스크립트 `/exec` 주소가 박히면 장부의 대문 주소가 같이 공개된다.
     비밀번호와 같은 칸에 둔다.
     """
-    return (os.getenv("KEYSERVER_URL") or "").strip()
+    글 = (os.getenv("KEYSERVER_URL") or "").strip()
+    # 주소 모양이 아니면 **없는 것으로 친다.** 죽은 곳으로 데려가는 버튼보다
+    # 대시보드가 직접 내주는 화면으로 보내는 편이 낫다.
+    return "" if url_problem(글) else 글
 
 
 #: `.env` 가 비어 있을 때 대신 여는 곳. 대시보드가 직접 내주는 관리자 화면이다.

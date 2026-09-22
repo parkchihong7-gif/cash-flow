@@ -113,3 +113,21 @@ def test_the_screen_matches_how_the_program_splits(pid, 하나냐):
     else:
         assert "관리자 모드 ↗" in body and "클라이언트 모드 ↗" in body
         assert "접속키 발급하기 ↗" in body
+
+
+def test_바깥_주소_설명이_별표째_찍히지_않는다():
+    """`**굵게**` 가 글자 그대로 보이면 안 된다.
+
+    한 번 데였다. `_tabs.html` 에는 마크다운 거르개를 걸어 뒀는데
+    `console_base.html` 에는 안 걸어서, 콘솔 화면에서만 별표가 그대로
+    찍혔다. 같은 글을 두 군데서 내면 한쪽을 빠뜨린다.
+    """
+    from pathlib import Path
+    import re
+
+    for 자리 in ("dashboard/templates/console_base.html",
+                 "dashboard/templates/_tabs.html"):
+        글 = Path(자리).read_text(encoding="utf-8")
+        for m in re.finditer(r"\{\{\s*program\.live\.note[^}]*\}\}", 글):
+            assert "| md" in m.group(0) or "|md" in m.group(0), (
+                f"{자리} 에서 마크다운을 안 걸었습니다: {m.group(0)}")

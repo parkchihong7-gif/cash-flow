@@ -253,3 +253,44 @@ def test_plain_text_goes_along_for_old_mail_apps():
     글 = 한벌.plain_mail("안내 글", "매뉴얼 본문")
     assert "안내 글" in 글 and "매뉴얼 본문" in 글
     assert "─" not in 글 and "<" not in 글
+
+
+def test_잘못된_주소는_받지_않는다():
+    """한 번 데였다.
+
+    안내서에 적어 둔 «여기에_새_주소_붙여넣기» 를 그대로 넣으신 적이 있는데,
+    우리는 그것을 아무 말 없이 받아 두었다가 키를 발급할 때가 되어서야
+    파이썬 속내(`unknown url type`)를 그대로 화면에 뱉었다. 어디를 고쳐야
+    하는지 알 길이 없는 말이다.
+    """
+    from core import keyclient
+
+    assert keyclient.url_problem("여기에_새_주소_붙여넣기")
+    assert keyclient.url_problem("http://x.example/exec"), "http 는 막습니다"
+    assert not keyclient.url_problem(
+        "https://script.google.com/macros/s/AAA/exec")
+    assert not keyclient.url_problem(""), "비었으면 '안 쓰는 것'이지 잘못이 아닙니다"
+
+
+def test_주소가_이상하면_서버를_안_든다(monkeypatch):
+    from core import keyclient
+
+    monkeypatch.setenv("KEYSERVER_URL", "여기에_새_주소_붙여넣기")
+    monkeypatch.setenv("KEYSERVER_PASSWORD", "아무거나")
+    assert keyclient.from_env() is None, "잘못된 주소를 들고 있으면 안 됩니다"
+    assert "KEYSERVER_URL" in keyclient.env_problem(), "무엇이 잘못인지 말해야 합니다"
+    assert keyclient.admin_page_url() == "", "죽은 곳으로 데려가면 안 됩니다"
+
+
+def test_설정이_잘못되면_화면_맨_위에서_말한다(client, monkeypatch):
+    """조용한 실패가 시끄러운 실패보다 나쁘다.
+
+    키 서버를 못 쓰면 대시보드 혼자 키를 적는데, 그것을 조용히 하면 구글
+    시트 장부에 안 올라간 줄도 모르고 고객에게 키를 보내게 된다.
+    """
+    monkeypatch.setenv("KEYSERVER_URL", "여기에_새_주소_붙여넣기")
+    monkeypatch.setenv("KEYSERVER_PASSWORD", "아무거나")
+    body = client.get("/apps/naver-blog/admin/t/keys").text
+    assert "키 서버 설정이 잘못되었습니다" in body
+    assert "구글 시트 장부에는" in body
+    assert "unknown url type" not in body, "파이썬 속내가 그대로 보입니다"
