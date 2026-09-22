@@ -344,8 +344,12 @@ def register(app, templates, registry, db, program_or_404, console_for) -> None:
                 name=str(form.get("name") or ""),
                 email=str(form.get("email") or ""),
                 program_id=program.id,
-                service_url=str(request.base_url).rstrip("/")
-                            + f"{DOOR_PREFIX}/{program.id}",
+                # 산 분이 **자기 고객에게** 주는 키다. 쓰는 키이므로 고객용
+                # 주소가 간다 — 바깥에서 도는 프로그램이면 그 프로그램 주소.
+                service_url=program.entrance(
+                    for_admin=False,
+                    door=str(request.base_url).rstrip("/")
+                         + f"{DOOR_PREFIX}/{program.id}"),
                 expires_days=int(days) if days else None,
                 role=ROLE_CLIENT,          # 관리자키는 나만 만든다
                 issued_by=issuer_id,

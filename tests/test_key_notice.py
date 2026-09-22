@@ -26,8 +26,8 @@ def client():
     return c
 
 
-def _issue(client, role="admin"):
-    return client.post("/apps/naver-blog/admin/keys/issue",
+def _issue(client, role="admin", program_id="naver-blog"):
+    return client.post(f"/apps/{program_id}/admin/keys/issue",
                        data={"name": "박치홍", "email": "a@b.example",
                              "role": role, "expires_days": ""},
                        follow_redirects=True)
@@ -294,3 +294,35 @@ def test_설정이_잘못되면_화면_맨_위에서_말한다(client, monkeypat
     assert "키 서버 설정이 잘못되었습니다" in body
     assert "구글 시트 장부에는" in body
     assert "unknown url type" not in body, "파이썬 속내가 그대로 보입니다"
+
+
+@pytest.mark.parametrize("program_id,role,와야할것", [
+    # 1번 — 주소로 관리자·고객을 가른다
+    ("exam-drill", "admin", "gongin-jungsagsa-exam/?admin=1"),
+    ("exam-drill", "client", "gongin-jungsagsa-exam/"),
+    # 3번 — 주소가 하나이고 넣는 키로 갈린다
+    ("naver-blog", "admin", "maim-1048530680370"),
+    ("naver-blog", "client", "maim-1048530680370"),
+])
+def test_안내문에_그_프로그램을_여는_주소가_간다(client, program_id, role, 와야할것):
+    """한 번 데였다.
+
+    어느 프로그램의 키든 늘 대시보드 문 주소를 적어 보냈다. 3번을 산 분이
+    그 주소로 들어가면 네이버 블로그 초안 생성기가 아니라 대시보드 기록
+    화면을 보게 된다. 파는 키와 쓰는 키가 가는 곳이 다를 수도 있다.
+    """
+    body = _issue(client, role=role, program_id=program_id).text
+    칸 = re.search(r'<textarea id="issued-text"[^>]*>(.*?)</textarea>', body, re.S)
+    글 = 칸.group(1)
+    assert 와야할것 in 글, f"{program_id}/{role} 안내문에 프로그램 주소가 없습니다"
+    assert "/c/" not in 글, "바깥에서 도는 프로그램인데 대시보드 문 주소가 갔습니다"
+
+
+def test_바깥에_없는_프로그램은_대시보드_문으로(client):
+    """2번처럼 아직 바깥 주소가 없는 것은 우리 문이 맞다."""
+    from core.registry import Registry
+
+    프 = Registry().require("senior-video")
+    assert not (프.live and 프.live.door_for(False)), "이 시험의 전제가 바뀌었습니다"
+    assert 프.entrance(for_admin=False, door="https://예시/c/senior-video") \
+        == "https://예시/c/senior-video"

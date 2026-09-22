@@ -367,6 +367,11 @@ def register(app, page, registry, db, program_or_404):
         # 고객에게 보내는 주소는 **문**이다. `/apps/.../client` 는 대시보드
         # 접속 코드가 있어야 열려서, 그 주소를 적어 보내면 고객은 못 들어온다.
         door = str(request.base_url).rstrip("/") + f"{DOOR_PREFIX}/{program.id}"
+        # 안내문에 적을 주소는 **그 프로그램을 실제로 여는 곳**이어야 한다.
+        # 바깥에서 도는 프로그램(1·3번)이면 그 주소, 아니면 우리 문.
+        # 파는 키와 쓰는 키가 가는 곳이 다를 수 있다 — 1번은 `?admin=1`.
+        열곳 = program.entrance(for_admin=(str(form.get("role") or ROLE_ADMIN)
+                                           == ROLE_ADMIN), door=door)
         # 판매 키는 산 사람을 그 프로그램의 관리자로 만든다.
         role = str(form.get("role") or ROLE_ADMIN)
         try:
@@ -382,20 +387,20 @@ def register(app, page, registry, db, program_or_404):
                 # 키 서버를 안 쓰실 때. 이 컴퓨터가 켜져 있을 때만 먹는 키다.
                 issued = _keys().issue_set(
                     name=name, email=email, program_id=program.id,
-                    service_url=door, expires_days=expires_days, role=role)
+                    service_url=열곳, expires_days=expires_days, role=role)
             else:
                 # **시트에 먼저 넣는다.** 여기가 실패하면 아무것도 안 만든다.
                 # 반대 순서로 하면 시트에 없는 키를 고객에게 보내게 되고,
                 # 고객은 그 자리에서 "키가 틀렸다" 는 말을 듣는다.
                 answer = server.issue_set(
                     program_id=program.id, name=name, email=email, role=role,
-                    expires_days=expires_days, base_url=door)
+                    expires_days=expires_days, base_url=열곳)
                 # 들어갔으니 이제 이쪽 목록에도 보이게 같은 코드로 적는다.
                 issued = _keys().adopt_set(
                     primary_code=str(answer.get("primaryKey") or ""),
                     secondary=dict(answer.get("secondaryKeys") or {}),
                     name=name, email=email, program_id=program.id,
-                    service_url=door, expires_days=expires_days, role=role)
+                    service_url=열곳, expires_days=expires_days, role=role)
         except keyclient.KeyServerError as exc:
             return RedirectResponse(
                 _keys_back(program_id, error=f"키 서버: {exc}"), status_code=303)

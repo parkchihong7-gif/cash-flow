@@ -314,6 +314,14 @@ class LiveSite(BaseModel):
         """저장소 밖에서 도는 프로그램인가."""
         return bool(self.admin or self.client)
 
+    def door_for(self, for_admin: bool) -> str:
+        """받는 분이 **실제로 열 주소.** 없으면 빈 글자.
+
+        관리자와 고객이 가는 곳이 다를 수 있다. 1번은 주소로 가르고
+        (`?admin=1`), 3번은 주소가 하나이고 넣는 키로 갈린다.
+        """
+        return (self.admin if for_admin else self.client) or ""
+
     @property
     def one_door(self) -> bool:
         """관리자와 고객이 **같은 주소**로 들어가는가.
@@ -378,6 +386,26 @@ class ProgramManifest(BaseModel):
     def recurring(self) -> bool:
         """매일·매주처럼 되풀이해 돌려야 하는 프로그램인가."""
         return self.schedule.recurring
+
+    def entrance(self, *, for_admin: bool, door: str = "") -> str:
+        """접속 안내문에 적을 주소.
+
+        **그 프로그램을 실제로 여는 곳**이어야 한다. 한 번 데였다 — 어느
+        프로그램의 키든 늘 대시보드 문 주소를 적어 보냈다. 3번을 산 분이
+        그 주소로 들어가면 네이버 블로그 초안 생성기가 아니라 대시보드
+        기록 화면을 보게 된다.
+
+        바깥에서 도는 프로그램이면 그 프로그램의 주소를, 아니면 대시보드가
+        내주는 문(`door`)을 준다.
+
+        :param for_admin: 파는 키(관리자)인가, 쓰는 키(고객)인가.
+        :param door: 바깥 주소가 없을 때 쓸 대시보드 문 주소.
+        """
+        if self.live:
+            바깥 = self.live.door_for(for_admin)
+            if 바깥:
+                return 바깥
+        return door
 
     @property
     def blocked(self) -> bool:
