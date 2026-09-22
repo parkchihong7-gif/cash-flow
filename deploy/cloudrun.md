@@ -155,6 +155,22 @@ gcloud run services update cash-flow --region us-central1 \
   --update-env-vars KEYSERVER_URL=https://script.google.com/macros/s/.../exec
 ```
 
+### `--set-` 과 `--update-` 도 다릅니다
+
+**한 번 데였습니다.**
+
+| | 하는 일 |
+|---|---|
+| `--set-env-vars` | 적어 준 것으로 **통째로 갈아엎습니다.** 안 적은 것은 지워집니다 |
+| `--update-env-vars` | 적어 준 것만 바꾸고 **나머지는 그대로** 둡니다 |
+
+`deploy/올리기.sh` 가 `--set-` 을 쓰고 있었습니다. 그 스크립트는 버킷과 접속
+코드만 적어 주므로, 따로 넣어 두신 `KEYSERVER_URL` 과 `KEYSERVER_PASSWORD` 가
+**돌릴 때마다 조용히 지워졌습니다.** 키를 발급해도 구글 시트 장부에 안 올라가고
+메일도 안 나가는데, 배포 화면은 한 마디도 하지 않았습니다.
+
+지금은 `--update-` 를 쓰고, 올린 뒤에 키 서버가 연결돼 있는지 확인해 말해 줍니다.
+
 ### 이 둘은 다릅니다
 
 한 번 데였습니다. 코드를 고쳐 저장소에 올린 뒤 `services update` 만 돌렸더니,

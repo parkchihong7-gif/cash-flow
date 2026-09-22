@@ -164,14 +164,23 @@ echo " 중간에 멈춘 것처럼 보여도 기다려 주세요."
 echo "────────────────────────────────────────────────────"
 echo
 
+# --update-env-vars 이지 --set-env-vars 가 아니다. **한 번 데였다.**
+#
+# `--set-*` 는 적어 준 것으로 **통째로 갈아엎는다.** 이 스크립트는 버킷과
+# 접속 코드만 적어 주므로, 따로 넣어 두신 KEYSERVER_URL·KEYSERVER_PASSWORD 가
+# 돌릴 때마다 조용히 지워졌다. 그러면 키가 구글 시트 장부에 안 올라가고,
+# 메일도 못 보내고, 그 사실을 배포 화면은 한 마디도 안 한다.
+#
+# `--update-*` 는 적어 준 것만 바꾸고 나머지는 둔다. 처음 설치 때도 똑같이
+# 동작하므로 갈라 쓸 이유가 없다.
 gcloud run deploy "$SERVICE" \
   --source . \
   --region "$REGION" \
   --allow-unauthenticated \
   --min-instances 0 \
   --memory 512Mi \
-  --set-env-vars "GCS_BUCKET=$BUCKET,GCS_PREFIX=$PREFIX" \
-  --set-secrets "DASHBOARD_ACCESS_CODE=${SECRET}:latest" \
+  --update-env-vars "GCS_BUCKET=$BUCKET,GCS_PREFIX=$PREFIX" \
+  --update-secrets "DASHBOARD_ACCESS_CODE=${SECRET}:latest" \
   --quiet
 
 # ── 6. 확인 ─────────────────────────────────────────────
@@ -192,6 +201,28 @@ echo "  이 주소를 여시고 방금 정하신 접속 코드를 넣으세요."
 echo "════════════════════════════════════════════════════"
 echo
 echo "다음에 고칠 것이 생기면 이 줄 하나면 됩니다:"
+# ── 올린 뒤: 키 서버 설정이 살아 있나 ──────────────────────────
+#
+# 조용한 실패가 시끄러운 실패보다 나쁘다. 비어 있으면 키를 발급해도
+# 구글 시트 장부에 안 올라가고 메일도 안 나가는데, 화면을 열어 보기
+# 전에는 모른다.
+KEYURL=$(gcloud run services describe "$SERVICE" --region "$REGION" \
+  --format='value(spec.template.spec.containers[0].env.filter("name", "KEYSERVER_URL").extract("value"))' \
+  2>/dev/null || true)
+if [ -z "$KEYURL" ]; then
+  echo
+  echo "⚠ KEYSERVER_URL 이 비어 있습니다."
+  echo "  이대로면 접속키가 **이 대시보드에만** 적히고 구글 시트 장부에는"
+  echo "  안 올라갑니다. 메일도 못 보냅니다. 넣으시려면:"
+  echo
+  echo "    gcloud run services update $SERVICE --region $REGION \\"
+  echo "      --update-env-vars KEYSERVER_URL=<앱스 스크립트 /exec 주소> \\"
+  echo "      --update-secrets KEYSERVER_PASSWORD=keyserver-password:latest"
+  echo
+else
+  echo "키 서버  : 연결되어 있습니다"
+fi
+
 echo "  gcloud run deploy $SERVICE --source . --region $REGION"
 echo
 echo "요금: 안 쓸 때는 잠들어서 붙지 않습니다 (--min-instances 0)."

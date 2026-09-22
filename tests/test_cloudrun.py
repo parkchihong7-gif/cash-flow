@@ -256,3 +256,33 @@ def test_배포_안내서가_코드도_다시_올리라고_말한다():
     글 = Path("deploy/cloudrun.md").read_text(encoding="utf-8")
     assert "services update" in 글 and "run deploy" in 글, (
         "환경변수만 바꾸는 길과 코드를 올리는 길을 나눠 적지 않았습니다")
+
+
+def test_배포가_다른_설정을_지우지_않는다():
+    """**한 번 데였다.**
+
+    `--set-env-vars` 는 적어 준 것으로 환경변수를 통째로 갈아엎는다. 이
+    스크립트는 버킷과 접속 코드만 적어 주므로, 따로 넣어 두신
+    KEYSERVER_URL·KEYSERVER_PASSWORD 가 돌릴 때마다 조용히 지워졌다.
+    그러면 키가 구글 시트 장부에 안 올라가고 메일도 못 나가는데, 배포
+    화면은 한 마디도 안 한다.
+    """
+    글 = Path("deploy/올리기.sh").read_text(encoding="utf-8")
+    명령 = 글[글.index("gcloud run deploy"):]
+    명령 = 명령[:명령.index("--quiet")]
+    assert "--set-env-vars" not in 명령, "다른 환경변수를 지웁니다"
+    assert "--set-secrets" not in 명령, "다른 비밀값을 지웁니다"
+    assert "--update-env-vars" in 명령 and "--update-secrets" in 명령
+
+
+def test_올린_뒤_키서버가_연결됐는지_말해_준다():
+    """조용한 실패가 시끄러운 실패보다 나쁘다.
+
+    비어 있으면 키를 발급해도 장부에 안 올라가고 메일도 안 나가는데,
+    화면을 열어 보기 전에는 모른다.
+    """
+    글 = Path("deploy/올리기.sh").read_text(encoding="utf-8")
+    뒷부분 = 글[글.index("--quiet"):]
+    assert "KEYSERVER_URL" in 뒷부분, "올린 뒤 확인하지 않습니다"
+    assert "비어 있습니다" in 뒷부분, "비었을 때 말해 주지 않습니다"
+    assert "update-env-vars KEYSERVER_URL" in 뒷부분, "어떻게 넣는지 안 알려 줍니다"
