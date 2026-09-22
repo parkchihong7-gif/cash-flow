@@ -25,21 +25,41 @@ def test_it_points_at_maim():
 def test_one_address_two_roles():
     """관리자와 고객이 **같은 주소**로 들어간다.
 
-    maim 의 `refreshAccessCodes()` 가 `isMasterSession` 이 아니면
-    접속 코드 관리 칸을 `hidden` 으로 숨긴다. 그래서 별도 주소가 필요 없다.
+    주소로 가르지 않고 **넣는 키로** 가른다. 1번의 `?admin=1` 과 다르다.
     """
     program = _p()
     assert program.live.one_door, "주소가 하나여야 한다"
     assert program.live.admin == program.live.client
 
 
-def test_the_mail_gap_is_written_down():
-    """접속 코드를 메일로 보내는 기능이 **아직 없다.** 그걸 적어 둬야 한다."""
+def test_keys_come_from_one_ledger():
+    """접속키는 **한 장부**에서만 나온다.
+
+    예전에는 이 프로그램이 자기 접속 코드를 따로 만들어 썼다. 모양은 같았지만
+    장부가 달라서, 대시보드에서 판 키가 여기서는 "없는 코드" 로 나왔다. 파는
+    곳과 여는 곳이 갈라져 있으면 누구에게 무엇을 팔았는지 한 군데서 볼 수가
+    없다.
+
+    (이 시험은 예전에 "메일로 보내는 기능이 아직 없다" 를 지키던 자리다.
+    그 사실이 바뀌었으므로 지킬 것도 바뀐다.)
+    """
     program = _p()
-    assert "메일" in program.live.note
-    assert "예정" in program.live.note
+    안내 = program.live.note
+    assert "접속키" in 안내
+    assert "아직 없습니다" not in 안내, "이미 되는 것을 안 된다고 적어 두었습니다"
+
     조심 = " ".join(program.requirements.cautions)
-    assert "메일로 보내는 기능이 아직 없습니다" in 조심
+    assert "대시보드에서만 발급" in 조심
+    # 설정이 빠지면 고객이 못 들어온다. 그 사실을 적어 둬야 한다.
+    assert "KEYSERVER_URL" in 조심
+
+
+def test_the_manual_says_where_keys_come_from():
+    """매뉴얼도 같은 말을 해야 한다. 화면과 문서가 다르면 문서가 진다."""
+    program = _p()
+    글 = program.resolve(program.manuals.admin).read_text(encoding="utf-8")
+    assert "자기 접속 코드를 만들지 않습니다" in 글
+    assert "KEYSERVER_URL" in 글, "설정이 빠졌을 때 무엇을 할지 안 적혀 있습니다"
 
 
 def test_the_old_cli_is_gone():
@@ -107,8 +127,8 @@ def test_the_screen_matches_how_the_program_splits(pid, 하나냐):
         assert "프로그램 열기 ↗" in body
         assert "관리자 모드 ↗" not in body, "주소가 하나인데 버튼이 둘이면 헷갈린다"
         assert "접속키 발급하기 ↗" not in body, (
-            "자기 안에 코드 발급 화면이 있는 프로그램이다. "
-            "여기에 또 두면 어느 쪽에서 만들지 헷갈린다"
+            "주소가 하나인 프로그램이다. 키는 이 대시보드의 [접속키] 탭에서 "
+            "만들므로, 바깥 화면으로 보내는 버튼을 또 두면 헷갈린다"
         )
     else:
         assert "관리자 모드 ↗" in body and "클라이언트 모드 ↗" in body

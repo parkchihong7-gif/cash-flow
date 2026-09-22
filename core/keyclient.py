@@ -183,11 +183,19 @@ def url_problem(url: str) -> str:
     if not 글.lower().startswith(("http://", "https://")):
         return (f"주소가 아닙니다 — {글[:40]!r}. "
                 "https:// 로 시작하는 앱스 스크립트 /exec 주소를 넣어 주세요")
-    if 글.lower().startswith("http://"):
-        return "http:// 는 안 됩니다. https:// 주소를 넣어 주세요"
-    if not urlparse(글).netloc:
+    자리 = urlparse(글)
+    if not 자리.netloc:
         return f"주소에 서버 이름이 없습니다 — {글[:40]!r}"
+    # https 를 요구하는 이유는 키와 비밀번호가 **선을 타기** 때문이다.
+    # 제 컴퓨터 안(127.0.0.1)에는 탈 선이 없다. 시험용 서버가 거기 선다.
+    if 글.lower().startswith("http://") and not _내_컴퓨터(자리.hostname or ""):
+        return "http:// 는 안 됩니다. https:// 주소를 넣어 주세요"
     return ""
+
+
+def _내_컴퓨터(이름: str) -> bool:
+    """이 컴퓨터 안을 가리키는 이름인가."""
+    return 이름.lower() in {"localhost", "127.0.0.1", "::1", "[::1]"}
 
 
 def from_env() -> KeyServer | None:

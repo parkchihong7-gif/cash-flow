@@ -266,7 +266,11 @@ def test_잘못된_주소는_받지_않는다():
     from core import keyclient
 
     assert keyclient.url_problem("여기에_새_주소_붙여넣기")
-    assert keyclient.url_problem("http://x.example/exec"), "http 는 막습니다"
+    assert keyclient.url_problem("http://x.example/exec"), "바깥으로 가는 http 는 막습니다"
+    # 다만 제 컴퓨터 안은 다르다. https 를 요구하는 이유는 키가 **선을 타기**
+    # 때문인데, 127.0.0.1 에는 탈 선이 없다. 시험용 서버가 거기 선다.
+    assert not keyclient.url_problem("http://127.0.0.1:5000/exec")
+    assert not keyclient.url_problem("http://localhost:5000/exec")
     assert not keyclient.url_problem(
         "https://script.google.com/macros/s/AAA/exec")
     assert not keyclient.url_problem(""), "비었으면 '안 쓰는 것'이지 잘못이 아닙니다"
