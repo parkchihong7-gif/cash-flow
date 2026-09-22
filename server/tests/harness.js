@@ -18,7 +18,10 @@ const path = require('path');
 const vm = require('vm');
 const crypto = require('crypto');
 
-const GS_PATH = path.join(__dirname, '..', 'keyserver.gs');
+// 기본은 원본. `KEYSERVER_GS` 를 주면 그 파일로 **같은 시험 전부**를 돈다 —
+// 나눠 붙이는 판을 모아 놓은 것이 원본과 똑같이 구는지 보려는 것이다.
+const GS_PATH = process.env.KEYSERVER_GS
+  || path.join(__dirname, '..', 'keyserver.gs');
 
 /** 아주 작은 구글 시트 흉내. 값은 전부 문자열로 둔다. */
 class FakeSheet {

@@ -173,19 +173,37 @@ function doGet(e) {
 function doPost(e) { return handle(e); }
 
 /**
- * 관리자 화면. 빌드가 ADMIN_HTML 을 채워 넣는다.
+ * 관리자 화면의 HTML.
+ *
+ * 이 파일(원본)에는 화면이 안 들어 있다. 묶음 빌드가 `web/admin.html` 을
+ * 조각으로 잘라 넣고, 이 함수가 그 조각들을 이어 붙인다.
+ *
+ * **왜 함수 안에서 이어 붙이나.** 조각을 `.gs` 파일 여러 장에 나눠 붙일 수
+ * 있어야 하는데, 앱스 스크립트는 파일을 **어떤 차례로 읽을지 약속해 주지
+ * 않는다.** 맨 위에서 `var A = A1 + A2` 로 이어 붙이면 A2 가 아직 안 만들어진
+ * 채로 더해져 화면에 `undefined` 가 찍힌다. 함수 안이면 **부를 때** 이어
+ * 붙으므로 그때는 모든 조각이 이미 있다.
+ */
+function adminHtml() {
+  // ⟦화면조각⟧ 이 줄과 아래 한 줄을 빌드가 바꿔 넣는다 — tools/build_keyserver.py
+  return '';
+}
+
+/**
+ * 관리자 화면. 빌드가 화면 조각을 채워 넣는다.
  *
  * 화면 안에서는 `google.script.run.apiCall()` 로 이 스크립트를 바로 부른다.
  * 구글이 감싸 주므로 주소도, CORS 도 신경 쓸 것이 없다.
  */
 function servePage() {
-  if (typeof ADMIN_HTML === 'undefined' || !ADMIN_HTML) {
+  var 화면 = adminHtml();
+  if (!화면) {
     return HtmlService.createHtmlOutput(
       '<meta charset="utf-8"><p style="font:15px sans-serif;padding:24px">' +
       '관리자 화면이 안 들어 있는 판입니다. ' +
       '<code>server/keyserver.bundle.gs</code> 를 붙여 넣으세요.</p>');
   }
-  return HtmlService.createHtmlOutput(ADMIN_HTML)
+  return HtmlService.createHtmlOutput(화면)
     .setTitle('접속키 관리자')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }

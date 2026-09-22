@@ -670,7 +670,9 @@ test('묶음 판이 낡으면 알아챈다', () => {
 });
 
 test('안 묶은 판은 화면을 못 내어 주고, 그 사실을 말한다', () => {
-  const srv = makeServer(PROPS);      // keyserver.gs 그대로
+  // 이 시험만은 **언제나 원본**을 본다. KEYSERVER_GS 로 묶은 판을 가리키면
+  // 화면이 들어 있는 게 당연해서, 시험이 뜻을 잃는다.
+  const srv = makeServer(PROPS, require('path').join(__dirname, '..', 'keyserver.gs'));
   const page = srv.sandbox.doGet({ parameter: {} }).getContent();
   assert.ok(page.includes('keyserver.bundle.gs'), '무엇을 붙이라는 말이 없습니다');
 });

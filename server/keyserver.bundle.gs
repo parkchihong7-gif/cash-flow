@@ -2,7 +2,7 @@
 //  접속키 서버 — 구글 앱스 스크립트에 붙여 넣는 **한 장짜리** 판입니다.
 //
 //  ■ 붙여넣기 전에 꼭 보세요
-//    이 파일은 1,509줄입니다. 맨 아래에 ⛳ 표가 있습니다.
+//    이 파일은 1,570줄입니다. 맨 아래에 ⛳ 표가 있습니다.
 //    붙여 넣은 뒤 **맨 아래에 그 ⛳ 표가 보이는지** 확인하세요.
 //    안 보이면 잘린 것이고, 그대로 저장하면
 //      구문 오류: SyntaxError: Unexpected end of input
@@ -26,7 +26,7 @@
 //       → 나온 주소를 열면 관리자 화면이 바로 뜹니다
 // ═══════════════════════════════════════════════════════════════════
 
-var ADMIN_HTML = `<!DOCTYPE html>
+var ADMIN_HTML_1 = `<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="utf-8">
@@ -313,8 +313,9 @@ window.PROGRAMS = [
     return 기억[이름] || "";
   }
   function 넣기(창고이름, 이름, 값) {
-    기억[이름] = 값;
-    try { window[창고이름].setItem(이름, 값); } catch (_) { /* 막혀 있다 */ }
+    기억[이름] = 값;`;
+
+var ADMIN_HTML_2 = `    try { window[창고이름].setItem(이름, 값); } catch (_) { /* 막혀 있다 */ }
   }
   function 지우기(창고이름, 이름) {
     delete 기억[이름];
@@ -553,8 +554,9 @@ window.PROGRAMS = [
       var copy = document.createElement("button");
       copy.className = "quiet";
       copy.style.marginTop = "10px";
-      copy.textContent = "전부 복사";
-      copy.onclick = function () {
+      copy.textContent = "전부 복사";`;
+
+var ADMIN_HTML_3 = `      copy.onclick = function () {
         navigator.clipboard.writeText(lines.join("\\n")).then(function () {
           copy.textContent = "복사했습니다";
         }).catch(function () { copy.textContent = "복사하지 못했습니다"; });
@@ -770,6 +772,7 @@ function 처음설정() {
   Logger.log(글);
   return 글;
 }
+
 function 읽기쉬운비밀번호() {
   var 덩이 = [];
   for (var b = 0; b < 4; b++) {
@@ -781,27 +784,36 @@ function 읽기쉬운비밀번호() {
   }
   return 덩이.join('-');
 }
+
 function doGet(e) {
   if (!e || !e.parameter || !e.parameter.action) { return servePage(); }
   return handle(e);
 }
+
 function doPost(e) { return handle(e); }
+function adminHtml() {
+  return ADMIN_HTML_1 + ADMIN_HTML_2 + ADMIN_HTML_3;
+}
+
 function servePage() {
-  if (typeof ADMIN_HTML === 'undefined' || !ADMIN_HTML) {
+  var 화면 = adminHtml();
+  if (!화면) {
     return HtmlService.createHtmlOutput(
       '<meta charset="utf-8"><p style="font:15px sans-serif;padding:24px">' +
       '관리자 화면이 안 들어 있는 판입니다. ' +
       '<code>server/keyserver.bundle.gs</code> 를 붙여 넣으세요.</p>');
   }
-  return HtmlService.createHtmlOutput(ADMIN_HTML)
+  return HtmlService.createHtmlOutput(화면)
     .setTitle('접속키 관리자')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
+
 function apiCall(payloadJson) {
   var params = {};
   try { params = JSON.parse(payloadJson || '{}'); } catch (_) { params = {}; }
   return handle({ parameter: params }).getContent();
 }
+
 function handle(e) {
   var p = {};
   try {
@@ -836,10 +848,12 @@ function handle(e) {
     return json({ ok: false, reason: 'server_error', message: '서버에서 문제가 났습니다. 잠시 뒤 다시 해 주세요.' });
   }
 }
+
 function json(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
 }
+
 function validateKeyPair(p) {
   var program = programOf(p);
   var key1 = normalizeKey(p.key1 || p.key || '');
@@ -902,6 +916,7 @@ function validateKeyPair(p) {
     lock.releaseLock();
   }
 }
+
 function checkSession(p) {
   var program = programOf(p);
   var key = normalizeKey(p.key || p.key2 || '');
@@ -922,6 +937,7 @@ function checkSession(p) {
   }
   return { ok: true };
 }
+
 function adminLogin(p) {
   var given = String(p.password || p.token || '');
   if (!passwordOk(given)) {
@@ -930,6 +946,7 @@ function adminLogin(p) {
   }
   return { ok: true, token: makeAdminToken(), hours: ADMIN_TOKEN_HOURS };
 }
+
 function resellerLogin(p) {
   var program = programOf(p);
   var key1 = normalizeKey(p.key1 || '');
@@ -946,6 +963,7 @@ function resellerLogin(p) {
   return { ok: true, token: makeScopedToken(key1, program), name: 열림.name,
            program: program, hours: ADMIN_TOKEN_HOURS };
 }
+
 function adminList(p) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
@@ -958,6 +976,7 @@ function adminList(p) {
   }).map(publicRow);
   return { ok: true, rows: rows, counts: countRows(rows) };
 }
+
 function adminCreateKeys(p) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
@@ -991,6 +1010,7 @@ function adminCreateKeys(p) {
     lock.releaseLock();
   }
 }
+
 function adminCreateInvite(p) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
@@ -1066,6 +1086,7 @@ function adminCreateInvite(p) {
     lock.releaseLock();
   }
 }
+
 function adminSetStatus(p, status) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
@@ -1091,6 +1112,7 @@ function adminSetStatus(p, status) {
     lock.releaseLock();
   }
 }
+
 function adminDeleteKey(p) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
@@ -1119,6 +1141,7 @@ function adminDeleteKey(p) {
     lock.releaseLock();
   }
 }
+
 function adminResetAll(p) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
@@ -1144,6 +1167,7 @@ function adminResetAll(p) {
     lock.releaseLock();
   }
 }
+
 function whoAmI(p) {
   var given = String(p.token || '');
   if (given) {
@@ -1154,25 +1178,30 @@ function whoAmI(p) {
   Utilities.sleep(700);
   return { ok: false, reason: 'unauthorized', message: '관리자 비밀번호가 필요합니다.' };
 }
+
 var OWNER = { ok: true, scope: 'owner', issuer: '' };
 function issuerOf(who, p) {
   if (who.scope === 'reseller') { return who.issuer; }
   return normalizeKey(p.issuer || '');
 }
+
 function programFor(who, p) {
   if (who.scope === 'reseller') { return who.program; }
   return programOf(p);
 }
+
 function ownerOnly(who) {
   if (who.scope === 'owner') { return null; }
   return { ok: false, reason: 'owner_only',
            message: '이것은 프로그램을 만든 쪽에서만 할 수 있습니다.' };
 }
+
 function passwordOk(given) {
   var real = prop('ADMIN_PASSWORD');
   if (!real) { return false; }
   return constantEquals(String(given), String(real));
 }
+
 function constantEquals(a, b) {
   var diff = a.length ^ b.length;
   var n = Math.max(a.length, b.length);
@@ -1181,16 +1210,20 @@ function constantEquals(a, b) {
   }
   return diff === 0;
 }
+
 function makeAdminToken() {
   return signedToken(String(Date.now() + ADMIN_TOKEN_HOURS * 3600 * 1000));
 }
+
 function makeScopedToken(issuerKey, program) {
   var until = Date.now() + ADMIN_TOKEN_HOURS * 3600 * 1000;
   return signedToken(until + '~' + normalizeKey(issuerKey) + '~' + program);
 }
+
 function signedToken(payload) {
   return payload + '.' + signature(payload);
 }
+
 function readToken(token) {
   var text = String(token);
   var at = text.lastIndexOf('.');
@@ -1206,6 +1239,7 @@ function readToken(token) {
   return { ok: true, scope: 'reseller',
            issuer: normalizeKey(칸[1]), program: 칸[2] };
 }
+
 function signature(text) {
   var secret = signingSecret();
   var raw = Utilities.computeHmacSha256Signature(text, secret);
@@ -1213,16 +1247,19 @@ function signature(text) {
     return ('0' + (b & 0xff).toString(16)).slice(-2);
   }).join('');
 }
+
 function tooManyGuesses(key) {
   var cache = CacheService.getScriptCache();
   var n = Number(cache.get('guess:' + key) || 0);
   return n >= GUESS_LIMIT;
 }
+
 function countGuess(key) {
   var cache = CacheService.getScriptCache();
   var n = Number(cache.get('guess:' + key) || 0) + 1;
   cache.put('guess:' + key, String(n), GUESS_WINDOW);
 }
+
 function book() {
   if (BOOK_CACHE) { return BOOK_CACHE; }
   var id = prop('SHEET_ID');
@@ -1241,6 +1278,7 @@ function book() {
   setProp('SHEET_ID', made.getId());
   return (BOOK_CACHE = made);
 }
+
 function sheetOf(name, headers) {
   var ss = book();
   var sh = ss.getSheetByName(name);
@@ -1252,6 +1290,7 @@ function sheetOf(name, headers) {
   }
   return sh;
 }
+
 function readTable() {
   var sh = sheetOf(SHEET_KEYS, COLUMNS);
   var values = sh.getDataRange().getValues();
@@ -1270,6 +1309,7 @@ function readTable() {
   }
   return { sheet: sh, rows: rows };
 }
+
 function writeTable(table) {
   var sh = table.sheet;
   var out = [COLUMNS.slice()];
@@ -1282,12 +1322,14 @@ function writeTable(table) {
   sh.clear();
   sh.getRange(1, 1, out.length, COLUMNS.length).setValues(out);
 }
+
 function log(what, program, detail) {
   try {
     var sh = sheetOf(SHEET_LOG, ['때', '무엇', '프로그램', '내용']);
     sh.appendRow([nowIso(), what, program || '', detail || '']);
   } catch (_) {  }
 }
+
 function signingSecret() {
   var secret = prop('SIGNING_SECRET');
   if (secret) { return secret; }
@@ -1295,27 +1337,34 @@ function signingSecret() {
   setProp('SIGNING_SECRET', secret);
   return secret;
 }
+
 function setProp(name, value) {
   try { PropertiesService.getScriptProperties().setProperty(name, String(value)); }
   catch (_) {  }
 }
+
 function prop(name) {
   try { return PropertiesService.getScriptProperties().getProperty(name) || ''; }
   catch (_) { return ''; }
 }
+
 function programOf(p) {
   var given = String(p.program || '').trim();
   return given || prop('DEFAULT_PROGRAM') || 'default';
 }
+
 function nowIso() {
   return Utilities.formatDate(new Date(), 'Asia/Seoul', "yyyy-MM-dd'T'HH:mm:ss");
 }
+
 function today() {
   return Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
 }
+
 function normalizeKey(text) {
   return String(text || '').trim().toUpperCase().replace(/\s+/g, '');
 }
+
 function newKey() {
   var blocks = [];
   for (var b = 0; b < BLOCKS; b++) {
@@ -1327,6 +1376,7 @@ function newKey() {
   }
   return blocks.join('-');
 }
+
 function uniqueKey(table) {
   for (var tries = 0; tries < 50; tries++) {
     var candidate = newKey();
@@ -1338,6 +1388,7 @@ function uniqueKey(table) {
   }
   throw new Error('키를 못 만들었습니다');
 }
+
 function blankRow(program, type) {
   var row = {};
   for (var i = 0; i < COLUMNS.length; i++) { row[COLUMNS[i]] = ''; }
@@ -1347,6 +1398,7 @@ function blankRow(program, type) {
   row.issuedDate = today();
   return row;
 }
+
 function findKey(table, program, key) {
   var want = normalizeKey(key);
   if (!want) { return null; }
@@ -1356,17 +1408,20 @@ function findKey(table, program, key) {
   }
   return null;
 }
+
 function expiryFrom(days) {
   var n = Number(days || 0);
   if (!(n > 0)) { return ''; }
   var when = new Date(Date.now() + n * 86400000);
   return Utilities.formatDate(when, 'Asia/Seoul', 'yyyy-MM-dd');
 }
+
 function expired(row) {
   var until = String(row.expiryDate || '').trim();
   if (!until) { return false; }
   return until < today();
 }
+
 function unusable(row) {
   if (row.status === 'suspended') {
     return { ok: false, reason: 'suspended', message: '정지된 키입니다. 발급하신 분께 문의해 주세요.' };
@@ -1376,9 +1431,11 @@ function unusable(row) {
   }
   return null;
 }
+
 function touch(table, row, _unused) {
   row.usedDate = nowIso();
 }
+
 function familyOf(table, program, row) {
   if (row.type !== KIND_PRIMARY) { return [row]; }
   var out = [row];
@@ -1390,6 +1447,7 @@ function familyOf(table, program, row) {
   }
   return out;
 }
+
 function publicRow(row) {
   return {
     program: row.program,
@@ -1408,6 +1466,7 @@ function publicRow(row) {
     live: !!String(row.sessionToken || '')
   };
 }
+
 function countRows(rows) {
   var out = { total: rows.length, primary: 0, secondary: 0, legacy: 0,
               admins: 0, clients: 0, suspended: 0, live: 0 };
@@ -1423,6 +1482,7 @@ function countRows(rows) {
   }
   return out;
 }
+
 function adminSendText(p) {
   var who = whoAmI(p);
   if (!who.ok) { return who; }
@@ -1462,6 +1522,7 @@ function adminSendText(p) {
              message: '보내지 못했습니다. 주소를 확인해 주세요.' };
   }
 }
+
 function sendInvite(email, name, program, primaryKey, secondaries, url, role, expiry) {
   var lines = [];
   lines.push(name + '님, 안녕하세요.');

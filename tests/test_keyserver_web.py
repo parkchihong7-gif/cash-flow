@@ -714,3 +714,46 @@ def test_산_분은_키로_들어와_고객키만_만든다(시험서버):
             assert not 오류, f"화면에서 오류가 났습니다: {오류}"
         finally:
             browser.close()
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 나눠 붙이는 판
+#
+# 한 장짜리 판(61KB)이 붙여넣기에서 잘리는 일이 있었다. 어디서 잘리는지는
+# 붙이는 사람 쪽 사정이라 여기서 알 길이 없어, 작게 잘라 여러 장으로 낸다.
+# 모아 놓으면 똑같이 도는지는 노드 쪽(server/tests/parts.test.js)에서
+# **실제로 돌려** 본다. 여기서는 판이 최신인지만 본다.
+# ─────────────────────────────────────────────────────────────────────
+
+나눠 = Path("server/나눠붙이기")
+
+
+def test_나눠붙이는_판이_최신이다():
+    from tools.build_keyserver import build_parts
+
+    있는것 = sorted(나눠.glob("*.gs"), key=lambda p: int(p.stem))
+    assert 있는것, "server/나눠붙이기/ 가 비었습니다"
+    새로 = build_parts()
+    assert len(있는것) == len(새로), (
+        f"장 수가 다릅니다 ({len(있는것)} vs {len(새로)}). "
+        "`python -m tools.build_keyserver` 를 돌리고 다시 커밋해 주세요.")
+    for p, 새것 in zip(있는것, 새로):
+        assert p.read_text(encoding="utf-8") == 새것, (
+            f"{p.name} 이 낡았습니다. `python -m tools.build_keyserver` 를 "
+            "돌리고 다시 커밋해 주세요.")
+
+
+def test_나눠붙이는_판에_비밀이_없다():
+    """한 장짜리 판과 **같은 잣대**로 본다. 나눴다고 새는 곳이 생기면 안 된다.
+
+    잣대를 새로 지어내면 안 된다. 처음에 «script.google.com/macros/s/ 가
+    있으면 안 된다» 로 잡았더니, 주소를 적는 칸의 **안내 문구**를 비밀로
+    보고 걸렸다. 진짜 비밀은 배포 번호(`AKfyc…`) 쪽이다.
+    """
+    for p in 나눠.glob("*.gs"):
+        글 = p.read_text(encoding="utf-8")
+        assert "redwind7" not in 글
+        assert "주인비밀번호" not in 글
+        assert not re.search(r"AKfyc[A-Za-z0-9_-]{20,}", 글), (
+            f"{p.name} 에 키 서버 주소가 박혀 있습니다")
+        assert not re.search(r"ADMIN_PASSWORD['\"]?\s*[:=]\s*['\"][^'\"]+", 글)
