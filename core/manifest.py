@@ -314,6 +314,18 @@ class LiveSite(BaseModel):
         """저장소 밖에서 도는 프로그램인가."""
         return bool(self.admin or self.client)
 
+    @property
+    def one_door(self) -> bool:
+        """관리자와 고객이 **같은 주소**로 들어가는가.
+
+        프로그램마다 갈래가 다르다. 주소로 가르는 것(`?admin=1`)도 있고,
+        **넣는 키로** 가르는 것도 있다 — 뒤쪽은 주소가 하나다.
+
+        그때 버튼을 둘로 두면 똑같은 것이 두 개 있는 셈이라, 누른 사람이
+        «왜 같은 화면이 뜨지» 하게 된다. 화면이 그 차이를 말해야 한다.
+        """
+        return bool(self.admin) and self.admin == self.client
+
 
 class ProgramManifest(BaseModel):
     """프로그램 하나의 전체 정의."""

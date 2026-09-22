@@ -264,25 +264,44 @@ def test_cli_disclosure_prints_the_phrase_and_the_rules(capsys):
 
 # --------------------------------------------------------------- 등록
 def test_registered_as_program_3():
+    """본체가 maim(Cloud Run)으로 옮겨 갔다. 집 컴퓨터에서 돌릴 것이 없다."""
     program = Registry().require("naver-blog")
     assert program.number == 3
     assert program.status == "ready"
-    assert program.requirements.home_pc == "yes"
+    assert program.requirements.home_pc == "no"
+    assert program.requirements.internet == "needed"
 
 
-def test_manifest_warns_about_credentials_and_disclosure():
+def test_manifest_warns_about_the_account_risk():
+    """**자동 발행이 계정을 잡아먹은 적이 있다.** 그 기억이 매니페스트에 남아야 한다.
+
+    예전 판은 «네이버가 API 를 안 열어서 못 한다» 는 이유를 적었다. 지금은
+    한 번 데인 뒤라 이유가 더 무겁다 — 넣었다가 계정 보호조치(비밀번호 강제
+    재설정)가 걸렸다. 몇 달 뒤 «편할 텐데» 하실 때 이 줄이 브레이크가 된다.
+    """
     cautions = " ".join(Registry().require("naver-blog").requirements.cautions)
-    assert "자동 게시를 하지 않습니다" in cautions
-    assert "비밀번호를 .env 에 적지 마세요" in cautions
-    assert "표시광고법" in cautions
+    assert "자동 발행을 하지 않습니다" in cautions
+    assert "계정 보호조치" in cautions
+    assert "되살리자는 요청이 와도 하지 마십시오" in cautions
+    assert "비밀번호를 이 프로그램에 넣지 않습니다" in cautions
 
 
-def test_naver_app_is_available_immediately():
-    """심사가 없어서 파시기 쉬운 상품이다. 그 사실이 매니페스트에 있어야 한다."""
+def test_it_needs_no_paid_api():
+    """돈 드는 계정이 없어야 파시기 쉽다.
+
+    `claude -p` 는 **구독 한도 안에서** 돌고, 이미지 소스는 셋 다 무료다.
+    하나라도 종량 과금이 끼면 «편당 얼마» 를 계산해야 해서 상품이 달라진다.
+    """
     need = Registry().require("naver-blog").requirements
-    naver = next(item for item in need.accounts if "네이버 개발자센터" in item.name)
-    assert naver.lead_time == "즉시"
-    assert "무료" in naver.cost
+    assert need.accounts, "무엇이 필요한지 적혀 있어야 한다"
+    for account in need.accounts:
+        assert "무료" in account.cost or "구독" in account.cost, \
+            f"{account.name} 이 종량 과금입니다: {account.cost}"
+        assert account.lead_time == "즉시", f"{account.name} 이 기다려야 합니다"
+
+    # 이미지 소스가 하나 죽어도 돌아야 한다.
+    이미지 = next(a for a in need.accounts if "이미지" in a.name)
+    assert not 이미지.blocking, "이미지 키가 없어도 글은 나와야 한다"
 
 
 def test_all_sponsor_kinds_have_a_phrase():

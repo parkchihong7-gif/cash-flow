@@ -162,11 +162,20 @@ def test_a_custom_client_screen_without_settings_saves_nothing(client):
 
 
 def test_admin_can_save_any_declared_setting(client):
+    """선언된 설정은 저장되고, 안 선언된 것은 무시되어야 한다.
+
+    설정 **이름을 시험에 박아 두지 않는다.** 예전에는 `CLAUDE_MODEL` 을 적어
+    뒀는데, 그 프로그램이 Claude 를 안 쓰게 되면서 시험이 깨졌다. 규칙은
+    «선언된 것만» 이지 «이 이름» 이 아니다. 매니페스트에서 골라 쓴다.
+    """
+    program = Registry().require("naver-blog")
+    글자설정 = next(s for s in program.settings if s.type in ("text", "select"))
+
     client.post("/apps/naver-blog/admin/settings",
-                data={"CLAUDE_MODEL": "claude-opus-5", "없는키": "x"},
+                data={글자설정.key: "시험값", "없는키": "x"},
                 follow_redirects=False)
     stored = client.app.state.db.get_program_settings("naver-blog")
-    assert stored.get("CLAUDE_MODEL") == "claude-opus-5"
+    assert stored.get(글자설정.key) == "시험값"
     assert "없는키" not in stored, "매니페스트에 없는 값은 저장하지 않는다"
 
 

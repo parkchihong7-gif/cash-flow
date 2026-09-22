@@ -29,20 +29,39 @@
   {# 본체가 밖에 있는 판. 고객이 들어가는 곳은 [클라이언트 모드] 와 **같은 주소**라,
      따로 '고객이 들어오는 문' 을 두면 중복이면서 안 열리는 버튼이 된다.
      그 자리에는 정작 없던 것 — 키를 만드는 곳 — 을 놓는다. #}
+  {% if program.live.one_door %}
+  {# 주소가 하나고 **넣는 키로** 갈리는 프로그램. 버튼을 둘로 두면 똑같은 것이
+     두 개 있는 셈이라, 누른 사람이 «왜 같은 화면이지» 하게 된다. #}
+  <a class="btn primary" href="{{ program.live.admin }}"
+     target="_blank" rel="noopener">프로그램 열기 ↗</a>
+  {% else %}
   <a class="btn primary" href="{{ program.live.admin or program.live.client }}"
      target="_blank" rel="noopener">관리자 모드 ↗</a>
   <a class="btn" href="{{ program.live.client or program.live.admin }}"
      target="_blank" rel="noopener">클라이언트 모드 ↗</a>
+  {% endif %}
+  {% if not program.live.one_door %}
+  {# 우리 키 서버(앱스 스크립트)로 키를 만드는 프로그램에만 낸다.
+     주소가 하나인 프로그램은 **자기 안에** 코드 발급 화면을 갖고 있어서,
+     여기에 또 두면 «어느 쪽에서 만들어야 하지» 가 된다. #}
   <a class="btn" href="{{ keyserver_url() }}" target="_blank" rel="noopener"
      title="접속키 관리자입니다. 여기서 키를 만들어 메일로 보냅니다.">
     🔑 접속키 발급하기 ↗</a>
+  {% endif %}
   <span class="help">
+    {% if program.live.one_door %}
+    <strong>관리자와 고객이 같은 주소로 들어갑니다.</strong>
+    무엇을 넣느냐로 갈립니다 — <strong>마스터 토큰</strong>이면 관리 화면까지 보이고,
+    <strong>고객 접속 코드</strong>면 그 칸이 자동으로 숨겨집니다.<br>
+    그래서 고객에게는 <strong>이 주소 그대로</strong> 보내시고 코드만 따로 드리면 됩니다.
+    {% else %}
     앞의 둘은 <strong>내가 보는 화면</strong>입니다. 본체는 밖에서 돌기 때문에
     집 컴퓨터가 꺼져 있어도 열립니다.<br>
     <strong>고객에게 보낼 주소는 [클라이언트 모드] 와 같은 주소</strong>이고,
     그 주소를 여는 <strong>접속키</strong>는 세 번째 [🔑 접속키 발급하기] 에서
     만들어 메일로 보내 드립니다.
-    {% if program.live.note %}<br><span class="muted">{{ program.live.note }}</span>{% endif %}
+    {% endif %}
+    {% if program.live.note %}<br><span class="muted">{{ program.live.note | md }}</span>{% endif %}
   </span>
 
   {% else %}
