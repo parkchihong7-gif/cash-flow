@@ -304,8 +304,7 @@ def test_설정이_잘못되면_화면_맨_위에서_말한다(client, monkeypat
     # 1번 — 주소로 관리자·고객을 가른다
     ("exam-drill", "admin", "gongin-jungsagsa-exam/?admin=1"),
     ("exam-drill", "client", "gongin-jungsagsa-exam/"),
-    # 3번 — 주소가 하나이고 넣는 키로 갈린다
-    ("naver-blog", "admin", "maim-1048530680370"),
+    # 3번 — 체험만 우리 주소를 연다. 산 분 쪽은 아래 시험이 따로 본다
     ("naver-blog", "client", "maim-1048530680370"),
 ])
 def test_안내문에_그_프로그램을_여는_주소가_간다(client, program_id, role, 와야할것):
@@ -320,6 +319,25 @@ def test_안내문에_그_프로그램을_여는_주소가_간다(client, progra
     글 = 칸.group(1)
     assert 와야할것 in 글, f"{program_id}/{role} 안내문에 프로그램 주소가 없습니다"
     assert "/c/" not in 글, "바깥에서 도는 프로그램인데 대시보드 문 주소가 갔습니다"
+
+
+def test_자기_서버에_세우는_상품은_안내문에_주소가_없다(client):
+    """**주소가 안 가는 것이 정답인 경우가 있다.**
+
+    3번을 산 분은 자기 서버에 직접 세운다. 그 안내문에 우리 주소를 적으면
+    그분 고객이 쓴 글이 전부 우리 서버로 들어온다. 그러면 "사장님 데이터는
+    사장님 것" 이라는 말이 거짓이 된다.
+
+    주소를 비우는 것만으로는 모자란다. 빈 자리가 그대로 보이면 받는 분은
+    무엇을 할지 모르신다. **설치 안내서가 그 자리를 채워야 한다.**
+    """
+    body = _issue(client, role="admin", program_id="naver-blog").text
+    칸 = re.search(r'<textarea id="issued-text"[^>]*>(.*?)</textarea>', body, re.S)
+    글 = 칸.group(1)
+    assert "maim-1048530680370" not in 글, "산 분 안내문에 우리 주소가 들어갔습니다"
+    assert "/c/" not in 글, "대시보드 문 주소로 메워졌습니다"
+    assert "설치 안내서" in 글, "주소를 뺐으면 그 자리에 무엇을 할지가 와야 합니다"
+    assert "(서비스 주소)" not in 글, "빈 주소 자리가 그대로 보입니다"
 
 
 def test_바깥에_없는_프로그램은_대시보드_문으로(client):

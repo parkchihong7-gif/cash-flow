@@ -1,7 +1,19 @@
-"""3번 — 본체가 maim(Cloud Run)이라는 것이 화면에 맞게 반영돼 있는가.
+"""3번 — **자기 서버에 세워 쓰는 상품**이라는 것이 화면·안내문·매뉴얼에
+빠짐없이 반영돼 있는가.
 
-1번(공인중개사)과 **가르는 방식이 다르다.** 1번은 주소로 갈리고(`?admin=1`),
-3번은 **넣는 키로** 갈린다 — 주소가 하나다. 그 차이를 화면이 말해야 한다.
+한동안은 주소가 하나였다. 관리자도 고객도 우리 maim 으로 들어오고 넣는
+키로만 갈렸다. **그것을 뒤집었다.** 그 구조에서는 산 분의 고객이 쓴 글이
+전부 우리 서버에 쌓인다 — 팔아 놓고 데이터는 우리가 들고 있는 꼴이라
+팔 수가 없다.
+
+지금은 이렇게 갈린다.
+
+    판매(관리자)  주소가 **안 나간다.** 설치 안내서가 대신 간다.
+                  그분이 자기 Cloud Run 에 세우고, 글은 그분 자리에 쌓인다
+    체험(고객용)  **우리 주소.** 기간을 둔 맛보기다. 기간이 끝나거나
+                  중간에 끊으면 그분이 남긴 것은 우리 서버에서 지워진다
+
+이 파일은 그 뒤집힘이 어느 한 군데서 되돌아가지 않도록 지킨다.
 """
 
 from __future__ import annotations
@@ -18,18 +30,53 @@ def _p():
 def test_it_points_at_maim():
     program = _p()
     assert program.live.elsewhere, "본체가 밖에 있다고 표시되어야 한다"
-    assert "maim" in program.live.admin
-    assert program.live.admin.startswith("https://"), "키를 넣는 화면이다. http 는 안 된다"
+    assert "maim" in program.live.client, "체험이 여는 곳은 우리 maim 이다"
+    assert program.live.client.startswith("https://"), "키를 넣는 화면이다. http 는 안 된다"
 
 
-def test_one_address_two_roles():
-    """관리자와 고객이 **같은 주소**로 들어간다.
+def test_the_buyer_gets_no_address():
+    """**산 분에게 우리 주소를 보내지 않는다.**
 
-    주소로 가르지 않고 **넣는 키로** 가른다. 1번의 `?admin=1` 과 다르다.
+    이 한 줄이 이 상품의 전부다. 여기에 주소가 들어가는 순간 산 분의
+    고객이 쓴 글이 전부 우리 서버로 들어오고, 그러면 "사장님 데이터는
+    사장님 것" 이라는 말이 거짓이 된다.
     """
     program = _p()
-    assert program.live.one_door, "주소가 하나여야 한다"
-    assert program.live.admin == program.live.client
+    assert program.live.self_hosted, "자기 서버에 세워 쓰는 상품이어야 한다"
+    assert program.live.admin == "", (
+        "산 분에게 나갈 주소가 적혀 있습니다. 비워 두어야 설치 안내서가 대신 갑니다")
+    # 빈 값이 door(대시보드 안의 흉내 화면)로 슬쩍 메워지면 안 된다.
+    assert program.entrance(for_admin=True, door="https://dash.example/p/naver-blog") == ""
+    assert program.entrance(for_admin=False, door="https://dash.example/p/naver-blog") \
+        == program.live.client
+
+
+def test_the_buyer_mail_sends_the_install_guide_instead():
+    """주소가 없는 자리에 **무엇이 대신 가는지**까지 지킨다.
+
+    주소만 비워 두고 안내문이 «(서비스 주소)» 같은 빈 자리를 보이면,
+    받는 분은 무엇을 해야 할지 모른 채 문의부터 하신다.
+    """
+    from core.keyauth import IssuedSet, ROLE_ADMIN, ROLE_CLIENT
+    from core.keymail import mail_html
+
+    program = _p()
+    산분 = IssuedSet(holder_name="박사장", holder_email="a@b.c", primary="AAAA-BBBB",
+                    secondary={"PC": "P1"}, role=ROLE_ADMIN,
+                    service_url=program.entrance(for_admin=True))
+    글 = 산분.mail_body(program.name)
+    assert "설치 안내서" in 글
+    assert "(서비스 주소)" not in 글, "빈 주소 자리가 그대로 보입니다"
+    assert "run.app" not in 글, "산 분 안내문에 우리 주소가 들어갔습니다"
+
+    꾸민판 = mail_html(program_name=program.name, issued=산분, note=글, manual="")
+    assert "프로그램 열기" not in 꾸민판, "누를 수 없는 버튼을 내고 있습니다"
+    assert "먼저 설치가 필요합니다" in 꾸민판
+
+    체험 = IssuedSet(holder_name="김체험", holder_email="a@b.c", primary="CCCC-DDDD",
+                    secondary={"PC": "P2"}, role=ROLE_CLIENT,
+                    service_url=program.entrance(for_admin=False))
+    assert program.live.client in 체험.mail_body(program.name), "체험에는 주소가 가야 한다"
 
 
 def test_keys_come_from_one_ledger():
@@ -58,7 +105,7 @@ def test_the_manual_says_where_keys_come_from():
     """매뉴얼도 같은 말을 해야 한다. 화면과 문서가 다르면 문서가 진다."""
     program = _p()
     글 = program.resolve(program.manuals.admin).read_text(encoding="utf-8")
-    assert "자기 접속 코드를 만들지 않습니다" in 글
+    assert "라이선스" in 글, "받은 키가 무엇에 쓰이는지 안 적혀 있습니다"
     assert "KEYSERVER_URL" in 글, "설정이 빠졌을 때 무엇을 할지 안 적혀 있습니다"
 
 
@@ -111,8 +158,8 @@ def test_hidden_panel_is_explained_as_normal():
     assert "안 보인다" in 고침 and "정상" in 고침
 
 
-@pytest.mark.parametrize("pid,하나냐", [("naver-blog", True), ("exam-drill", False)])
-def test_the_screen_matches_how_the_program_splits(pid, 하나냐):
+@pytest.mark.parametrize("pid,자기서버냐", [("naver-blog", True), ("exam-drill", False)])
+def test_the_screen_matches_how_the_program_splits(pid, 자기서버냐):
     """프로그램마다 가르는 방식이 다르다. 버튼이 그것을 따라야 한다."""
     from core import auth
     from fastapi.testclient import TestClient
@@ -123,12 +170,17 @@ def test_the_screen_matches_how_the_program_splits(pid, 하나냐):
     client.cookies.set(auth.COOKIE_NAME, auth.issue_token())
     body = client.get(f"/programs/{pid}", follow_redirects=True).text
 
-    if 하나냐:
-        assert "프로그램 열기 ↗" in body
-        assert "관리자 모드 ↗" not in body, "주소가 하나인데 버튼이 둘이면 헷갈린다"
+    if 자기서버냐:
+        # 이 주소를 [관리자 모드] 라고 내면, 그걸 눌러 본 뒤 그대로 산 분께
+        # 보내게 된다. 이름이 곧 안전장치다.
+        assert "체험 화면 열기 ↗" in body
+        assert "관리자 모드 ↗" not in body, (
+            "산 분에게는 열 주소가 없다. 우리 주소를 [관리자 모드] 로 내면 안 된다")
+        assert "파실 때 보내는 주소가 아닙니다" in body, (
+            "이 주소가 체험용이라는 말이 화면에 없으면, 판매 키에 이 주소를 넣게 된다")
         assert "접속키 발급하기 ↗" not in body, (
-            "주소가 하나인 프로그램이다. 키는 이 대시보드의 [접속키] 탭에서 "
-            "만들므로, 바깥 화면으로 보내는 버튼을 또 두면 헷갈린다"
+            "키는 이 대시보드의 [접속키] 탭에서 만든다. 바깥으로 보내는 버튼을 "
+            "또 두면 «어느 쪽에서 만들지» 가 된다"
         )
     else:
         assert "관리자 모드 ↗" in body and "클라이언트 모드 ↗" in body

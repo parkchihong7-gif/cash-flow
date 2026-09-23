@@ -466,9 +466,63 @@ def test_client_manual_covers_the_essentials(program_id):
     """구매자가 반드시 알아야 할 것이 빠지면 문의가 들어온다."""
     program = Registry().require(program_id)
     text = program.resolve(program.manuals.client).read_text(encoding="utf-8")
-    # 구매자용 문서에서는 대시보드를 '관리 화면' 으로 부른다. 용어를 통일한다.
-    for topic in ["비용", "API", "초안", "관리 화면"]:
+    if program.live and program.live.self_hosted:
+        # **자기 서버에 세워 쓰는 상품**은 고객용 키의 뜻이 다르다. 그 키는
+        # 기간을 둔 체험이고, 기간이 끝나면 남긴 것이 지워진다. 그 두 가지를
+        # 안 적고 지우면 분쟁이 된다. API 키·콘솔은 산 분이 만지는 것이라
+        # 여기 있으면 안 된다 — 아래 시험이 그것을 따로 막는다.
+        필수 = ["비용", "초안", "기간", "지워집니다"]
+    else:
+        # 구매자용 문서에서는 대시보드를 '관리 화면' 으로 부른다. 용어를 통일한다.
+        필수 = ["비용", "API", "초안", "관리 화면"]
+    for topic in 필수:
         assert topic in text, f"{program_id} 클라이언트 매뉴얼에 '{topic}' 안내가 없습니다"
+
+
+@pytest.mark.parametrize("program_id", ["funnel-builder", "hook-script", "ebook-gen",
+                                       "lecture-deck", "kmong-copy", "n8n-gen",
+                                       "groupbuy-ledger", "income-sim",
+                                       "notion-template-kit", "affiliate-matcher",
+                                       "agency-kit", "niche-research", "exam-drill", "senior-video", "naver-blog", "speaker-desk"])
+def test_self_hosted_client_manual_has_no_install_steps(program_id):
+    """**쓰는 분에게 설치 절차를 보내지 않는다.**
+
+    자기 서버에 세워 쓰는 상품에서 설치는 **산 분**이 하는 일이다. 고객용
+    매뉴얼에 `claude login` 이나 콘솔 절차가 섞이면, 쓰기만 하면 되는 분이
+    자기 것도 아닌 서버를 건드리려 든다. 한 번 섞여 들어가면 눈으로는 잘
+    안 보여서, 여기서 막는다.
+    """
+    program = Registry().require(program_id)
+    if not (program.live and program.live.self_hosted):
+        pytest.skip("자기 서버형이 아닙니다")
+    text = program.resolve(program.manuals.client).read_text(encoding="utf-8")
+    금지 = ["claude login", "gcloud", "Cloud Shell", "Cloud Run", "Cloud Scheduler",
+            "API 키", "환경변수", "console.cloud.google.com"]
+    샌것 = [말 for 말 in 금지 if 말.lower() in text.lower()]
+    assert 샌것 == [], (
+        f"{program_id} 고객용 매뉴얼에 설치 절차가 섞였습니다: {샌것}. "
+        "설치는 산 분의 몫이라 admin 매뉴얼로 옮겨 주세요")
+
+
+@pytest.mark.parametrize("program_id", ["funnel-builder", "hook-script", "ebook-gen",
+                                       "lecture-deck", "kmong-copy", "n8n-gen",
+                                       "groupbuy-ledger", "income-sim",
+                                       "notion-template-kit", "affiliate-matcher",
+                                       "agency-kit", "niche-research", "exam-drill", "senior-video", "naver-blog", "speaker-desk"])
+def test_self_hosted_admin_manual_actually_installs(program_id):
+    """**산 분에게는 설치가 전부다.**
+
+    자기 서버에 세워 쓰는 상품인데 안내서에 세우는 법이 없으면, 산 분은
+    받아 놓고 아무것도 못 한다. 자동 실행(Scheduler)을 특히 못 박는다 —
+    그것만 빠지면 프로그램은 멀쩡한데 아침에 아무 일도 안 일어나서,
+    무엇이 잘못됐는지 알 길이 없다.
+    """
+    program = Registry().require(program_id)
+    if not (program.live and program.live.self_hosted):
+        pytest.skip("자기 서버형이 아닙니다")
+    text = program.resolve(program.manuals.admin).read_text(encoding="utf-8")
+    for 말 in ["claude login", "gcloud run deploy", "Cloud Scheduler", "--update-env-vars"]:
+        assert 말 in text, f"{program_id} 산 분 매뉴얼에 '{말}' 안내가 없습니다"
 
 
 @pytest.mark.parametrize("program_id", ["funnel-builder", "hook-script", "ebook-gen",

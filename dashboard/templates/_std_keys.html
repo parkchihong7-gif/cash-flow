@@ -53,6 +53,17 @@
   <h3>사람에게 키 주기</h3>
   <p class="muted">이름과 이메일만 넣으면 <strong>1차키 1개 + 2차키 3개</strong>를 한 번에 만들고, 그대로 보낼 안내문까지 만듭니다.</p>
   {% if not through_door %}
+  {% if program.live and program.live.self_hosted %}
+  {# 자기 서버에 세워 쓰는 상품. 두 키의 뜻이 아주 다르다. #}
+  <p class="help">
+    <strong>판매</strong> — 이 상품을 사신 분입니다. <strong>주소가 나가지 않습니다.</strong>
+    대신 설치 안내서가 갑니다. 그분이 <strong>자기 서버에 직접 세우고</strong>, 그 뒤로는
+    글도 설정도 전부 그분 자리에 쌓입니다. 유효기간은 비워 두십시오.<br>
+    <strong>체험</strong> — 사시기 전에 <strong>맛만 보실 분</strong>입니다. 우리 서버가
+    열리고, 하루 3건까지 만들어 보실 수 있습니다.
+    <b>기간이 끝나면 그분이 남긴 글·카테고리는 우리 서버에서 지워집니다.</b>
+  </p>
+  {% else %}
   <p class="help">
     <strong>판매</strong> 키를 받으신 분은 <strong>관리자 화면</strong>이 열리고,
     그 안에서 <strong>자기 고객에게 줄 키를 직접 발급</strong>하실 수 있습니다.
@@ -60,22 +71,50 @@
     <strong>고객용</strong> 키는 쓰는 화면만 열립니다. 제가 직접 한 분께 드릴 때 씁니다.
   </p>
   {% endif %}
+  {% endif %}
   <form method="post" action="{% if through_door %}{{ door_base }}/keys/issue{% else %}/apps/{{ program.id }}/admin/keys/issue{% endif %}" class="rowform">
     {% if not through_door %}
     {# 파는 키인지 쓰는 키인지. 이걸 안 고르면 산 사람이 자기 고객에게
        키를 줄 수가 없다. #}
     <label><span class="ltext">무슨 키</span>
-      <select name="role">
+      <select name="role" id="keyrole">
+        {% if program.live and program.live.self_hosted %}
+        <option value="admin">판매 — 자기 서버에 세워 쓰실 분 (설치 안내서)</option>
+        <option value="client">체험 — 기간을 두고 맛보실 분 (우리 서버)</option>
+        {% else %}
         <option value="admin">판매 — 이 프로그램을 산 분 (관리자)</option>
         <option value="client">고객용 — 내가 직접 쓰게 할 분</option>
+        {% endif %}
       </select>
     </label>
     {% endif %}
     <label><span class="ltext">이름</span> <input type="text" name="name" required placeholder="홍길동"></label>
     <label><span class="ltext">이메일</span> <input type="email" name="email" required placeholder="hong@example.com"></label>
-    <label><span class="ltext">유효기간</span> <input type="number" name="expires_days" min="0" placeholder="비우면 무제한 (일)"></label>
+    <label><span class="ltext">유효기간</span> <input type="number" name="expires_days" id="keydays" min="0" placeholder="비우면 무제한 (일)"></label>
     <button class="btn primary" type="submit">발급하고 안내문 만들기</button>
   </form>
+  {% if program.live and program.live.self_hosted %}
+  {# 체험을 고르면 기간을 1일로 채워 둔다. **비워 둔 채 체험 키를 내주면
+     무제한이 되어** 우리 서버에 남의 글이 영영 쌓인다. 사람이 매번
+     기억하게 두지 않는다. #}
+  <script>
+  (function () {
+    var 고르개 = document.getElementById('keyrole'), 날짜 = document.getElementById('keydays');
+    if (!고르개 || !날짜) return;
+    function 맞추기() {
+      if (고르개.value === 'client') {
+        if (!날짜.value) 날짜.value = '1';
+        날짜.placeholder = '체험 기간 (일)';
+      } else {
+        if (날짜.value === '1') 날짜.value = '';
+        날짜.placeholder = '비우면 무제한 (일)';
+      }
+    }
+    고르개.addEventListener('change', 맞추기);
+    맞추기();
+  })();
+  </script>
+  {% endif %}
 
   {% if mail_sent %}
   <div class="note ok"><strong>보냈습니다</strong>

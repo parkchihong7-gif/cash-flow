@@ -220,6 +220,18 @@ def mail_html(*, program_name: str, issued: IssuedSet, note: str,
             f'style="display:inline-block;background:{_강조};color:#ffffff;'
             'font-size:15px;font-weight:700;text-decoration:none;'
             'padding:12px 24px;border-radius:10px;">프로그램 열기 →</a></div>')
+    elif issued.for_admin:
+        # **누를 버튼이 없는 것이 맞다.** 자기 서버에 세워 쓰는 상품이라,
+        # 이 분이 설치를 마치기 전에는 열 주소가 세상에 없다. 여기에
+        # 우리 주소를 넣으면 그분 고객의 글이 우리 서버에 쌓인다.
+        조각.append(
+            f'<div style="margin:0 0 22px;padding:14px 16px;border-radius:10px;'
+            f'background:{_연강조};border:1px solid {_선};">'
+            f'<div style="{_ㄱ}font-size:13px;font-weight:700;color:{_강조};'
+            'margin:0 0 4px;">먼저 설치가 필요합니다</div>'
+            f'<div style="{_ㄱ}font-size:13px;line-height:1.7;color:{_흐린먹};">'
+            '아래 <b>설치 안내서</b>를 따라 사장님 서버에 한 번만 세우시면 됩니다. '
+            '설치를 마치면 그 주소가 사장님 프로그램 주소가 됩니다.</div></div>')
 
     if manual:
         이름 = "관리자 매뉴얼" if issued.for_admin else "사용 설명서"

@@ -299,6 +299,10 @@ class LiveSite(BaseModel):
     admin: str = Field(default="", description="관리자 모드 주소 (https://…)")
     client: str = Field(default="", description="클라이언트 모드 주소")
     note: str = Field(default="", description="화면에 함께 보일 한 줄")
+    self_hosted: bool = Field(
+        default=False,
+        description="산 분은 자기 서버에 직접 세운다 — 안내문에 주소 대신 설치 안내서를 넣는다",
+    )
 
     @field_validator("admin", "client")
     @classmethod
@@ -388,23 +392,23 @@ class ProgramManifest(BaseModel):
         return self.schedule.recurring
 
     def entrance(self, *, for_admin: bool, door: str = "") -> str:
-        """접속 안내문에 적을 주소.
+        """접속 안내문에 적을 주소. 그 프로그램을 실제로 여는 곳이어야 한다.
 
-        **그 프로그램을 실제로 여는 곳**이어야 한다. 한 번 데였다 — 어느
-        프로그램의 키든 늘 대시보드 문 주소를 적어 보냈다. 3번을 산 분이
-        그 주소로 들어가면 네이버 블로그 초안 생성기가 아니라 대시보드
-        기록 화면을 보게 된다.
+        **산 분에게는 빈 값이 정답일 때가 있다.** 이 프로그램을 산 분은
+        자기 서버에 직접 세운다(`live.self_hosted`). 그런 분께 우리 주소를
+        보내면, 그분 고객의 글이 전부 **우리 서버에** 쌓인다. 팔아 놓고
+        데이터는 우리가 들고 있는 꼴이라 팔 수가 없다.
 
-        바깥에서 도는 프로그램이면 그 프로그램의 주소를, 아니면 대시보드가
-        내주는 문(`door`)을 준다.
-
-        :param for_admin: 파는 키(관리자)인가, 쓰는 키(고객)인가.
-        :param door: 바깥 주소가 없을 때 쓸 대시보드 문 주소.
+        빈 값이 오면 안내문은 주소 대신 설치 안내서를 가리킨다.
         """
         if self.live:
+            if for_admin and self.live.self_hosted:
+                return ""
             바깥 = self.live.door_for(for_admin)
             if 바깥:
                 return 바깥
+            # 산 분 쪽이 self_hosted 가 아닌데도 주소가 비어 있으면
+            # 아래 door 로 떨어진다. 그건 대시보드 안의 흉내 화면이다.
         return door
 
     @property

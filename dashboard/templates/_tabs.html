@@ -29,7 +29,13 @@
   {# 본체가 밖에 있는 판. 고객이 들어가는 곳은 [클라이언트 모드] 와 **같은 주소**라,
      따로 '고객이 들어오는 문' 을 두면 중복이면서 안 열리는 버튼이 된다.
      그 자리에는 정작 없던 것 — 키를 만드는 곳 — 을 놓는다. #}
-  {% if program.live.one_door %}
+  {% if program.live.self_hosted %}
+  {# **산 분에게는 열 주소가 없다.** 그분이 자기 서버에 세우고 나서야 생긴다.
+     여기 있는 주소는 우리 것이고, 기간을 둔 체험만 여는 자리다. 이걸
+     [관리자 모드] 라고 내면 산 분에게 우리 주소를 보내게 된다. #}
+  <a class="btn primary" href="{{ program.live.client }}"
+     target="_blank" rel="noopener">체험 화면 열기 ↗</a>
+  {% elif program.live.one_door %}
   {# 주소가 하나고 **넣는 키로** 갈리는 프로그램. 버튼을 둘로 두면 똑같은 것이
      두 개 있는 셈이라, 누른 사람이 «왜 같은 화면이지» 하게 된다. #}
   <a class="btn primary" href="{{ program.live.admin }}"
@@ -40,7 +46,7 @@
   <a class="btn" href="{{ program.live.client or program.live.admin }}"
      target="_blank" rel="noopener">클라이언트 모드 ↗</a>
   {% endif %}
-  {% if not program.live.one_door %}
+  {% if not (program.live.one_door or program.live.self_hosted) %}
   {# 우리 키 서버(앱스 스크립트)로 키를 만드는 프로그램에만 낸다.
      주소가 하나인 프로그램은 **자기 안에** 코드 발급 화면을 갖고 있어서,
      여기에 또 두면 «어느 쪽에서 만들어야 하지» 가 된다. #}
@@ -49,7 +55,14 @@
     🔑 접속키 발급하기 ↗</a>
   {% endif %}
   <span class="help">
-    {% if program.live.one_door %}
+    {% if program.live.self_hosted %}
+    <strong>이 주소는 체험용입니다 — 파실 때 보내는 주소가 아닙니다.</strong>
+    사신 분은 <strong>자기 서버에 직접 세우고</strong>, 그 뒤로는 글도 설정도
+    그분 자리에 쌓입니다. 그래서 <strong>판매 키에는 주소가 나가지 않고</strong>
+    설치 안내서가 대신 갑니다.<br>
+    여기 주소를 여는 것은 <strong>체험 키</strong>뿐이고, 기간이 끝나면
+    그분이 남긴 글·카테고리는 <strong>이 서버에서 지워집니다.</strong>
+    {% elif program.live.one_door %}
     <strong>관리자와 고객이 같은 주소로 들어갑니다.</strong>
     무엇을 넣느냐로 갈립니다 — <strong>마스터 토큰</strong>이면 관리 화면까지 보이고,
     <strong>고객 접속 코드</strong>면 그 칸이 자동으로 숨겨집니다.<br>
