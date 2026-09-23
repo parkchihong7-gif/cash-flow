@@ -56,34 +56,34 @@
   {% if program.live and program.live.self_hosted %}
   {# 자기 서버에 세워 쓰는 상품. 두 키의 뜻이 아주 다르다. #}
   <p class="help">
-    <strong>판매</strong> — 이 상품을 사신 분입니다. <strong>주소가 나가지 않습니다.</strong>
+    <strong>판매용</strong> — 이 상품을 사신 분입니다. <strong>주소가 나가지 않습니다.</strong>
     대신 설치 안내서가 갑니다. 그분이 <strong>자기 서버에 직접 세우고</strong>, 그 뒤로는
     글도 설정도 전부 그분 자리에 쌓입니다. 유효기간은 비워 두십시오.<br>
-    <strong>체험</strong> — 사시기 전에 <strong>맛만 보실 분</strong>입니다. 우리 서버가
+    <strong>체험용</strong> — 사시기 전에 <strong>맛만 보실 분</strong>입니다. 우리 서버가
     열리고, 하루 3건까지 만들어 보실 수 있습니다.
     <b>기간이 끝나면 그분이 남긴 글·카테고리는 우리 서버에서 지워집니다.</b>
   </p>
   {% else %}
   <p class="help">
-    <strong>판매</strong> 키를 받으신 분은 <strong>관리자 화면</strong>이 열리고,
-    그 안에서 <strong>자기 고객에게 줄 키를 직접 발급</strong>하실 수 있습니다.
-    학원에 파시면 학원장이 수강생 키를 직접 만드는 식입니다.<br>
-    <strong>고객용</strong> 키는 쓰는 화면만 열립니다. 제가 직접 한 분께 드릴 때 씁니다.
+    <strong>판매용</strong> — 돈 주고 사신 분입니다. 받은 키로 프로그램 전부를
+    쓰십니다.<br>
+    <strong>체험용</strong> — 사시기 전에 <strong>맛만 보실 분</strong>입니다.
+    기간을 두고 드리고, 기간이 끝나면 닫힙니다.
   </p>
   {% endif %}
   {% endif %}
   <form method="post" action="{% if through_door %}{{ door_base }}/keys/issue{% else %}/apps/{{ program.id }}/admin/keys/issue{% endif %}" class="rowform">
     {% if not through_door %}
-    {# 파는 키인지 쓰는 키인지. 이걸 안 고르면 산 사람이 자기 고객에게
-       키를 줄 수가 없다. #}
+    {# 돈 주고 사신 분인지, 맛보러 오신 분인지. 둘뿐이다 — 모든 프로그램이
+       이 두 가지로만 갈린다. #}
     <label><span class="ltext">무슨 키</span>
       <select name="role" id="keyrole">
         {% if program.live and program.live.self_hosted %}
-        <option value="admin">판매 — 자기 서버에 세워 쓰실 분 (설치 안내서)</option>
-        <option value="client">체험 — 기간을 두고 맛보실 분 (우리 서버)</option>
+        <option value="admin">판매용 — 자기 서버에 세워 쓰실 분 (설치 안내서)</option>
+        <option value="client">체험용 — 기간을 두고 맛보실 분 (우리 서버)</option>
         {% else %}
-        <option value="admin">판매 — 이 프로그램을 산 분 (관리자)</option>
-        <option value="client">고객용 — 내가 직접 쓰게 할 분</option>
+        <option value="admin">판매용 — 돈 주고 사신 분</option>
+        <option value="client">체험용 — 기간을 두고 맛보실 분</option>
         {% endif %}
       </select>
     </label>
@@ -230,7 +230,7 @@
       <td><code>{{ k.code }}</code></td>
       {% if key_tab == 'secondary' %}<td>{{ k.device }}</td>{% endif %}
       {% if not through_door %}
-      <td><span class="badge {{ 'sold' if k.is_admin else '' }}">{{ '판매' if k.is_admin else '고객용' }}</span>
+      <td><span class="badge {{ 'sold' if k.is_admin else '' }}">{{ '판매용' if k.is_admin else '체험용' }}</span>
         {% if not k.mine %}<div class="muted">산 분이 발급</div>{% endif %}</td>
       {% endif %}
       <td>{{ k.holder_name or '—' }}<div class="muted">{{ k.holder_email }}</div></td>

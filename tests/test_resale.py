@@ -216,7 +216,12 @@ def test_내_화면에는_판_것과_그_아래가_모두_보인다(shop, two_ac
 
     for name in ("학원A원장", "학원B원장", "A수강생", "B수강생"):
         assert name in body, f"{name} 이 내 화면에 없다"
-    assert "판매" in body and "고객용" in body, "무슨 키인지 갈라 보여야 한다"
+    # 이름표는 `ROLE_LABEL` 한 곳에서만 정한다. 여기에 글자를 박아 두면,
+    # 이름을 고칠 때 화면은 바뀌었는데 시험만 옛 이름을 지키게 된다.
+    from core.keyauth import ROLE_ADMIN, ROLE_CLIENT, ROLE_LABEL
+
+    assert ROLE_LABEL[ROLE_ADMIN] in body and ROLE_LABEL[ROLE_CLIENT] in body, \
+        "무슨 키인지 갈라 보여야 한다"
 
 
 def test_무엇이_판_키이고_무엇이_고객_키인지_센다(shop, two_academies):

@@ -65,7 +65,12 @@ def test_the_notice_keeps_the_shape_we_agreed():
     글 = s.mail_body("네이버 블로그 초안 생성기")
     assert s.mail_subject("네이버 블로그 초안 생성기") == "[네이버 블로그 초안 생성기] 접속 안내"
     assert 글.startswith("박치홍님, 아래 링크로 접속하시면 1차, 2차 인증 후 이용 가능합니다.")
-    assert "관리자 화면이 열리며" in 글, "관리자에게는 이 한 줄이 더 붙는다"
+    # 예전에는 여기에 «관리자 화면이 열리며, 고객께 드릴 키를 직접 발급하실 수
+    # 있습니다» 가 붙었다. 산 분을 되파는 사람으로 본 것인데, 이 상품들을
+    # 사시는 분은 되팔려고 사는 게 아니라 **자기 일에 쓰려고** 사신다.
+    # 안 쓰실 기능을 안내문에 적으면 그것부터 찾으신다.
+    assert "고객께 드릴 키" not in 글, "되파는 사람 취급을 하고 있습니다"
+    assert "관리자 화면이 열리며" not in 글
     assert "* 1차 인증키 : J85K-6KE8-W8UB" in 글
     assert "* 2차 인증키" in 글
     assert "- PC : AAAA-BBBB-CCCC" in 글
@@ -74,11 +79,25 @@ def test_the_notice_keeps_the_shape_we_agreed():
 
 
 def test_a_client_notice_drops_the_admin_line():
-    """고객에게 «관리자 화면이 열립니다» 를 보내면 안 된다. 안 열린다."""
+    """체험으로 오신 분께 «관리자 화면이 열립니다» 를 보내면 안 된다. 안 열린다."""
     s = IssuedSet(holder_name="김고객", holder_email="a@b.example",
                   primary="X", secondary={"PC": "Y"},
                   service_url="https://example.test/", role="client")
     assert "관리자 화면이 열리며" not in s.mail_body("아무거나")
+
+
+def test_두_가지뿐이다():
+    """**판매용과 체험용, 둘뿐이다.**
+
+    한동안 산 분을 «관리자» 라 부르고 그 아래 «고객» 을 두었다. 되파는
+    구조를 전제한 이름인데, 이 상품들은 그렇게 팔지 않는다. 이름이
+    흔들리면 화면마다 다른 말이 나가고, 받는 분이 자기가 무엇을 산
+    것인지 헷갈리신다.
+    """
+    from core.keyauth import ROLE_ADMIN, ROLE_CLIENT, ROLE_LABEL
+
+    assert ROLE_LABEL == {ROLE_ADMIN: "판매용", ROLE_CLIENT: "체험용"}, (
+        "이름표는 여기 하나로만 정한다")
 
 
 @pytest.mark.parametrize("role,와야할것,오면안될것", [
