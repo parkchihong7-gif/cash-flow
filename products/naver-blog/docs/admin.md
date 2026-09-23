@@ -80,14 +80,18 @@ Claude 가 글·이미지 준비  →  화면에 카드로 쌓임  →  사람�
 
 #### ②는 **셋 중 하나만** 있으면 됩니다
 
-| 어느 AI | 무엇이 필요한가 |
-|---|---|
-| **Gemini** (Google) | **①의 구글 계정 그대로.** 하루 1,000건 무료 · 분당 60건 |
-| **Claude** (Anthropic) | Claude Pro 또는 Max 구독 |
-| **Codex** (OpenAI) | ChatGPT Plus 이상 구독 |
+| 어느 AI | 무엇이 필요한가 | 설치가 어떻게 되나 |
+|---|---|---|
+| **Gemini** (Google) | **①의 구글 계정 그대로.** AI 스튜디오에서 **키 한 줄**을 받습니다. 무료 등급이 있어 카드 등록 없이 시작하실 수 있습니다 | **검은 창이 필요 없습니다.** 화면 칸에 키를 붙여넣고 [저장] |
+| **Claude** (Anthropic) | Claude Pro 또는 Max 구독 | 검은 창에서 네 줄 (3-4 참고) |
+| **Codex** (OpenAI) | ChatGPT Plus 이상 구독 | 검은 창에서 네 줄 (3-4 참고) |
 
-> **이미 쓰시는 것이 있으면 그것을 쓰십시오.** 없으시면 **Gemini** 를
-> 고르시면 됩니다 — ①에서 만드신 구글 계정으로 그냥 되고, **돈이 안 듭니다.**
+> **이미 쓰시는 것이 있으면 그것을 쓰십시오.** 없으시면 **Gemini** 가
+> 제일 쉽습니다 — ①에서 만드신 구글 계정으로 키를 받아 화면에 붙여넣기만
+> 하면 되고, 검은 창을 안 거칩니다.
+>
+> 하루 몇 건까지 무료인지는 구글이 수시로 바꿉니다. 지금 값은
+> https://ai.google.dev/gemini-api/docs/rate-limits 에서 보십시오.
 
 ### 3-1. 검은 창 열기 (Cloud Shell)
 
@@ -170,59 +174,106 @@ Service URL: https://maim-xxxxx-uc.a.run.app
 
 **이 주소가 사장님 프로그램 주소입니다. 적어 두십시오.**
 
-### 3-4. AI 로그인 — 빠뜨리면 글이 안 나옵니다
+### 3-4. AI 연결 — 빠뜨리면 글이 안 나옵니다
 
-**먼저 어느 AI 를 쓰실지 정하십시오.** 3-0 의 표를 보시고, 아래 표에서
-그 줄의 두 명령을 쓰시면 됩니다.
+**고르신 AI 에 따라 방법이 완전히 다릅니다.** 둘 중 사장님 것만 보십시오.
 
-| 어느 AI | ⓐ 설치 | ⓑ 로그인 | 로그인이 남는 폴더 |
+| 고르신 AI | 보실 곳 |
+|---|---|
+| **Gemini** | 아래 **[가] 길** — 검은 창 없이 키 한 줄 |
+| **Claude · Codex** | 아래 **[나] 길** — 검은 창에서 네 줄 |
+
+---
+
+#### [가] Gemini — 키 한 줄 (검은 창 필요 없음)
+
+1. https://aistudio.google.com/apikey 에 **①의 구글 계정**으로 들어갑니다
+2. **[Create API key]** 를 누릅니다. 키가 바로 나옵니다
+3. 그 한 줄을 복사합니다
+4. 사장님 프로그램 주소 → **[관리자 설정] → 1단계** 에서 **Gemini** 를 고릅니다
+5. 나타나는 칸에 붙여넣고 **[저장]**
+6. **[연결 테스트]** 를 눌러 «연결 성공» 이 뜨면 끝입니다
+
+> **왜 Gemini 만 다른가요?**
+> Gemini 는 **서버에서 브라우저 로그인 방식을 쓸 수 없습니다.** 검은 창에서
+> 아무리 잘 로그인하고 그 폴더를 올려도, 서버가 다시 «브라우저로 승인하세요»
+> 를 요구하며 멈춥니다. 이건 저희가 고칠 수 있는 것이 아니라 구글이 그렇게
+> 만들어 둔 것입니다 — 공식 문서가 «사람이 없는 자리에서는 API 키를 쓰라» 고
+> 적어 두었습니다. 그래서 키 방식만 엽니다. 대신 **사장님에겐 이쪽이 훨씬
+> 쉽습니다.**
+
+---
+
+#### [나] Claude · Codex — 검은 창에서 **네 줄**
+
+**두 줄이 아니라 네 줄입니다.** 마지막 ④를 빠뜨리는 분이 제일 많은데,
+그러면 검은 창에서는 로그인이 됐는데 **서버는 그걸 모릅니다.**
+
+고르신 AI 의 줄을 쓰십시오.
+
+| 어느 AI | 설치 명령 | 로그인 명령 | 로그인이 남는 폴더 |
 |---|---|---|---|
-| **Gemini** | `npm install -g @google/gemini-cli` | `gemini` | `.gemini` |
 | **Claude** | `npm install -g @anthropic-ai/claude-code` | `claude login` | `.claude` |
 | **Codex** | `npm install -g @openai/codex` | `codex login` | `.codex` |
 
-> 화면에서도 고르실 수 있습니다. **[관리자 설정] → 1단계**에서 AI 를 고르면
-> **이 두 명령이 그 자리에 뜹니다.** 복사 단추도 있습니다.
+> 화면에서 고르시면 **이 네 줄이 저장통 이름까지 채워진 채로** 그 자리에
+> 뜹니다. **[관리자 설정] → 1단계.** 복사 단추도 붙어 있습니다.
+> **손으로 옮겨 적는 것보다 그쪽이 훨씬 안전합니다.**
 
-아래를 **한 줄씩** 붙여넣습니다. `ⓐ` 자리에 위 표의 설치 명령을 넣으십시오.
+아래는 Claude 기준입니다. Codex 면 `claude` → `codex`, `.claude` → `.codex`
+로 **나오는 곳마다 전부** 바꾸십시오.
+
+**① 명령 도구를 설치합니다**
 
 ```bash
-ⓐ 설치 명령          ← 예: npm install -g @google/gemini-cli
+npm install -g @anthropic-ai/claude-code
 ```
+
+*added N packages* 같은 줄이 뜨면 된 것입니다.
+
+**② 내 계정이 저장통에 쓸 수 있게 허락합니다**
 
 ```bash
 gcloud storage buckets add-iam-policy-binding gs://maim-data-YOUR_PROJECT_ID \
   --member="user:$(gcloud config get-value account)" --role="roles/storage.objectAdmin"
 ```
 
-```bash
-mkdir -p /tmp/maim-home && export HOME=/tmp/maim-home
-```
+`maim-data-YOUR_PROJECT_ID` 를 사장님 저장통 이름으로 바꾸십시오. 기억이
+안 나시면 먼저 `gcloud storage buckets list` 를 쳐 보십시오.
+*Updated IAM policy* 가 뜨면 된 것입니다.
+
+**③ 진짜 로그인입니다**
 
 ```bash
-ⓑ 로그인 명령        ← 예: gemini
+mkdir -p /tmp/maim-home && HOME=/tmp/maim-home claude login
 ```
 
-브라우저가 열리거나 파란 링크가 뜹니다. **사장님 계정**으로 들어가고
-승인하십시오. 검은 창에 로그인됐다는 줄이 뜨면 된 것입니다.
+파란 링크가 뜹니다. 누르셔서 **사장님 계정**으로 들어가고 승인하십시오.
 
-**그리고 이 마지막 줄을 꼭 하십시오.** 폴더 이름은 위 표의 맨 오른쪽 칸입니다.
+> ⚠️ **앞의 `HOME=` 을 지우지 마십시오. 그리고 앞에 `export` 를 붙이지
+> 마십시오.** `export HOME=...` 로 쓰시면 그 뒤로 **같은 검은 창의 `gcloud`
+> 명령이 전부 제 설정을 못 찾아 줄줄이 실패합니다.** 그런데 화면에는 그
+> 이유가 잘 안 보여서, 무엇이 잘못됐는지 알 수가 없습니다.
+
+**④ 로그인 정보를 서버가 읽는 자리로 옮깁니다 — 이게 빠지면 헛수고입니다**
 
 ```bash
-gcloud storage cp -r /tmp/maim-home/.gemini gs://maim-data-YOUR_PROJECT_ID/home/.gemini
+gcloud storage rsync -r /tmp/maim-home/.claude gs://maim-data-YOUR_PROJECT_ID/home/.claude
 ```
 
-> Claude 를 고르셨으면 `.gemini` 를 `.claude` 로, Codex 면 `.codex` 로
-> **양쪽 다** 바꾸십시오.
+제대로 갔는지 확인하시려면:
 
-> **이것을 빠뜨리면** 검은 창에서는 로그인이 됐는데 **서버는 여전히 로그인이
-> 안 된 상태**로 남습니다. 제일 많이 놓치는 곳입니다.
+```bash
+gcloud storage ls gs://maim-data-YOUR_PROJECT_ID/home/.claude/
+```
 
-#### 나중에 다른 AI 로 바꾸시려면
+파일 이름들이 보이면 맞습니다. `.claude/` 가 **한 번 더** 보이면 잘못 들어간
+것이니 ④를 다시 하십시오.
 
-**[관리자 설정] → 1단계**에서 고르시고, 위 ⓐⓑ와 마지막 줄을 그 AI 것으로
-한 번 더 하시면 됩니다. **서버를 다시 올리실 필요는 없습니다** — 셋 다
-이미 설치돼 있습니다.
+**⑤ 확인**
+
+프로그램 주소 → **[관리자 설정] → 1단계 → [연결 테스트]**.
+«연결 성공» 이 뜨면 끝입니다.
 
 ### 3-5. 이미지 키 셋 — 셋 다 넣으십시오
 
@@ -414,7 +465,7 @@ AI 가 쓴 글은 AI 가 아는 것만 씁니다. **겪은 것은 사장님만 �
 
 | 항목 | 비용 | 비고 |
 |---|---|---|
-| 글쓰기 (AI) | **Gemini 면 0원** · 나머지는 구독 한도 안에서 | 명령 도구로 부릅니다. **API 종량 과금이 아닙니다** |
+| 글쓰기 (AI) | **Gemini 는 무료 등급 안에서 0원** · 나머지는 구독 한도 안에서 | Claude·Codex 는 이미 내고 계신 구독으로 돌아 **건당 요금이 따로 안 나갑니다** |
 | 이미지 | 0원 | 무료 스톡 3곳 |
 | 서버 (Cloud Run) | 거의 0원 | 안 쓸 때 잠듭니다 |
 | 저장 (Cloud Storage) | 0원 | 무료 한도 5GB 안 |
@@ -519,4 +570,6 @@ gcloud run services describe maim --region us-central1 --format="value(spec.temp
   "매일 아침 준비돼 있다" 까지입니다
 - 고르신 AI 의 로그인이 풀리면 **글이 안 나옵니다.** [관리자 설정 → 1단계]의
   [연결 테스트]로 확인하시고, 3-4 의 ⓑ와 마지막 줄을 한 번 더 하시면 됩니다
-- **Gemini 는 하루 1,000건**입니다. 하루 10편이면 한참 남습니다
+- **Gemini 는 무료 등급에도 하루 한도가 있습니다.** 하루 10편이면 대개 한참
+  남지만, 한도는 구글이 수시로 바꿉니다 —
+  https://ai.google.dev/gemini-api/docs/rate-limits 에서 지금 값을 보십시오

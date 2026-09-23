@@ -216,10 +216,13 @@ requirements:
         글을 쓰고 이미지를 고르는 데 씁니다. **API 종량 과금이 아닙니다** —
         명령 도구를 구독(또는 무료 한도) 안에서 부릅니다.
       cost: >-
-        **Gemini 는 개인 구글 계정이면 0원** (하루 1,000건).
+        **Gemini 는 구글 계정으로 키를 받아 무료 등급 안에서 0원**
+        (하루 한도는 구글이 수시로 바꿉니다).
         Claude 는 Pro 이상, Codex 는 ChatGPT Plus 이상 구독 안에서.
       lead_time: 즉시
-      how: 관리자 설정 → 1단계에서 고르고 로그인
+      how: >-
+        관리자 설정 → 1단계. **Gemini 는 키 한 줄을 붙여넣으면 끝**이고,
+        Claude·Codex 는 검은 창에서 네 줄을 거칩니다
       blocking: true
     - name: 무료 이미지 API 키 (Unsplash·Pexels·Pixabay)
       why: 대표 이미지를 찾아 옵니다. **셋 중 하나만 있어도** 돕니다
