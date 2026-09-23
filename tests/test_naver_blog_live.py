@@ -30,8 +30,8 @@ def _p():
 def test_it_points_at_maim():
     program = _p()
     assert program.live.elsewhere, "본체가 밖에 있다고 표시되어야 한다"
-    assert "maim" in program.live.client, "체험이 여는 곳은 우리 maim 이다"
-    assert program.live.client.startswith("https://"), "키를 넣는 화면이다. http 는 안 된다"
+    assert "maim" in program.live.demo, "체험이 여는 곳은 우리 maim(체험용 자리)이다"
+    assert program.live.demo.startswith("https://"), "키를 넣는 화면이다. http 는 안 된다"
 
 
 def test_the_buyer_gets_no_address():
@@ -48,7 +48,25 @@ def test_the_buyer_gets_no_address():
     # 빈 값이 door(대시보드 안의 흉내 화면)로 슬쩍 메워지면 안 된다.
     assert program.entrance(for_admin=True, door="https://dash.example/p/naver-blog") == ""
     assert program.entrance(for_admin=False, door="https://dash.example/p/naver-blog") \
-        == program.live.client
+        == program.live.demo
+
+
+def test_체험은_따로_세운_자리로_간다():
+    """**맛보러 오신 분을 사장님 일감 옆에 앉히지 않는다.**
+
+    한동안은 같은 주소였다. 칸막이(owner_key)를 쳐 두었어도 같은 서버의
+    메모리와 Claude 한도를 나눠 쓴다. 체험 몇 분이 몰리면 사장님 아침
+    글이 늦어지고, 그쪽에서 탈이 나면 사장님 것이 같이 멈춘다.
+
+    그리고 이 자리가 **비면 안 된다.** 비면 `client` 로, 거기도 비면 빈
+    글자로 떨어져서, 주소 없는 안내문이 체험 회원에게 나간다.
+    """
+    program = _p()
+    assert program.live.demo, (
+        "체험이 열 주소가 비어 있습니다. 비면 주소 없는 안내문이 나갑니다")
+    assert program.live.demo.startswith("https://")
+    assert program.entrance(for_admin=False) == program.live.demo, (
+        "체험은 demo 로만 가야 합니다")
 
 
 def test_the_buyer_mail_sends_the_install_guide_instead():
@@ -76,7 +94,7 @@ def test_the_buyer_mail_sends_the_install_guide_instead():
     체험 = IssuedSet(holder_name="김체험", holder_email="a@b.c", primary="CCCC-DDDD",
                     secondary={"PC": "P2"}, role=ROLE_CLIENT,
                     service_url=program.entrance(for_admin=False))
-    assert program.live.client in 체험.mail_body(program.name), "체험에는 주소가 가야 한다"
+    assert program.live.demo in 체험.mail_body(program.name), "체험에는 주소가 가야 한다"
 
 
 def test_keys_come_from_one_ledger():

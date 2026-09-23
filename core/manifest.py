@@ -298,13 +298,17 @@ class LiveSite(BaseModel):
 
     admin: str = Field(default="", description="관리자 모드 주소 (https://…)")
     client: str = Field(default="", description="클라이언트 모드 주소")
+    demo: str = Field(
+        default="",
+        description="체험 전용 주소. **사장님이 실제로 쓰시는 서버와 달라야 한다**",
+    )
     note: str = Field(default="", description="화면에 함께 보일 한 줄")
     self_hosted: bool = Field(
         default=False,
         description="산 분은 자기 서버에 직접 세운다 — 안내문에 주소 대신 설치 안내서를 넣는다",
     )
 
-    @field_validator("admin", "client")
+    @field_validator("admin", "client", "demo")
     @classmethod
     def _https_only(cls, value: str) -> str:
         """http:// 를 막는다. 키를 넣는 화면이라 가로채이면 안 된다."""
@@ -315,16 +319,30 @@ class LiveSite(BaseModel):
 
     @property
     def elsewhere(self) -> bool:
-        """저장소 밖에서 도는 프로그램인가."""
-        return bool(self.admin or self.client)
+        """저장소 밖에서 도는 프로그램인가.
+
+        `demo` 도 세야 한다. 체험만 바깥 자리를 쓰는 프로그램(3번처럼 산
+        분은 자기 서버에 세우는 것)에서는 `admin` 과 `client` 가 둘 다
+        비어 있고 `demo` 에만 주소가 있다. 여기서 빠뜨리면 화면이
+        «본체가 밖에 있다» 를 모르고 집에서 도는 것처럼 그린다.
+        """
+        return bool(self.admin or self.client or self.demo)
 
     def door_for(self, for_admin: bool) -> str:
         """받는 분이 **실제로 열 주소.** 없으면 빈 글자.
 
         관리자와 고객이 가는 곳이 다를 수 있다. 1번은 주소로 가르고
         (`?admin=1`), 3번은 주소가 하나이고 넣는 키로 갈린다.
+
+        **체험은 `demo` 를 먼저 본다.** 맛보러 오신 분을 사장님이 실제로
+        쓰시는 서버로 들이면, 그분이 무엇을 눌러도 사장님 일감 옆에서
+        벌어진다. 칸막이를 쳐 두었어도 같은 서버의 메모리와 Claude 한도를
+        나눠 쓰고, 그쪽에서 탈이 나면 사장님 아침 글이 같이 멈춘다.
+        **맛보기는 맛보기용 자리에서 하게 한다.**
         """
-        return (self.admin if for_admin else self.client) or ""
+        if for_admin:
+            return self.admin or ""
+        return self.demo or self.client or ""
 
     @property
     def one_door(self) -> bool:
