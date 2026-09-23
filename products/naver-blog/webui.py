@@ -528,8 +528,13 @@ def console(program, ctx) -> Console:
                       rows=[
                           ["자동으로 올려 주나요",
                            "하지 않습니다. 글과 이미지까지 준비해 드리고 복사·발행은 본인이"],
-                          ["Claude 요금이 나오나요",
-                           "아닙니다. 구독 한도 안에서 돕니다. API 종량 과금이 아닙니다"],
+                          ["AI 요금이 나오나요",
+                           "**Gemini 를 고르시면 0원**입니다(구글 계정, 하루 1,000건). "
+                           "Claude·Codex 는 쓰시던 구독 한도 안에서 돕니다. "
+                           "어느 쪽이든 API 종량 과금이 아닙니다"],
+                          ["꼭 Claude 여야 하나요",
+                           "아닙니다. **Gemini·Claude·Codex 중에 고르십니다.** "
+                           "[관리자 설정 → 1단계]에서 바꾸시면 됩니다"],
                           ["이미지가 안 나옵니다",
                            "무료 API 키가 없거나 한도를 넘겼습니다. 홈의 «AI 연결 상태» 확인"],
                           ["접속키를 잃어버렸어요",
@@ -553,7 +558,7 @@ def console(program, ctx) -> Console:
             Stat(label="후킹 제목", value="3", unit="종", hint="질문형 · 숫자형 · 공감형"),
             Stat(label="기기", value="3", unit="대", hint="PC · 노트북 · 휴대폰"),
             Stat(label="추가 비용", value="0", unit="원", tone="good",
-                 hint="Claude 구독 + 무료 이미지 API"),
+                 hint="AI 계정 하나(Gemini 면 무료) + 무료 이미지 API"),
         ],
         todos=[
             Todo("쌓인 초안에서 제목 골라 네이버에 올리기", tab="guide",
