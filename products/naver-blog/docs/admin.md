@@ -151,7 +151,7 @@ gcloud run deploy maim \
   --region=us-central1 \
   --allow-unauthenticated \
   --memory=2Gi \
-  --min-instances=0 --max-instances=1 --concurrency=1 \
+  --min-instances=0 --max-instances=1 --concurrency=80 \
   --timeout=1800 \
   --set-env-vars=HOST=0.0.0.0,DATA_DIR=/tmp/maim-state,HOME=/tmp/maim-state/home,GCS_STATE_BUCKET=maim-data-YOUR_PROJECT_ID,TIMEZONE=Asia/Seoul,CLAUDE_BIN=claude,DASHBOARD_TOKEN=YOUR_PASSWORD,KEYSERVER_URL=YOUR_KEYSERVER_URL,KEYSERVER_PROGRAM=naver-blog
 ```
@@ -161,6 +161,28 @@ gcloud run deploy maim \
 | `YOUR_PROJECT_ID` | 3-1 에서 적어 두신 것 |
 | `YOUR_PASSWORD` | **사장님이 정하시는 비밀번호.** 아무도 모르는 것으로 |
 | `YOUR_KEYSERVER_URL` | 저희가 메일로 함께 보내 드린 주소 |
+
+> **`--concurrency=80` 을 1 로 바꾸지 마십시오.**
+>
+> 1 로 두면 **서버 전체가 한 번에 요청 하나만** 받습니다. 그런데 화면을
+> 한 번 열 때 프로그램은 설정·카테고리·초안 따위를 **예닐곱 개 한꺼번에**
+> 물어봅니다. 하나만 통과하고 나머지는 «요청 실패 (429)» 로 튕깁니다.
+> 화면이 텅 빈 채로 뜹니다.
+>
+> 더 나쁜 것은, **글을 쓰는 1~3분 동안 대시보드가 통째로 죽는다**는
+> 것입니다. 그 사이에는 아무 화면도 안 열립니다.
+>
+> **`--max-instances=1` 은 그대로 두셔야 합니다.** 이건 다른 이야기입니다 —
+> 서버가 **두 대로 늘지 않게** 막는 설정이고, 자료(SQLite)가 한 곳에서만
+> 써져야 하기 때문에 꼭 필요합니다. 한 대 안에서 여러 요청을 받는 것은
+> 아무 문제가 없습니다.
+>
+> **이미 1 로 배포하셨다면** 이 한 줄이면 고쳐집니다. 다시 배포 안 하셔도
+> 됩니다.
+>
+> ```bash
+> gcloud run services update maim --region=us-central1 --concurrency=80
+> ```
 
 > **`--memory=2Gi` 를 줄이지 마십시오.** 512Mi 로 뒀다가 데이터가 깨진
 > 적이 있습니다. 이 프로그램은 잠들어 있는 동안 요금이 0원이라, 메모리를
