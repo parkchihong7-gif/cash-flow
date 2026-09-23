@@ -45,7 +45,22 @@ __all__ = ["bucket_name", "enabled", "restore", "save", "start_autosave", "NEEDE
 NEEDED = ("dashboard.db", ".dashboard_secret")
 
 #: 버킷 안에서 쓸 앞머리. 한 버킷을 maim 과 같이 써도 섞이지 않게.
-PREFIX = os.getenv("GCS_PREFIX", "cash-flow")
+def _prefix() -> str:
+    """이 프로그램이 쓸 **제 칸**. 버킷을 남과 나눠 쓰기 때문이다.
+
+    한 버킷에 여러 프로그램이 산다. 3번(maim)이 제 것인 줄 알고 이 칸을
+    60초마다 덮어쓰고 있었다 — 대시보드가 글을 쓰는 중에 덮였으면 그때
+    이쪽 DB 도 깨졌을 것이다. 그쪽은 막았고, 이쪽도 **제 칸 밖으로는
+    한 글자도 안 쓰게** 해 둔다.
+
+    비거나 `/` 로 시작하면 버킷 뿌리에 쓰게 된다. 그러면 남의 파일과
+    이름이 부딪힌다. 그래서 값이 이상하면 기본값으로 돌린다.
+    """
+    칸 = (os.getenv("GCS_PREFIX") or "").strip().strip("/")
+    return 칸 or "cash-flow"
+
+
+PREFIX = _prefix()
 
 #: 몇 초마다 올릴지. maim 과 같은 60초.
 INTERVAL = int(os.getenv("GCS_SYNC_SECONDS", "60"))

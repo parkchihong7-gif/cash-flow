@@ -25,6 +25,13 @@ __all__ = ["Database", "DEFAULT_DB_PATH", "now_iso"]
 
 DEFAULT_DB_PATH = DATA_DIR / "dashboard.db"
 
+#: 실행 기록을 얼마나 남길 것인가. **프로그램마다** 따로 센다.
+#:
+#: 로그 한 번이 최대 2만 자(`core.runner.MAX_LOG_CHARS`)다. 그대로 두면
+#: 천 번 돌렸을 때 20MB 가 되고, 그것이 60초마다 통째로 버킷에 올라간다.
+LOG_KEEP = 20     # 이만큼은 로그까지 통째로 남긴다
+ROW_KEEP = 200    # 이보다 옛것은 줄까지 지운다
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS members (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -285,14 +292,55 @@ class Database:
             "finished_at = ? WHERE id = ?",
             (status, exit_code, log, output_dir, now_iso(), run_id),
         )
+        # 끝난 자리에서 바로 줄인다. 따로 도는 청소부를 두면 그것이 안 돌 때
+        # 조용히 쌓인다 — 쌓이는 것은 늘 아무도 안 볼 때 쌓인다.
+        끝난것 = self.get_run(run_id)
+        if 끝난것:
+            self.prune_runs(끝난것["program_id"])
+
+    def prune_runs(self, program_id: str) -> tuple[int, int]:
+        """옛 실행 기록을 줄인다. (로그 지운 수, 통째로 지운 수).
+
+        왜 필요한가
+            실행 한 번의 로그가 최대 2만 자다. 천 번 돌리면 20MB 가 되고,
+            그것이 **60초마다 통째로** 버킷에 올라간다. 올리는 동안 SQLite 가
+            글을 쓰면 깨질 틈이 넓어지고, 되살릴 때 받아 오는 시간도 길어진다.
+
+        무엇을 남기나 — 두 단계로 나눈다.
+            최근 것은 로그까지 통째로. 고칠 때 봐야 하는 것은 대개 방금 것이다.
+            그보다 옛것은 **줄만 남기고 로그를 지운다.** "언제 돌렸고 잘 됐나"
+            는 남고, 자리를 먹는 본문만 없앤다.
+            아주 옛것은 줄까지 지운다.
+
+        프로그램마다 따로 센다. 자주 돌리는 프로그램 하나가 다른 것들의
+        기록을 밀어내면 안 된다.
+        """
+        로그지움 = self.execute(
+            "UPDATE runs SET log = '' WHERE program_id = ? AND log <> '' "
+            "AND id NOT IN (SELECT id FROM runs WHERE program_id = ? "
+            "               ORDER BY id DESC LIMIT ?)",
+            (program_id, program_id, LOG_KEEP),
+        )
+        줄지움 = self.execute(
+            "DELETE FROM runs WHERE program_id = ? "
+            "AND id NOT IN (SELECT id FROM runs WHERE program_id = ? "
+            "               ORDER BY id DESC LIMIT ?)",
+            (program_id, program_id, ROW_KEEP),
+        )
+        return 로그지움, 줄지움
 
     def list_runs(self, program_id: str | None = None, limit: int = 50) -> list[sqlite3.Row]:
         if program_id:
             return self.query(
-                "SELECT * FROM runs WHERE program_id = ? ORDER BY started_at DESC LIMIT ?",
+                # `id` 로도 한 번 더 가른다. `started_at` 은 초 단위라 같은
+                # 초에 두 번 돌리면 차례가 뒤집힌다 — 실제로 실행 이력이
+                # **옛것부터** 나오고 있었다.
+                "SELECT * FROM runs WHERE program_id = ? "
+                "ORDER BY started_at DESC, id DESC LIMIT ?",
                 (program_id, limit),
             )
-        return self.query("SELECT * FROM runs ORDER BY started_at DESC LIMIT ?", (limit,))
+        return self.query(
+            "SELECT * FROM runs ORDER BY started_at DESC, id DESC LIMIT ?", (limit,))
 
     def get_run(self, run_id: int):
         return self.query_one("SELECT * FROM runs WHERE id = ?", (run_id,))
