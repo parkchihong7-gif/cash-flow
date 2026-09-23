@@ -319,11 +319,40 @@ gcloud scheduler jobs create http maim-daily \
   --time-zone="Asia/Seoul" \
   --uri="https://사장님-서비스-URL/api/run/daily" \
   --http-method=POST \
+  --attempt-deadline=1800s \
   --headers="x-dashboard-token=YOUR_PASSWORD"
 ```
 
 `사장님-서비스-URL` 은 3-3 에서 적어 두신 것, `YOUR_PASSWORD` 도 3-3 에서
 정하신 것입니다.
+
+> ⚠️ **`--attempt-deadline=1800s` 를 빠뜨리지 마십시오.**
+>
+> 이걸 안 적으면 **3분**이 됩니다(구글이 정한 기본값). 그런데 글 한 편에
+> 1~3분이 걸리고 하루에 여러 편을 만드니, 3분으로는 **무조건 모자랍니다.**
+>
+> 모자라면 어떻게 되느냐 — 서버는 계속 글을 쓰고 있는데 **Cloud Scheduler
+> 쪽에서 먼저 손을 놓고 「실패」로 적습니다.** 그러면 화면에는 매일
+> 실패로 뜨는데 글은 나와 있는, 알아보기 어려운 상태가 됩니다.
+>
+> 1800초(30분)가 이 항목의 **최댓값**입니다.
+
+**이미 만들어 두셨다면** 이 한 줄로 고치시면 됩니다. 지우고 다시 만들 것
+없습니다.
+
+```bash
+gcloud scheduler jobs update http maim-daily \
+  --location=us-central1 --attempt-deadline=1800s
+```
+
+지금 값이 궁금하시면:
+
+```bash
+gcloud scheduler jobs describe maim-daily --location=us-central1 \
+  --format="value(attemptDeadline)"
+```
+
+`1800s` 가 나오면 맞습니다. `180s` 이면 위 고침을 하셔야 합니다.
 
 | 시각을 바꾸시려면 | `--schedule` |
 |---|---|
