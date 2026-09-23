@@ -28,6 +28,7 @@ maim 이 먼저 겪은 것 — 같은 데서 안 넘어지려고 적어 둔다
 from __future__ import annotations
 
 import os
+import sqlite3
 import threading
 import time
 from pathlib import Path
@@ -117,12 +118,65 @@ def save(sources: Path | None = None) -> list[str]:
         path = source / name
         if not path.is_file():
             continue
+        뜬것 = None
         try:
-            _blob(client, name).upload_from_filename(str(path))
+            보낼것 = path
+            if path.suffix == ".db":
+                뜬것 = _성한한벌(path)
+                if 뜬것 is None:
+                    # **깨진 것은 올리지 않는다.** 버킷에 아직 성한 판이 있을
+                    # 수 있는데, 그 위에 덮으면 되살릴 길이 사라진다.
+                    continue
+                보낼것 = 뜬것
+            _blob(client, name).upload_from_filename(str(보낼것))
             sent.append(name)
         except Exception:
             continue
+        finally:
+            if 뜬것 is not None:
+                try:
+                    뜬것.unlink(missing_ok=True)
+                except OSError:
+                    pass
     return sent
+
+
+def _성한한벌(원본: Path) -> Path | None:
+    """DB 를 **앞뒤가 맞는 한 벌**로 떠 둔다. 못 뜨면 None.
+
+    왜 파일을 그냥 올리면 안 되나 — **한 번 데였다.**
+
+    3번(maim)이 제 DB 를 이렇게 바이트째 올렸다. SQLite 가 글을 쓰는 중에
+    뜨면 **반쯤 쓰인 판**이 버킷에 남는다. 다음에 그걸 내려받은 판은 읽기는
+    되는데 쓰려고만 하면 죽는다.
+
+        database disk image is malformed
+
+    실제로 그렇게 됐고, 초기화하는 수밖에 없었다. 여기도 **똑같은 코드**였다.
+    터지지 않은 것은 대시보드가 글을 덜 쓸 뿐이지 안전해서가 아니다.
+
+    `backup()` 은 SQLite 가 제 잠금을 쥔 채 떠 주므로 언제 떠도 앞뒤가 맞는다.
+    """
+    뜬것 = 원본.with_suffix(원본.suffix + ".snapshot")
+    try:
+        with sqlite3.connect(원본) as 헌것, sqlite3.connect(뜬것) as 새것:
+            헌것.backup(새것)
+            # **떠 놓고 검사한다.** 파이썬의 `backup()` 은 깨진 것도 군말 없이
+            # 베껴 낸다 — 뜨는 데 성공했다는 것이 성하다는 뜻이 아니다.
+            # `quick_check` 는 인덱스까지 뒤지지 않아 빠르고, 우리 DB 는
+            # 100KB 남짓이라 60초마다 돌려도 티가 안 난다.
+            상태 = 새것.execute("PRAGMA quick_check").fetchone()[0]
+        if 상태 != "ok":
+            raise sqlite3.DatabaseError(상태)
+        return 뜬것
+    except Exception as 탈:
+        print(f"[gcsstate] {원본.name} 을 뜨지 못해 **올리지 않습니다** — "
+              f"버킷의 판을 덮지 않으려는 것입니다: {탈}")
+        try:
+            뜬것.unlink(missing_ok=True)
+        except OSError:
+            pass
+        return None
 
 
 def start_autosave() -> threading.Thread | None:

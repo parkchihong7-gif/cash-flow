@@ -311,3 +311,69 @@ def test_코드를_잊었을_때_있는_곳을_알려_준다(monkeypatch, 클라
     body = TestClient(app).get("/login").text
     assert 나와야할것 in body
     assert 나오면안될것 not in body
+
+
+def _가짜버킷(monkeypatch):
+    """올린 이름만 모으는 흉내 버킷."""
+    올린것 = []
+
+    class 블롭:
+        def __init__(self, name): self.name = name
+        def upload_from_filename(self, path): 올린것.append((self.name, path))
+
+    class 버킷:
+        def blob(self, name): return 블롭(name.split("/")[-1])
+
+    class 손잡이:
+        def bucket(self, _): return 버킷()
+
+    monkeypatch.setenv("GCS_BUCKET", "흉내버킷")
+    monkeypatch.setattr(gcsstate, "_client", lambda: 손잡이())
+    return 올린것
+
+
+def test_성한_DB_는_뜬_한벌을_올린다(tmp_path, monkeypatch):
+    """살아 있는 파일을 바이트째 올리면 **반쯤 쓰인 판**이 남는다.
+
+    3번(maim)이 그래서 깨졌다. `backup()` 은 SQLite 가 제 잠금을 쥔 채
+    떠 주므로 언제 떠도 앞뒤가 맞는다.
+    """
+    import sqlite3
+
+    올린것 = _가짜버킷(monkeypatch)
+    (tmp_path / ".dashboard_secret").write_text("비밀")
+    with sqlite3.connect(tmp_path / "dashboard.db") as c:
+        c.execute("CREATE TABLE t (a)")
+        c.execute("INSERT INTO t VALUES (1)")
+
+    보낸것 = gcsstate.save(tmp_path)
+    assert set(보낸것) == {"dashboard.db", ".dashboard_secret"}
+
+    # **원본이 아니라 뜬 한 벌**을 올려야 한다.
+    올린파일 = dict(올린것)
+    assert 올린파일["dashboard.db"].endswith(".snapshot")
+    # 찌꺼기를 남기지 않는다.
+    assert not list(tmp_path.glob("*.snapshot"))
+
+
+def test_깨진_DB_는_올리지_않는다(tmp_path, monkeypatch, capsys):
+    """버킷에 아직 성한 판이 있을 수 있다. 덮으면 되살릴 길이 사라진다."""
+    import sqlite3
+
+    올린것 = _가짜버킷(monkeypatch)
+    (tmp_path / ".dashboard_secret").write_text("비밀")
+    db = tmp_path / "dashboard.db"
+    with sqlite3.connect(db) as c:
+        c.execute("CREATE TABLE t (a)")
+        for n in range(500):
+            c.execute("INSERT INTO t VALUES (?)", (f"{n}" * 50,))
+    속 = bytearray(db.read_bytes())
+    for i in range(4096, min(len(속), 20000)):
+        속[i] = 0x5A
+    db.write_bytes(bytes(속))
+
+    보낸것 = gcsstate.save(tmp_path)
+    assert "dashboard.db" not in 보낸것, "깨진 DB 를 올렸습니다"
+    assert ".dashboard_secret" in 보낸것, "나머지는 그대로 올려야 합니다"
+    assert "올리지 않습니다" in capsys.readouterr().out, "조용히 넘어갔습니다"
+    assert not list(tmp_path.glob("*.snapshot"))
