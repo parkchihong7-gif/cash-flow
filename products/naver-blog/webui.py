@@ -485,7 +485,7 @@ def console(program, ctx) -> Console:
             Panel(key="daily", title="매일 하는 일",
                   lines=[
                       "아침에 초안이 **자동으로** 쌓여 있습니다",
-                      "[포스팅] 에서 마음에 드는 **후킹 제목**을 고릅니다 (3종)",
+                      "[포스팅] 에서 마음에 드는 **키워드 제목**을 고릅니다 (3종)",
                       "제목·본문·이미지를 복사 → **네이버에 붙여넣고 직접 발행**",
                       "올리셨으면 [발행 완료] 를 누릅니다 — 다음 초안이 겹치지 않게",
                   ]),
@@ -558,7 +558,7 @@ def console(program, ctx) -> Console:
         stats=[
             Stat(label="이미지 소스", value="3", unit="곳",
                  hint="Unsplash · Pexels · Pixabay (하나만 살아도 됩니다)"),
-            Stat(label="후킹 제목", value="3", unit="종", hint="질문형 · 숫자형 · 공감형"),
+            Stat(label="키워드 제목", value="3", unit="종", hint="조건·기준 / 방법·절차 / 후기·비교"),
             Stat(label="기기", value="3", unit="대", hint="PC · 노트북 · 휴대폰"),
             Stat(label="추가 비용", value="0", unit="원", tone="good",
                  hint="AI 계정 하나(Gemini 면 무료) + 무료 이미지 API"),
