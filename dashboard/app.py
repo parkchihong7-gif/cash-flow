@@ -879,8 +879,12 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
     @app.get("/programs/{program_id}/manual/{audience}", response_class=HTMLResponse)
     def program_manual(request: Request, program_id: str, audience: str):
         program = program_or_404(program_id)
-        relative = program.manuals.admin if audience == "admin" else program.manuals.client
-        heading = f"{program.name} — {'관리자' if audience == 'admin' else '클라이언트'} 매뉴얼"
+        이름 = {"admin": "관리자 매뉴얼", "client": "클라이언트 매뉴얼",
+                "install": "설치 안내서"}
+        if audience not in 이름:
+            audience = "admin"
+        relative = getattr(program.manuals, audience)
+        heading = f"{program.name} — {이름[audience]}"
         if not relative:
             body = "# 이 프로그램에는 아직 매뉴얼이 없습니다"
         else:

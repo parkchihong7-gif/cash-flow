@@ -41,8 +41,9 @@ from core.db import Database
 from core import keyclient
 from core.keyauth import (
     DEFAULT_BULK, KIND_LEGACY, KIND_PRIMARY, KIND_SECONDARY, ROLE_ADMIN,
-    KeyAuth, KeyError_, manual_for_mail)
-from core.keymail import mail_html, manual_html
+    KeyAuth, KeyError_, install_for_mail, manual_for_mail)
+from core.keymail import (
+    install_html, install_mail_html, install_subject, mail_html, manual_html)
 from core.manifest import ProgramManifest
 from core.registry import Registry
 from core.runner import RunError, run_program
@@ -123,6 +124,15 @@ def register(app, page, registry, db, program_or_404):
         """접속키 저장소. 대시보드와 같은 SQLite 파일을 쓴다."""
         return KeyAuth(db().path)
 
+    def _설치_따로(program, 보낼것) -> str:
+        """판매용 키에 **따로** 붙어 나갈 설치 안내서(꾸민 판). 아니면 빈 글자.
+
+        자기 서버에 세워 쓰는 상품을 산 분께만 간다. 체험용은 설치할 일이 없다.
+        """
+        if not 보낼것 or not 보낼것.for_admin or 보낼것.service_url:
+            return ""
+        return install_html(program)
+
     def _stash(value: Any) -> str:
         """방금 만든 키를 **한 번만** 꺼내 볼 수 있게 넣어 둔다.
 
@@ -188,6 +198,10 @@ def register(app, page, registry, db, program_or_404):
             보낼것 = base.get("issued")
             base["manual_html"] = (
                 manual_html(program, 보낼것.for_admin) if 보낼것 else "")
+            # 판매용이고 설치 안내서가 있으면 **두 번째 메일**이 따로 나간다.
+            # 무엇이 나가는지 보이게 미리 보기도 따로 둔다.
+            base["install_html"] = _설치_따로(program, 보낼것)
+            base["install_subject"] = install_subject(program.name)
             base["send_action"] = (
                 f"{APPS_PREFIX}/{program.id}/{mode}/keys/send"
                 f"?issued={base['issued_token']}")
@@ -441,14 +455,17 @@ def register(app, page, registry, db, program_or_404):
         # 프로그램에 든 파일을 그대로 읽어서 쓴다.
         보낼것 = _fresh.get(token)
         쓴글 = str(form.get("body") or "")
+        설치판 = _설치_따로(program, 보낼것)
         글자매뉴얼 = (manual_for_mail(program, 보낼것.for_admin)
                       if 보낼것 else "")
         꾸민판 = (mail_html(program_name=program.name, issued=보낼것, note=쓴글,
-                            manual=manual_html(program, 보낼것.for_admin))
+                            manual=manual_html(program, 보낼것.for_admin),
+                            install_separate=bool(설치판))
                   if 보낼것 else "")
+        받는분 = str(form.get("email") or "").strip()
         try:
             answer = server.send_text(
-                email=str(form.get("email") or "").strip(),
+                email=받는분,
                 subject=str(form.get("subject") or "").strip(),
                 # 글자판은 HTML 을 못 읽는 메일 앱에서만 보인다. 한쪽만
                 # 보내면 그런 앱에서 글이 통째로 안 보인다.
@@ -460,6 +477,26 @@ def register(app, page, registry, db, program_or_404):
                 _keys_back(program_id, issued=token, mail_error=str(exc)),
                 status_code=303)
         left = answer.get("remaining")
+        if 설치판:
+            # **두 번째 메일 — 설치 안내서.** 첫 통이 나간 뒤에 보낸다. 이것만
+            # 실패하면 첫 통은 이미 갔으므로 «반만 갔다» 고 분명히 말한다.
+            try:
+                answer = server.send_text(
+                    email=받는분,
+                    subject=install_subject(program.name),
+                    body=install_for_mail(program),
+                    html=install_mail_html(program_name=program.name,
+                                           holder_name=보낼것.holder_name,
+                                           manual=설치판),
+                    program_id=program.id)
+                left = answer.get("remaining", left)
+            except keyclient.KeyServerError as exc:
+                return RedirectResponse(
+                    _keys_back(program_id, issued=token,
+                               mail_error=("접속 안내 메일은 보냈지만 설치 안내서 "
+                                           f"메일은 못 보냈습니다 — {exc}. "
+                                           "다시 [발송] 하시면 두 통이 또 나갑니다")),
+                    status_code=303)
         return RedirectResponse(
             _keys_back(program_id, issued=token, mail_sent="1",
                        mail_left="" if left is None else str(left)),

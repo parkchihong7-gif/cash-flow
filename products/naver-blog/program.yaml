@@ -182,6 +182,9 @@ pricing:
 manuals:
   admin: docs/admin.md
   client: docs/client.md
+  # 판매용 키를 보낼 때 접속 안내와 **따로 한 통** 더 나간다. 한 통에 다
+  # 넣었더니 지메일 한도(102KB)를 넘어 뒤가 감춰지고 «비용·막혔을 때» 가 잘렸다.
+  install: docs/install.md
 
 # 권한·환경 — 쓰기 전에 무엇이 필요한가 (🔑 권한·환경 화면)
 # 본체는 저장소 밖(Cloud Run)에서 이미 돌고 있습니다.

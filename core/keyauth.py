@@ -263,7 +263,7 @@ class IssuedSet:
         자기서버 = self.for_admin and not self.service_url
         if 자기서버:
             머리 = (f"{self.holder_name}님, 이 프로그램은 **사장님 서버에 직접 세워** "
-                    f"쓰십니다. 함께 보내 드린 설치 안내서를 따라 한 번만 세우시면, "
+                    f"쓰십니다. 따로 보내 드린 「설치 안내서」 메일을 따라 한 번만 세우시면, "
                     f"그 뒤로는 글도 설정도 전부 사장님 자리에 쌓입니다.")
             자리 = "설치를 마치신 뒤, 그 화면에서 아래 인증키를 넣어 주세요."
         else:
@@ -813,12 +813,32 @@ def manual_for_mail(program, for_admin: bool) -> str:
     if not path.is_file():
         return ""
 
-    쓸것 = []
-    for 줄 in path.read_text(encoding="utf-8").split("\n"):
-        벗김 = 줄.lstrip("#").strip() if 줄.lstrip().startswith("#") else 줄
-        쓸것.append(벗김.replace("**", "").replace("`", ""))
-    글 = "\n".join(쓸것).strip()
+    글 = _기호떼기(path.read_text(encoding="utf-8"))
 
     if len(글) > MANUAL_IN_MAIL:
         글 = 글[:MANUAL_IN_MAIL].rstrip() + "\n\n(줄임 — 나머지는 프로그램 안 매뉴얼에서 보세요)"
     return 글
+
+
+def _기호떼기(글: str) -> str:
+    """마크다운 기호를 덜어 낸다. 글자판 메일은 기호가 그대로 찍힌다."""
+    쓸것 = []
+    for 줄 in 글.split("\n"):
+        벗김 = 줄.lstrip("#").strip() if 줄.lstrip().startswith("#") else 줄
+        쓸것.append(벗김.replace("**", "").replace("`", ""))
+    return "\n".join(쓸것).strip()
+
+
+def install_for_mail(program) -> str:
+    """두 번째 메일(설치 안내서)의 글자판. **자르지 않는다.**
+
+    설치 절차가 중간에 끊기면 서버가 반쯤 선 채로 남는다. 이 메일은 설치
+    안내서 하나만 담으므로 통째로 넣어도 된다.
+    """
+    상대 = program.manuals.install
+    if not 상대:
+        return ""
+    path = program.resolve(상대)
+    if not path.is_file():
+        return ""
+    return _기호떼기(path.read_text(encoding="utf-8"))

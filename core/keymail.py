@@ -49,6 +49,9 @@ __all__ = [
     "manual_markdown",
     "manual_html",
     "mail_html",
+    "install_markdown",
+    "install_html",
+    "install_mail_html",
 ]
 
 #: HTML 메일에 담을 매뉴얼 길이 한계.
@@ -72,13 +75,27 @@ _연강조 = "#eaf0ff"
 # 글꼴 이름은 **작은따옴표**로 감싼다. 큰따옴표를 쓰면 `style="…"` 가 거기서
 # 끊겨 그 태그의 꾸밈이 통째로 무시된다 — 화면에서는 멀쩡해 보이고 메일에서만
 # 날것으로 보이는, 찾기 어려운 사고다.
-_글꼴 = ("-apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Pretendard', "
-         "'Malgun Gothic', 'Noto Sans KR', sans-serif")
+#
+# 쉼표 뒤 빈칸을 두지 않는다. 이 글자가 태그마다 되풀이되어, 한 글자가
+# 메일 전체에서는 수백 글자가 된다 (아래 :data:`_글꼴_물려받음` 참고).
+_글꼴 = ("-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',"
+         "'Malgun Gothic','Noto Sans KR',sans-serif")
 
 # 글꼴을 문단·칸마다 **되풀이해서** 적는다. 물려받게 두면 아웃룩이 표
 # 안에서 제 글꼴(Times New Roman)로 되돌려 버린다 — 표만 세리프로 보이는
 # 흔한 사고다.
 _ㄱ = f"font-family:{_글꼴};"
+
+#: 글꼴을 **따로 적지 않는** 태그.
+#:
+#: 지메일은 102KB 가 넘으면 뒤를 감춘다. 설치 안내서처럼 표와 굵은 글씨가
+#: 많은 글은 글꼴 한 줄(약 100바이트)이 태그 500여 개에 붙어 그것만으로
+#: 50KB 가 넘었다. 굵은 글씨·링크처럼 **문단 안에 드는 것**은 둘러싼 문단의
+#: 글꼴을 물려받고, 표·목록·인용 같은 **그릇**은 글자를 직접 담지 않는다.
+#: 코드는 제 꼴(고정폭)을 따로 적는다. 아웃룩이 되돌리는 것은 표 **칸**
+#: (td·th) 이라 그쪽은 계속 적는다.
+_글꼴_물려받음 = frozenset({"strong", "a", "code", "pre", "table", "ul", "ol",
+                        "hr", "blockquote"})
 
 #: 태그마다 발라 줄 모양. 메일 앱이 바깥 CSS 를 지워도 살아남는다.
 _모양 = {
@@ -137,7 +154,8 @@ def _입히기(html: str, 덮어쓰기: dict[str, str] | None = None) -> str:
         if "style=" in 나머지.lower():
             return m.group(0)
         꾸밈 = (덮어쓰기 or {}).get(태그) or _모양[태그]
-        return f'<{태그}{나머지} style="{_ㄱ}{꾸밈}">'
+        글꼴 = "" if 태그 in _글꼴_물려받음 else _ㄱ
+        return f'<{태그}{나머지} style="{글꼴}{꾸밈}">'
 
     return _여는태그.sub(한번, html)
 
@@ -149,16 +167,69 @@ def manual_markdown(program, for_admin: bool) -> str:
     화면에 없는 기능을 찾게 된다.
     """
     상대 = program.manuals.admin if for_admin else program.manuals.client
+    글 = _읽기(program, 상대)
+    if len(글) > MANUAL_IN_HTML:
+        글 = (글[:MANUAL_IN_HTML].rstrip()
+              + "\n\n*(줄임 — 나머지는 프로그램 안 매뉴얼에서 보세요)*")
+    return 글
+
+
+def _읽기(program, 상대: str) -> str:
+    """프로그램에 든 문서 하나. 없으면 빈 글자."""
     if not 상대:
         return ""
     path = program.resolve(상대)
     if not path.is_file():
         return ""
-    글 = path.read_text(encoding="utf-8").strip()
-    if len(글) > MANUAL_IN_HTML:
-        글 = (글[:MANUAL_IN_HTML].rstrip()
-              + "\n\n*(줄임 — 나머지는 프로그램 안 매뉴얼에서 보세요)*")
-    return 글
+    return path.read_text(encoding="utf-8").strip()
+
+
+def install_markdown(program) -> str:
+    """**따로 보낼** 설치 안내서의 원문.
+
+    자기 서버에 세워 쓰는 상품은 설치 절차가 길다. 관리자 매뉴얼에 같이
+    넣었더니 메일이 지메일 한도(102KB)를 넘어 뒤가 감춰지고, 그 앞에서
+    매뉴얼 한계로 잘려 «비용·막혔을 때» 가 아예 빠졌다. 그래서 설치만
+    **두 번째 메일**로 뗐다. 두 번째 메일은 설치 안내서만 담으므로 자르지
+    않는다 — 설치 절차가 중간에 끊기면 서버가 반쯤 선다.
+    """
+    return _읽기(program, program.manuals.install)
+
+
+def install_html(program) -> str:
+    """설치 안내서의 꾸민 판. 없으면 빈 글자."""
+    글 = install_markdown(program)
+    if not 글:
+        return ""
+    return _입히기(_md.markdown(
+        글, extensions=["tables", "fenced_code", "sane_lists"]),
+        덮어쓰기=_매뉴얼_제목)
+
+
+def install_subject(program_name: str) -> str:
+    return f"[{program_name}] 설치 안내서"
+
+
+def install_mail_html(*, program_name: str, holder_name: str, manual: str) -> str:
+    """두 번째 메일 — 설치 안내서만."""
+    제목 = _html.escape(install_subject(program_name))
+    머리 = (f"{holder_name}님, 앞서 보내 드린 「접속 안내」 메일에 이어 "
+            "**사장님 서버에 프로그램을 세우는 절차**를 보내 드립니다.\n\n"
+            "한 번만 하시면 되고 30~60분 걸립니다. 다 세우신 뒤 첫 번째 메일의 "
+            "인증키로 들어가시면 됩니다.")
+    머리 = _글자를_문단으로(머리).replace("**사장님 서버에 프로그램을 세우는 절차**",
+                                         "<b>사장님 서버에 프로그램을 세우는 절차</b>")
+    조각 = [
+        f'<h1 style="{_모양["h1"]}">{제목}</h1>',
+        _카드(머리),
+        f'<div style="margin:30px 0 12px;font-size:12px;font-weight:700;'
+        f'letter-spacing:.06em;color:{_아주흐린먹};">설치 안내서</div>',
+        _카드(manual),
+        f'<p style="margin:26px 0 0;font-size:12px;line-height:1.7;'
+        f'color:{_아주흐린먹};">이 메일은 {_html.escape(program_name)} 관리자 화면에서 '
+        '「접속 안내」 메일과 함께 보냈습니다.</p>',
+    ]
+    return _겉(제목, "\n".join(조각))
 
 
 def manual_html(program, for_admin: bool) -> str:
@@ -198,12 +269,14 @@ def _카드(속: str, *, 연하게: bool = False) -> str:
 
 
 def mail_html(*, program_name: str, issued: IssuedSet, note: str,
-              manual: str = "") -> str:
+              manual: str = "", install_separate: bool = False) -> str:
     """보낼 메일의 꾸민 판 전체.
 
     :param note: 사람이 고친 접속키 안내 글. 화면의 편집 칸에 있던 그대로.
     :param manual: :func:`manual_html` 이 만든 매뉴얼. 비면 매뉴얼 칸을 아예
         내지 않는다 — 빈 제목만 덩그러니 남는 것이 더 이상하다.
+    :param install_separate: 설치 안내서가 **두 번째 메일로 따로** 가는가.
+        그렇다면 «아래 설치 안내서» 가 아니라 «따로 보낸 메일» 을 가리킨다.
     """
     제목 = _html.escape(f"{program_name} 접속 안내")
     조각 = [
@@ -230,7 +303,9 @@ def mail_html(*, program_name: str, issued: IssuedSet, note: str,
             f'<div style="{_ㄱ}font-size:13px;font-weight:700;color:{_강조};'
             'margin:0 0 4px;">먼저 설치가 필요합니다</div>'
             f'<div style="{_ㄱ}font-size:13px;line-height:1.7;color:{_흐린먹};">'
-            '아래 <b>설치 안내서</b>를 따라 사장님 서버에 한 번만 세우시면 됩니다. '
+            + ('따로 보내 드린 <b>「설치 안내서」 메일</b>을 따라 '
+               if install_separate else '아래 <b>설치 안내서</b>를 따라 ')
+            + '사장님 서버에 한 번만 세우시면 됩니다. '
             '설치를 마치면 그 주소가 사장님 프로그램 주소가 됩니다.</div></div>')
 
     if manual:
@@ -246,7 +321,11 @@ def mail_html(*, program_name: str, issued: IssuedSet, note: str,
         '보냈습니다. 접속키는 다른 분과 나눠 쓰지 마세요 — '
         '같은 2차키로 다른 기기에서 들어오면 먼저 쓰던 기기가 잠깁니다.</p>')
 
-    속 = "\n".join(조각)
+    return _겉(제목, "\n".join(조각))
+
+
+def _겉(제목: str, 속: str) -> str:
+    """메일 한 통의 바깥 틀. 두 메일이 같은 모양이어야 한다."""
     return (
         '<!doctype html><html lang="ko"><head>'
         '<meta charset="utf-8">'

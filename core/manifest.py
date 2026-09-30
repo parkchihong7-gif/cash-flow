@@ -281,6 +281,11 @@ class Manuals(BaseModel):
 
     admin: str = Field(default="", description="관리자용 매뉴얼 (마크다운)")
     client: str = Field(default="", description="구매자용 매뉴얼 (마크다운)")
+    install: str = Field(
+        default="",
+        description="설치 안내서 (마크다운). 자기 서버에 세워 쓰는 상품만. "
+                    "판매용 키를 보낼 때 **두 번째 메일로 따로** 나간다",
+    )
 
 
 class LiveSite(BaseModel):

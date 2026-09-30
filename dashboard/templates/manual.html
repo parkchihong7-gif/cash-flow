@@ -13,9 +13,15 @@
      class="{% if audience == 'admin' %}on{% endif %}">관리자 매뉴얼</a>
   <a href="/programs/{{ program.id }}/manual/client"
      class="{% if audience == 'client' %}on{% endif %}">고객용 매뉴얼</a>
+  {% if program.manuals.install %}
+  <a href="/programs/{{ program.id }}/manual/install"
+     class="{% if audience == 'install' %}on{% endif %}">설치 안내서</a>
+  {% endif %}
   <span class="grow"></span>
   {% if audience == 'admin' %}
   <span class="muted">파는 사람이 볼 것입니다.</span>
+  {% elif audience == 'install' %}
+  <span class="muted">판매용 키와 함께 두 번째 메일로 따로 나갑니다.</span>
   {% else %}
   <span class="muted">고객에게 그대로 보내는 글입니다.</span>
   {% endif %}

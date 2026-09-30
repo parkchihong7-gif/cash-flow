@@ -241,6 +241,8 @@ def _seeds(registry: Registry) -> list[str]:
             urls.append(f"/programs/{program.id}/manual/admin")
         if program.manuals.client:
             urls.append(f"/programs/{program.id}/manual/client")
+        if program.manuals.install:
+            urls.append(f"/programs/{program.id}/manual/install")
         # 두 모드의 첫 화면만 넣는다. 탭은 사이드바 링크를 따라가며 걸린다.
         urls += [f"/apps/{program.id}/admin", f"/apps/{program.id}/client"]
     return urls

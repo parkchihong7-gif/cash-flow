@@ -520,9 +520,12 @@ def test_self_hosted_admin_manual_actually_installs(program_id):
     program = Registry().require(program_id)
     if not (program.live and program.live.self_hosted):
         pytest.skip("자기 서버형이 아닙니다")
-    text = program.resolve(program.manuals.admin).read_text(encoding="utf-8")
+    # 설치 안내서를 따로 두었으면 그쪽에 있어야 한다. 판매용 키를 보낼 때
+    # 두 번째 메일로 따로 나간다.
+    어디 = program.manuals.install or program.manuals.admin
+    text = program.resolve(어디).read_text(encoding="utf-8")
     for 말 in ["claude login", "gcloud run deploy", "Cloud Scheduler", "--update-env-vars"]:
-        assert 말 in text, f"{program_id} 산 분 매뉴얼에 '{말}' 안내가 없습니다"
+        assert 말 in text, f"{program_id} 산 분 안내서에 '{말}' 안내가 없습니다"
 
 
 @pytest.mark.parametrize("program_id", ["funnel-builder", "hook-script", "ebook-gen",

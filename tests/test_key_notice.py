@@ -367,3 +367,63 @@ def test_바깥에_없는_프로그램은_대시보드_문으로(client):
     assert not (프.live and 프.live.door_for(False)), "이 시험의 전제가 바뀌었습니다"
     assert 프.entrance(for_admin=False, door="https://예시/c/senior-video") \
         == "https://예시/c/senior-video"
+
+
+# ─────────────────────────────────────────── 설치 안내서는 따로 한 통
+
+def test_판매용_설치안내서는_두번째_메일로_간다(client, monkeypatch):
+    """**판매용 키에는 메일이 두 통 간다.** 접속 안내 + 관리자 매뉴얼, 그리고
+    설치 안내서. 한 통에 다 넣었더니 지메일이 뒤를 감추고, 매뉴얼 한계로
+    «비용·막혔을 때» 가 잘려 나갔다.
+    """
+    from core import keyclient
+
+    보낸것 = []
+
+    class 가짜서버:
+        def send_text(self, **kw):
+            보낸것.append(kw)
+            return {"remaining": 90}
+
+    body = _issue(client, role="admin").text
+    # 발급은 진짜 길로 하고, **보낼 때만** 가짜 메일 서버를 쓴다.
+    monkeypatch.setattr(keyclient, "from_env", lambda: 가짜서버())
+    assert "설치 안내서」 미리 보기" in body, "두 번째 메일 미리 보기가 없습니다"
+    assert "두 통이 나갑니다" in body
+    쪽지 = re.search(r'action="([^"]*keys/send\?issued=[^"]+)"', body).group(1)
+    client.post(쪽지.replace("&amp;", "&"),
+                data={"email": "buyer@example.com", "subject": "접속 안내", "body": "안녕하세요"})
+
+    assert len(보낸것) == 2, f"두 통이 가야 합니다: {len(보낸것)}통"
+    첫째, 둘째 = 보낸것
+    assert "관리자 매뉴얼" in 첫째["html"]
+    assert "gcloud run deploy" not in 첫째["html"], "설치 절차가 첫 통에 섞였습니다"
+    assert "따로 보내 드린" in 첫째["html"]
+    assert "설치 안내서" in 둘째["subject"]
+    assert "gcloud run deploy" in 둘째["html"]
+    assert "gcloud run deploy" in 둘째["body"], "글자판에도 설치 절차가 있어야 합니다"
+    for 통 in 보낸것:
+        assert 통["email"] == "buyer@example.com"
+        # 지메일은 102KB 가 넘으면 뒤를 감춘다.
+        assert len(통["html"].encode()) < 102_000, f"{통['subject']} 이 너무 큽니다"
+
+
+def test_체험용에는_설치안내서가_안_간다(client, monkeypatch):
+    from core import keyclient
+
+    보낸것 = []
+
+    class 가짜서버:
+        def send_text(self, **kw):
+            보낸것.append(kw)
+            return {"remaining": 90}
+
+    body = _issue(client, role="client").text
+    # 발급은 진짜 길로 하고, **보낼 때만** 가짜 메일 서버를 쓴다.
+    monkeypatch.setattr(keyclient, "from_env", lambda: 가짜서버())
+    assert "설치 안내서」 미리 보기" not in body
+    쪽지 = re.search(r'action="([^"]*keys/send\?issued=[^"]+)"', body).group(1)
+    client.post(쪽지.replace("&amp;", "&"),
+                data={"email": "wife@example.com", "subject": "접속 안내", "body": "안녕"})
+    assert len(보낸것) == 1
+    assert "gcloud" not in 보낸것[0]["html"]

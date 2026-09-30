@@ -114,7 +114,8 @@ def _manual_hits(registry, docs_dir: Path, needle: str) -> list[Hit]:
               ("클라이언트 매뉴얼", docs_dir / "client-manual.md", "/manual/client")]
 
     for program in registry.programs:
-        for audience, label in (("admin", "관리자용"), ("client", "고객용")):
+        for audience, label in (("admin", "관리자용"), ("client", "고객용"),
+                                ("install", "설치 안내서")):
             path = getattr(program.manuals, audience, "")
             if path:
                 shared.append((f"{program.name} {label} 매뉴얼",

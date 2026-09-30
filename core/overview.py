@@ -157,7 +157,7 @@ class EnvRow:
 def _manual_row(program, audience: str, relative: str) -> ManualRow | None:
     if not relative:
         return None
-    label = "관리자용" if audience == "admin" else "고객용"
+    label = {"admin": "관리자용", "client": "고객용", "install": "설치 안내서"}[audience]
     try:
         path = program.resolve(relative)
     except ValueError:
@@ -218,6 +218,7 @@ def collect(registry, db) -> list[ProgramConfig]:
         manuals = [row for row in (
             _manual_row(program, "admin", program.manuals.admin),
             _manual_row(program, "client", program.manuals.client),
+            _manual_row(program, "install", program.manuals.install),
         ) if row is not None]
         missing += [row.path for row in manuals if not row.exists]
 
