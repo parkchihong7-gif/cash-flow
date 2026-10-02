@@ -66,10 +66,11 @@ jobs:
         # 한 장으로 묶고 **내용을 덮는다.** 키를 모르면 소스를 열어도 못 읽는다.
         # 흩어 놓은 판은 올리지 않는다 — 파일마다 직접 열려 잠금이 무의미하다.
         env:
-          # 저장소 Settings → Secrets → Actions 에 SNAPSHOT_KEY 를 넣으면
-          # 그걸 씁니다. 없으면 기본 접속 코드를 씁니다.
-          LOCK: ${{ secrets.SNAPSHOT_KEY || 'redwind7' }}
+          # 저장소 Settings → Secrets → Actions 의 SNAPSHOT_KEY 로 잠근다.
+          # 없으면 잠금 없이 공개되지 않도록 여기서 멈춘다.
+          LOCK: ${{ secrets.SNAPSHOT_KEY }}
         run: |
+          test -n "$LOCK" || { echo "::error::SNAPSHOT_KEY 가 없습니다 — 저장소 Settings → Secrets → Actions 에 넣어 주세요"; exit 1; }
           python -m dashboard.snapshot --out _build --demo --split \
                  --single _site/index.html --lock "$LOCK" \
                  --stamp "$(date -u '+%Y-%m-%d %H:%M UTC')"

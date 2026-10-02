@@ -33,7 +33,7 @@ from shared.config import DATA_DIR
 
 __all__ = [
     "COOKIE_NAME", "DEFAULT_ACCESS_CODE", "SECRET_PATH",
-    "access_code", "is_default_code", "check_code", "session_hours",
+    "access_code", "code_is_set", "is_default_code", "check_code", "session_hours",
     "issue_token", "verify_token", "Gatekeeper",
     "MAX_ATTEMPTS", "LOCKOUT_SECONDS",
 ]
@@ -41,8 +41,9 @@ __all__ = [
 #: 쿠키 이름. 다른 사이트의 쿠키와 겹치지 않게 접두어를 붙였다.
 COOKIE_NAME = "cashflow_gate"
 
-#: 환경변수로 바꾸지 않았을 때 쓰는 접속 코드.
-DEFAULT_ACCESS_CODE = "redwind7"
+#: 접속 코드의 기본값은 **없다.** 공개 저장소라 코드에 적어 두면 누구나 읽는다.
+#: `.env`(또는 서버 환경변수)의 DASHBOARD_ACCESS_CODE 를 반드시 정해야 들어갈 수 있다.
+DEFAULT_ACCESS_CODE = ""
 
 #: 서명용 비밀값을 두는 파일. `.gitignore` 에 들어 있다.
 SECRET_PATH = DATA_DIR / ".dashboard_secret"
@@ -59,9 +60,14 @@ def access_code() -> str:
     return (os.getenv("DASHBOARD_ACCESS_CODE") or DEFAULT_ACCESS_CODE).strip()
 
 
+def code_is_set() -> bool:
+    """접속 코드가 정해져 있는가. 안 정해져 있으면 **아무도 못 들어간다.**"""
+    return bool(access_code())
+
+
 def is_default_code() -> bool:
-    """기본 코드를 그대로 쓰고 있는가. 공개 주소라면 바꾸는 편이 안전하다."""
-    return access_code() == DEFAULT_ACCESS_CODE
+    """접속 코드를 아직 안 정했는가 (예전 이름 그대로 둔다 — 화면 경고 띠가 쓴다)."""
+    return not code_is_set()
 
 
 def session_hours() -> int:
@@ -83,6 +89,9 @@ def check_code(given: str) -> bool:
     글자에서 `TypeError` 를 낸다. 접속 코드를 한글로 정하는 경우가 있어서
     그대로 넘기면 로그인 화면이 통째로 깨진다.
     """
+    # 코드가 안 정해져 있으면 빈칸끼리 «같다» 가 되어 누구나 들어온다. 막는다.
+    if not code_is_set():
+        return False
     return hmac.compare_digest(
         (given or "").strip().encode("utf-8"),
         access_code().encode("utf-8"),

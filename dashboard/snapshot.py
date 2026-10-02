@@ -25,9 +25,11 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import gzip
 import hashlib
 import json
+import os
 import re
 import base64
 import hashlib
@@ -164,6 +166,21 @@ document.addEventListener("click", function (event) {
 });
 </script>"""
 
+
+@contextlib.contextmanager
+def _임시접속코드():
+    """접속 코드가 안 정해진 곳(예: GitHub 의 화면 뜨기)에서는 **그 자리에서만** 임시 코드를 만든다.
+
+    예전에는 코드 안의 기본 코드로 들어갔다. 기본 코드는 공개 저장소에 적혀 있어 없앴다.
+    """
+    if auth.code_is_set():
+        yield
+        return
+    os.environ["DASHBOARD_ACCESS_CODE"] = secrets.token_urlsafe(18)
+    try:
+        yield
+    finally:
+        os.environ.pop("DASHBOARD_ACCESS_CODE", None)
 
 def local_name(url: str) -> str:
     """주소 하나를 파일 이름 하나로 바꾼다.
@@ -508,7 +525,8 @@ def build(out_dir: str | Path, db_path: str | Path | None = None,
 
         # 2) 코드를 넣고 나머지를 훑는다
         client = TestClient(app)
-        client.post("/login", data={"code": auth.access_code()})
+        with _임시접속코드():
+            client.post("/login", data={"code": auth.access_code()})
 
         queue = list(_seeds(registry))
         seen: set[str] = {"/login", "/login-error"}

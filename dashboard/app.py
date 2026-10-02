@@ -287,6 +287,13 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH,
         if gate.locked_for(who):
             return login_page(request, next_path=next, status=429)
 
+        if not auth.code_is_set():
+            return login_page(
+                request, error="접속 코드가 아직 정해지지 않았습니다. 서버 설정(.env 또는 환경변수)에 "
+                               "DASHBOARD_ACCESS_CODE 를 넣어 주세요.",
+                next_path=next, status=503,
+            )
+
         if not auth.check_code(code):
             remaining = gate.record_failure(who)
             return login_page(

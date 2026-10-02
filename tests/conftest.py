@@ -12,9 +12,15 @@ sys.path 에서 먼저 잡히는 상품의 것이 들어온다 — 한 테스트
 """
 
 import importlib.util
+import os
 import sys
 from pathlib import Path
 from types import ModuleType
+
+# 접속 코드에는 기본값이 없다(공개 저장소라). 시험에서 대시보드에 들어가려면 정해 둬야 한다.
+# 실제 서버의 코드와는 상관없는 시험 전용 값이다.
+os.environ.setdefault("DASHBOARD_ACCESS_CODE", "시험용-접속코드")
+
 
 ROOT = Path(__file__).resolve().parents[1]
 PRODUCTS = ROOT / "products"

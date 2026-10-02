@@ -626,7 +626,6 @@ test('묶음 판은 주소만 열면 관리자 화면을 내어 준다', () => {
 test('묶음 판에도 비밀이 안 들어 있다', () => {
   const 글 = fs.readFileSync(BUNDLE_PATH, 'utf8');
   assert.ok(!/AKfyc[A-Za-z0-9_-]{20,}/.test(글), '키 서버 주소가 박혀 있습니다');
-  assert.ok(!글.includes('redwind7'), '접속 코드가 들어 있습니다');
   assert.ok(!/ADMIN_PASSWORD\s*=\s*['"][^'"]+['"]/.test(글), '비밀번호가 박혀 있습니다');
 });
 

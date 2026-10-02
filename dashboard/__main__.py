@@ -65,10 +65,11 @@ INSTALL_HINT = """
 def _announce(port: int) -> None:
     """접속 코드 상태를 알려 준다."""
     print()
-    print(f"  접속 코드: {auth.access_code()}")
-    if auth.is_default_code():
-        print("  ⚠ 기본 코드를 그대로 쓰고 있습니다.")
-        print("    인터넷에 열어 두실 거라면 .env 에 DASHBOARD_ACCESS_CODE 를 넣어 바꾸세요.")
+    if auth.code_is_set():
+        print(f"  접속 코드: {auth.access_code()}")
+    else:
+        print("  ⚠ 접속 코드가 정해지지 않아 아무도 들어갈 수 없습니다.")
+        print("    .env 에 DASHBOARD_ACCESS_CODE=원하는코드 를 넣고 다시 켜세요.")
     print(f"  한 번 들어가면 {auth.session_hours()}시간 동안 유지됩니다.")
     print()
 

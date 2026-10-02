@@ -314,10 +314,13 @@ def test_home_shows_the_checklist(client):
 
 def test_home_hides_duplicate_banners(client):
     """같은 말을 띠로도 목록으로도 보여 주면 둘 다 안 읽게 된다."""
+    import dashboard.app as dashboard_app
+    if dashboard_app.ANTHROPIC_API_KEY:
+        pytest.skip("API 키가 있는 환경이라 경고 띠가 안 뜬다")
     home = client.get("/").text
     elsewhere = client.get("/members").text
-    assert "접속 코드가 기본값 그대로입니다." not in home
-    assert "접속 코드가 기본값 그대로입니다." in elsewhere
+    assert "Claude API 키가 설정되지 않았습니다." not in home
+    assert "Claude API 키가 설정되지 않았습니다." in elsewhere
 
 
 def test_home_draws_charts_without_any_cdn(client, tmp_path):

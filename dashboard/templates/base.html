@@ -59,9 +59,9 @@
     {% if not hide_banners %}
     {% if default_code %}
     <div class="note warn">
-      <strong>접속 코드가 기본값 그대로입니다.</strong>
-      인터넷에 열어 두셨다면 <code>.env</code> 의 <code>DASHBOARD_ACCESS_CODE</code> 를
-      다른 값으로 바꾸세요. 이 화면에는 고객 이름·연락처가 들어 있습니다.
+      <strong>접속 코드가 정해지지 않았습니다.</strong>
+      <code>.env</code>(또는 서버 환경변수)의 <code>DASHBOARD_ACCESS_CODE</code> 를
+      정하세요. 이 화면에는 고객 이름·연락처가 들어 있습니다.
       (<a href="/manual/admin">관리자 매뉴얼</a>)
     </div>
     {% endif %}

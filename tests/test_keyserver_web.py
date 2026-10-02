@@ -366,7 +366,6 @@ def test_묶음_파일에_비밀이_없다():
     from tools.build_keyserver import OUT
 
     글 = OUT.read_text(encoding="utf-8")
-    assert "redwind7" not in 글
     assert "주인비밀번호" not in 글
     assert not re.search(r"AKfyc[A-Za-z0-9_-]{20,}", 글), "키 서버 주소가 박혀 있습니다"
     assert not re.search(r"ADMIN_PASSWORD['\"]?\s*[:=]\s*['\"][^'\"]+", 글)
@@ -752,7 +751,6 @@ def test_나눠붙이는_판에_비밀이_없다():
     """
     for p in 나눠.glob("*.gs"):
         글 = p.read_text(encoding="utf-8")
-        assert "redwind7" not in 글
         assert "주인비밀번호" not in 글
         assert not re.search(r"AKfyc[A-Za-z0-9_-]{20,}", 글), (
             f"{p.name} 에 키 서버 주소가 박혀 있습니다")

@@ -77,8 +77,7 @@ def test_the_locked_screen_is_included(snap):
 def test_the_real_access_code_never_reaches_the_files(tmp_path, monkeypatch):
     """직접 정한 접속 코드가 화면에 찍히면 안 된다.
 
-    매뉴얼에 적힌 **기본** 코드(`redwind7`)는 공개 문서에 이미 있는 값이라
-    그대로 실린다. 문제가 되는 것은 쓰는 사람이 바꾼 코드다.
+    코드를 안 정한 곳에서는 스냅샷이 그 자리에서만 임시 코드를 만들어 쓴다.
     """
     monkeypatch.setenv("DASHBOARD_ACCESS_CODE", "내가-정한-긴-코드-9173")
     out = tmp_path / "coded"

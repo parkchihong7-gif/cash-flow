@@ -36,16 +36,21 @@ def member(tmp_path):
 
 
 # ------------------------------------------------------------------ 접속 코드
-def test_default_code_is_the_one_we_documented():
-    assert auth.DEFAULT_ACCESS_CODE == "redwind7"
-    assert auth.access_code() == "redwind7"
+def test_there_is_no_default_code(monkeypatch):
+    """공개 저장소라 코드에 기본 접속 코드를 두지 않는다. 안 정하면 아무도 못 들어간다."""
+    monkeypatch.delenv("DASHBOARD_ACCESS_CODE", raising=False)
+    assert auth.DEFAULT_ACCESS_CODE == ""
+    assert not auth.code_is_set()
+    assert auth.check_code("") is False       # 빈칸끼리 «같다» 로 들어오면 안 된다
+    assert auth.check_code("아무거나") is False
+    assert auth.is_default_code()
 
 
 def test_code_can_be_changed_by_environment(monkeypatch):
     monkeypatch.setenv("DASHBOARD_ACCESS_CODE", "다른코드")
     assert auth.access_code() == "다른코드"
     assert auth.check_code("다른코드")
-    assert not auth.check_code("redwind7")
+    assert not auth.check_code("예전코드")
     assert not auth.is_default_code()
 
 
@@ -56,12 +61,13 @@ def test_code_comparison_handles_non_ascii(monkeypatch):
     """
     monkeypatch.setenv("DASHBOARD_ACCESS_CODE", "붉은바람7")
     assert auth.check_code("붉은바람7") is True
-    assert auth.check_code("redwind7") is False
+    assert auth.check_code("예전코드") is False
 
 
-def test_code_ignores_surrounding_spaces():
+def test_code_ignores_surrounding_spaces(monkeypatch):
     """휴대폰에서 붙여넣으면 뒤에 공백이 딸려 오는 일이 흔하다."""
-    assert auth.check_code("  redwind7  ")
+    monkeypatch.setenv("DASHBOARD_ACCESS_CODE", "바람코드")
+    assert auth.check_code("  바람코드  ")
 
 
 def test_empty_code_is_rejected():
@@ -257,17 +263,22 @@ def test_proxy_header_identifies_the_real_visitor(tmp_path):
 
 
 # --------------------------------------------------------------------- 안내
-def test_dashboard_warns_while_the_default_code_is_in_use(tmp_path):
-    client = TestClient(create_app(tmp_path / "d.db"))
-    client.post("/login", data={"code": auth.access_code()})
-    assert "기본값 그대로" in client.get("/").text
+def test_login_is_refused_until_a_code_is_set(tmp_path, monkeypatch):
+    """접속 코드를 안 정했으면 빈칸으로도, 아무 글자로도 못 들어오고 할 일을 알려 준다."""
+    monkeypatch.delenv("DASHBOARD_ACCESS_CODE", raising=False)
+    client = TestClient(create_app(tmp_path / "d.db"), follow_redirects=False)
+    for code in ("", "아무거나"):
+        response = client.post("/login", data={"code": code})
+        assert response.status_code == 503
+        assert "DASHBOARD_ACCESS_CODE" in response.text
+    assert client.get("/").status_code in (302, 303, 307)
 
 
-def test_warning_disappears_once_the_code_is_changed(tmp_path, monkeypatch):
+def test_no_warning_once_the_code_is_set(tmp_path, monkeypatch):
     monkeypatch.setenv("DASHBOARD_ACCESS_CODE", "바꾼코드")
     client = TestClient(create_app(tmp_path / "w.db"))
     client.post("/login", data={"code": "바꾼코드"})
-    assert "기본값 그대로" not in client.get("/").text
+    assert "접속 코드가 정해지지 않았습니다" not in client.get("/").text
 
 
 def test_secret_file_is_not_committed():
