@@ -178,3 +178,15 @@ YouTube Data API로 키워드 검색 → 채널·영상 메타 수집 → SQLite
 - **보고는 짧게.** 자세한 표와 사진은 문서에만, 채팅은 결론·결정할 것·배포 명령만.
 - **세션은 프로그램·큰 주제마다 새로.** 시작할 때 `HANDOFF.md` 를 읽고, 끝낼 때 갱신한다.
 - 캡처 이미지·비밀값은 이 공개 저장소에 커밋하지 않는다. 검토 문서의 원본 조각은 아티팩트의 `src/*.txt` 에 함께 올려 둔다.
+
+## 11. 번호로 수정하기 — «N번» 은 N번만 (2026-10-02)
+
+번호·이름·폴더는 각 `products/*/program.yaml` 의 `number` 로 정해진다. 한눈에: `PROGRAMS.md` (`python -m tools.programs doc` 로 다시 만듦).
+
+사장님이 **«3번 …»** 처럼 번호를 말하면:
+1. `python -m tools.programs scope 3` — 고쳐도 되는 곳(`products/<id>/`, 자기 시험), 이 번호가 걸린 공용 파일, 다시 만들 생성물을 확인한다.
+2. **그 범위 안만 고친다.** 공용(`core/ dashboard/ shared/ server/ web/ deploy/ tools/` 등)을 고쳐야 하면 까닭을 들어 **먼저 묻는다.** 다른 번호의 파일은 고치지 않는다.
+3. 본체가 밖에 있는 번호(1번 GitHub Pages 저장소, 3번 maim)는 그 저장소에서 고치고 시험한다.
+4. `python -m tools.programs test 3` (그 번호 시험만) → `python -m tools.programs guard 3` (범위 밖 변경이 없는지) → 커밋 메시지 앞에 `[3번]`.
+5. 전체 시험(`pytest tests/`)은 공용을 고쳤을 때만 돌린다.
+6. 번호 작업 중 다른 번호의 문제를 보면 고치지 말고 보고만 한다. 사장님이 말하지 않은 번호는 먼저 꺼내지 않는다.
