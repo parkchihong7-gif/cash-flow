@@ -57,7 +57,13 @@ def main() -> int:
     args = parser.parse_args()
 
     program = Registry().require("naver-blog")
+    # 산 분은 자기 서버에 세운다(self_hosted) — 그때 이 저장소가 아는 주소는
+    # 체험 서버(demo) 하나뿐이다. 체험 키를 받은 고객이 여는 곳이 바로 거기다.
     주소 = program.live.admin or program.live.client
+    이름 = "프로그램 (관리자·고객 같은 주소)"
+    if not 주소 and program.live.demo:
+        주소 = program.live.demo
+        이름 = "체험 서버 (체험 키 고객이 여는 주소)"
 
     print("연결 확인 — 고객이 지금 들어갈 수 있는가")
     print("=" * 52)
@@ -68,14 +74,14 @@ def main() -> int:
         return 1
 
     if args.dry_run:
-        print(f"  ·  프로그램 (관리자·고객 같은 주소)\n       {주소}")
+        print(f"  ·  {이름}\n       {주소}")
         print("=" * 52)
         print("주소는 적혀 있습니다. 실제로 열리는지는 [지금 확인하기] 로 보세요.")
         return 0
 
     print("  잠들어 있으면 깨어나는 데 몇 초 걸립니다...")
     됐나, 말 = 두드리기(주소)
-    print(f"  {'✓' if 됐나 else '✗'}  프로그램 (관리자·고객 같은 주소)  ({말})")
+    print(f"  {'✓' if 됐나 else '✗'}  {이름}  ({말})")
     print(f"       {주소}")
     print("=" * 52)
     if not 됐나:
