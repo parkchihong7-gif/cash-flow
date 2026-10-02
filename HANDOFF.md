@@ -46,12 +46,12 @@ cd ~/maim && git pull && gcloud run deploy maim --source . --region=us-central1 
 ```
 cd <maim> && npm run build
 DATA_DIR=<scratchpad>/data PORT=8793 DASHBOARD_TOKEN=owner-test-token-local \
-  CLAUDE_BIN=$PWD/tools/fake-claude.mjs FAKE_SLEEP=3000 node dist/index.js &
+  CLAUDE_BIN=$PWD/tools/fake-claude.mjs NAVER_FAKE=1 NAVER_GAP_MS=0 node dist/index.js &   # CLAUDE_BIN 은 절대경로(상대경로면 «설치 안 됨»)
 python tools/ui_shot.py spec.json <출력폴더>     # cash-flow 의 공용 도구
 fuser -k 8793/tcp                                 # 끄기 (pkill -f 는 셸까지 죽인다)
 ```
 - init 스크립트: `localStorage.setItem('maim-dashboard-token','owner-test-token-local'); sessionStorage.setItem('maim-setup-warned','1')`
-- 시험: maim `for f in tests/*.ts; do npx tsx $f; done` (10개) · cash-flow `python -m pytest -q`
+- 시험: maim `for f in tests/*.ts; do npx tsx $f; done` (16개) · cash-flow `python -m pytest -q`
 
 ## 꼭 지킬 것 (이전 세션에서 정해진 것)
 - 공개 저장소에 비밀값 커밋 금지. 시험 코드에도 넣지 않는다.
@@ -78,7 +78,12 @@ fuser -k 8793/tcp                                 # 끄기 (pkill -f 는 셸까�
 - 3번 개발 참고서: `products/naver-blog/docs/개발참고-maim.md` (네이버 키워드 이전 기준).
 - 배포(사장님 Cloud Shell): `cd ~/maim && git fetch origin && git checkout claude/naver-keywords && git pull origin claude/naver-keywords`
   → `gcloud run deploy maim --source . --region=us-central1 --allow-unauthenticated --concurrency=80`
-- 다음: 배포 후 실제 키로 연결 테스트·모으기 확인 → 고칠 것 반영 → 기본 브랜치 합치기 → 6단계(차별화 메모)·7단계(준비 자료 먼저 보기, 선택).
+- 10-02~03 같은 브랜치에 도톨이 대조(maim `docs/도톨이-대조.md`) A~E 를 모두 더함 (마지막 커밋 `bebc92f`, **배포·실사용 시험 전**):
+  A 카테고리 ⑦ 글 쓰는 방식 · B 포스팅 카드 [🔎 최종 검수](문장 누르면 그 자리로 이동) · C «🎨 내 블로그 분석»(체험도) ·
+  D «✍️ 글 작업실»(주인만) · E 키워드 탭 ⑤ 전체 보관함 ⑥ 뉴스 트렌드 ⑦ 벤치마킹 + 직접 씨앗·직접 넣기·개인화 점수·📈 트렌드.
+  모두 «체크·누를 때만» 돌고, 아침 자동 글은 체크 전엔 예전과 같다.
+- 다음: 사장님이 배포·시험 → 고칠 것 반영. 확인 필요: 검색어트렌드 API HUB 경로(`/datalab/v1/search` 추정), 실제 PostView 본문 뽑기,
+  RSS 꺼진 블로그. 그 뒤 기본 브랜치(`claude/great-brown-j376u0`) 합치기.
 
 ## 다음 할 일
 0. **당분간 1~3번에만 집중.** 1~3번은 실제 대시보드를 만들고 고치고 시험한 프로그램이다.
