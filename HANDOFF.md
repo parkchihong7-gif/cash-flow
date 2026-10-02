@@ -69,8 +69,9 @@ fuser -k 8793/tcp                                 # 끄기 (pkill -f 는 셸까�
 - 점검 종료 코드는 대시보드(core/runner.py)와 같게 읽는다: 0 성공 · 2 주의(결과 나옴, ⚠ 볼 것) · 그 밖 실패.
 
 ## 다음 할 일
-1. 3번(maim) 배포 후 사용자가 보내 주는 `⏱` 시간 보고 → 느린 단계가 있으면 그 단계만 손본다.
-   maim 을 고칠 땐 세션에 maim 저장소를 붙인다(add_repo `parkchihong7-gif/maim`).
+1. **3번 블로그 작업은 세션을 maim 저장소(`parkchihong7-gif/maim`)로 연다.** 그 저장소의 `CLAUDE.md` 가 블로그 대시보드
+   전체 안내서다(사본: `products/naver-blog/BLOG-DASHBOARD.md`). cash-flow 로만 열면 블로그 본체 코드가 안 보인다.
+   배포 후 사용자가 보내 주는 `⏱` 시간 보고 → 느린 단계만 손본다.
 2. 새 요청은 CLAUDE.md 10장(적은 사용량)·11장(«N번» 은 N번만) 규칙대로.
 
 ## 사용자와 일하는 방식
