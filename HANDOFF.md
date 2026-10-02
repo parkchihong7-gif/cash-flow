@@ -71,6 +71,15 @@ fuser -k 8793/tcp                                 # 끄기 (pkill -f 는 셸까�
   아직 판매한 적이 없어 단가표는 필요 없고, 3번 본체는 maim 이라 수요 샘플도 필요 없다. 다시 꺼내지 않는다.
 - 점검 종료 코드는 대시보드(core/runner.py)와 같게 읽는다: 0 성공 · 2 주의(결과 나옴, ⚠ 볼 것) · 그 밖 실패.
 
+## 3번 네이버 키워드 고도화 (2026-10-02, 배포 전)
+- maim 브랜치 **`claude/naver-keywords`** (기본 브랜치에 아직 안 합침). 계획·바뀐 결정: maim `docs/네이버키워드-계획.md` **0장**.
+- 왼쪽 메뉴 «🔎 네이버 키워드»(주인만): 키 5개·연결 테스트 / [지금 모으기] / 보관함(골드·실버·브론즈) / 포스팅 적용 체크(기본 꺼짐).
+  **글쓰기·아침 6시 작업은 네이버를 부르지 않는다** — 체크한 카테고리만 보관함을 읽는다. 사장님 걱정(글 지연)이 이것으로 풀렸다.
+- 3번 개발 참고서: `products/naver-blog/docs/개발참고-maim.md` (네이버 키워드 이전 기준).
+- 배포(사장님 Cloud Shell): `cd ~/maim && git fetch origin && git checkout claude/naver-keywords && git pull origin claude/naver-keywords`
+  → `gcloud run deploy maim --source . --region=us-central1 --allow-unauthenticated --concurrency=80`
+- 다음: 배포 후 실제 키로 연결 테스트·모으기 확인 → 고칠 것 반영 → 기본 브랜치 합치기 → 6단계(차별화 메모)·7단계(준비 자료 먼저 보기, 선택).
+
 ## 다음 할 일
 0. **당분간 1~3번에만 집중.** 1~3번은 실제 대시보드를 만들고 고치고 시험한 프로그램이다.
    4~16번은 기본 세팅만 해 둔 상태(화면·시험 등 작업 없음)이고, 1~3번이 완성되면 차례로 손본다.
