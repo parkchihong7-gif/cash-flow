@@ -9,7 +9,7 @@
 
 | 저장소 | 브랜치 | 내용 |
 |---|---|---|
-| `parkchihong7-gif/cash-flow` (공개) | `claude/new-session-9lqy1t` | 통합 관리자 대시보드, 상품 안내서, `tools/` |
+| `parkchihong7-gif/cash-flow` (공개) | `claude/cash-flow-repo-setup-ijd19o` (이전 `claude/new-session-9lqy1t` 와 같은 내용에서 시작) | 통합 관리자 대시보드, 상품 안내서, `tools/` |
 | maim (네이버 블로그 초안 생성기) | `claude/great-brown-j376u0` | Node 20/TS · Fastify · SQLite · Cloud Run |
 
 ### 네이버 블로그 초안 생성기 — 마지막 작업
@@ -66,9 +66,14 @@ fuser -k 8793/tcp                                 # 끄기 (pkill -f 는 셸까�
 - `python -m tools.programs list | scope N | test N | guard N | doc`
 - 2026-10-02 기준 `test N`: 2~16번 모두 통과. 1번만 점검 실패 — `.env` 의 KEYSERVER_URL 이 이 작업 환경에 없어서
   (사장님 PC·서버에선 있음, 고칠 것 아님).
+- **새로 받은 저장소에서는 일부 시험이 실패한다(무시하기로 함, 2026-10-02 사장님 결정).** 공용 `.gitignore` 의 `data/` 규칙 때문에
+  `products/*/data/` 자료(1번 기록표 샘플, 2번 단가표, 3번 키워드 수요 샘플, 14번 수수료율표, 16번 수집 자료)가 저장소에 한 번도 올라가지 않았다.
+  아직 판매한 적이 없어 단가표는 필요 없고, 3번 본체는 maim 이라 수요 샘플도 필요 없다. 다시 꺼내지 않는다.
 - 점검 종료 코드는 대시보드(core/runner.py)와 같게 읽는다: 0 성공 · 2 주의(결과 나옴, ⚠ 볼 것) · 그 밖 실패.
 
 ## 다음 할 일
+0. **당분간 1~3번에만 집중.** 1~3번은 실제 대시보드를 만들고 고치고 시험한 프로그램이다.
+   4~16번은 기본 세팅만 해 둔 상태(화면·시험 등 작업 없음)이고, 1~3번이 완성되면 차례로 손본다.
 1. 3번(maim) 배포 후 사용자가 보내 주는 `⏱` 시간 보고 → 느린 단계가 있으면 그 단계만 손본다.
    maim 을 고칠 땐 세션에 maim 저장소를 붙인다(add_repo `parkchihong7-gif/maim`).
 2. 새 요청은 CLAUDE.md 10장(적은 사용량)·11장(«N번» 은 N번만) 규칙대로.
