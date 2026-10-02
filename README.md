@@ -36,8 +36,8 @@
 소스를 열어도 못 읽습니다 — 자바스크립트로 암호를 물어보는 흉내가 아니라
 AES-GCM 으로 실제로 덮습니다.
 
-> **⚠ 기본 키 `redwind7` 은 이 README 에 적혀 있습니다.**
-> 저장소가 공개라 **누구나 읽을 수 있습니다.** 그대로 두시면 잠근 뜻이 없습니다.
+> **⚠ 기본 키는 프로그램 안에 정해져 있고, 저장소가 공개라 누구나 찾아볼 수 있습니다.**
+> 그대로 두시면 잠근 뜻이 없습니다.
 >
 > 바꾸시려면 [Settings → Secrets → Actions](https://github.com/parkchihong7-gif/cash-flow/settings/secrets/actions) 에서
 > `SNAPSHOT_KEY` 를 만들고 원하는 키를 넣으세요. 다음 올릴 때부터 그 키를 씁니다.
@@ -70,7 +70,7 @@ python -m dashboard           # http://127.0.0.1:8000
 브라우저가 열리면 **접속 코드**를 넣어야 화면이 나옵니다.
 
 ```
-기본 접속 코드: redwind7
+접속 코드: 설치할 때 .env 의 DASHBOARD_ACCESS_CODE 에 정한 값
 ```
 
 한 번 넣으면 12시간 동안 유지됩니다. 왼쪽 아래 **나가기** 로 끊을 수 있습니다.
@@ -125,7 +125,7 @@ python -m dashboard --public
 ```
 ==========================================================
 어디서나 접속:  https://아무글자-여기.trycloudflare.com
-접속 코드:      redwind7
+접속 코드:      (.env 에 정한 값)
 ==========================================================
 ```
 
@@ -185,7 +185,7 @@ Railway·Fly 도 같은 `Dockerfile` 을 그대로 씁니다.
 
 | 환경변수 | 하는 일 | 기본값 |
 |---|---|---|
-| `DASHBOARD_ACCESS_CODE` | 접속 코드 | `redwind7` |
+| `DASHBOARD_ACCESS_CODE` | 접속 코드 | 직접 정한 값 (꼭 바꾸세요) |
 | `DASHBOARD_SESSION_HOURS` | 한 번 들어가면 유지되는 시간 | `12` |
 | `DASHBOARD_SECRET` | 쿠키 서명용 비밀값. 바꾸면 모두 로그아웃됩니다 | 자동 생성 |
 | `DASHBOARD_DATA_DIR` | 고객 DB 와 비밀값을 둘 폴더 | 저장소 폴더 |
