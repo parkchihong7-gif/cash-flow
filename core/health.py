@@ -75,7 +75,7 @@ def checklist(db, registry, api_key_set: bool = True,
         tasks.append(Task(
             "info", "Claude API 키가 없어 모의 실행만 됩니다",
             "실제 실행을 하시려면 .env 에 ANTHROPIC_API_KEY 를 넣으세요. "
-            "8번 수익 시뮬레이터는 키 없이도 돌아갑니다.",
+            "12번 수익 시뮬레이터는 키 없이도 돌아갑니다.",
             "/settings", "설정 열기",
         ))
 

@@ -1,4 +1,4 @@
-/** 교육자료 ②~⑤ 프로그램별 덱 — 13·14·15·16번. */
+/** 교육자료 ②~⑤ 프로그램별 덱 — 1·2·3·4번. */
 const path = require("path");
 const K = require("./build_training_decks.js");
 

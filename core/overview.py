@@ -40,7 +40,7 @@ ENV_KEYS: tuple[tuple[str, str], ...] = (
     ("DASHBOARD_SECRET", "접속 쿠키 서명용. 비우면 자동으로 만들어 파일에 둡니다."),
     ("DASHBOARD_DATA_DIR", "DB 와 비밀 파일을 둘 곳. 도커·클라우드에서 씁니다."),
     ("DASHBOARD_SESSION_HOURS", "한 번 들어오면 얼마나 유지할지(시간). 기본 72시간입니다."),
-    ("NOTION_TOKEN", "9번 노션 자동 생성용. 없어도 손으로 만들 수 있습니다."),
+    ("NOTION_TOKEN", "13번 노션 자동 생성용. 없어도 손으로 만들 수 있습니다."),
     ("NOTION_PARENT_PAGE_ID", "9번이 만들 자리. 그 페이지에 통합을 연결해야 합니다."),
     ("COUPANG_ACCESS_KEY", "10번 쿠팡파트너스 링크용. 없으면 검색 URL 만 만듭니다."),
     ("COUPANG_SECRET_KEY", "10번 서명용. 액세스 키와 짝입니다."),
@@ -48,7 +48,7 @@ ENV_KEYS: tuple[tuple[str, str], ...] = (
     ("SLACK_WEBHOOK_URL", "11번 주간 보고서를 슬랙으로 보낼 때만."),
     ("IG_ACCESS_TOKEN", "11번 인스타 예약 게시용. 60일마다 갱신해야 합니다."),
     ("IG_USER_ID", "11번이 올릴 비즈니스 계정 번호."),
-    ("YOUTUBE_API_KEY", "12번 니치 리서치 수집용. 무료입니다."),
+    ("YOUTUBE_API_KEY", "16번 니치 리서치 수집용. 무료입니다."),
 )
 
 

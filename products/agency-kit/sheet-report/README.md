@@ -83,7 +83,7 @@ python make_workflow.py                          # workflow.json 을 만듭니�
 n8n 에서 `workflow.json` 을 가져오면 **매주 월요일 9시 → 보고서 생성 → 슬랙**
 흐름이 만들어집니다.
 
-- 노드 규격은 6번 상품(`products/n8n-gen/templates/nodes/`)의 틀을 그대로 씁니다.
+- 노드 규격은 10번 상품(`products/n8n-gen/templates/nodes/`)의 틀을 그대로 씁니다.
   두 군데에 같은 값을 적어 두면 한쪽이 조용히 낡기 때문입니다
 - **자격증명은 이름만** 들어 있습니다. 토큰은 n8n 화면에서 넣으세요
 - n8n 이 도커 안이면 주소가 `localhost` 가 아니라 `host.docker.internal` 입니다

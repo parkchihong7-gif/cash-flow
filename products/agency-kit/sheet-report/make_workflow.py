@@ -1,10 +1,10 @@
-"""n8n 워크플로 JSON 만들기 — **6번 상품의 노드 틀을 그대로 쓴다.**
+"""n8n 워크플로 JSON 만들기 — **10번 상품의 노드 틀을 그대로 쓴다.**
 
     python make_workflow.py                 # workflow.json 을 다시 만든다
     python make_workflow.py --hour 9 --weekday 1
 
 왜 손으로 안 쓰고 만드는가
-    노드 규격(`typeVersion` 같은 것)은 n8n 판이 올라가면 바뀐다. 6번 상품
+    노드 규격(`typeVersion` 같은 것)은 n8n 판이 올라가면 바뀐다. 10번 상품
     `products/n8n-gen/templates/nodes/` 를 고치면 이 워크플로도 같이 맞는다.
     두 군데에 같은 값을 적어 두면 한쪽이 조용히 낡는다.
 
@@ -34,7 +34,7 @@ def load_template(name: str) -> dict:
     if not path.is_file():
         raise FileNotFoundError(
             f"노드 틀이 없습니다: {path}\n"
-            "  6번 상품(products/n8n-gen)이 같은 저장소에 있어야 합니다.")
+            "  10번 상품(products/n8n-gen)이 같은 저장소에 있어야 합니다.")
     return json.loads(path.read_text(encoding="utf-8"))
 
 

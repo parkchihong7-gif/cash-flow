@@ -1,6 +1,6 @@
 # 크몽 등록용 상세페이지
 
-> 이 문서는 **5번 상품(크몽 상세페이지 카피 생성기)의 서식**을 그대로 따릅니다.
+> 이 문서는 **9번 상품(크몽 상세페이지 카피 생성기)의 서식**을 그대로 따릅니다.
 > 입력 파일은 `deliverables/kmong_input.yaml` 입니다. API 키를 넣고
 > `cd products/kmong-copy && python cli.py build ../agency-kit/deliverables/kmong_input.yaml`
 > 를 돌리면 이 문서를 다시 만들 수 있습니다.

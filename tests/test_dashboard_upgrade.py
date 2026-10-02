@@ -517,7 +517,7 @@ def test_rules_is_in_the_sidebar(client):
 
 
 # ------------------------------------------------------- 수입 현황 (/revenue)
-# 11번(대행 키트)부터는 **매달 들어오는 돈**이 생긴다. 한 번 받는 돈과
+# 15번(대행 키트)부터는 **매달 들어오는 돈**이 생긴다. 한 번 받는 돈과
 # 성격이 달라서 따로 봐야 한다.
 def _retainer_buyer(db: Database, retainer: int = 100000, expires: str = "") -> int:
     member = db.add_member("동네빵집", "bread@example.com")

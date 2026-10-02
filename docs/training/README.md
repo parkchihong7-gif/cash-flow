@@ -8,7 +8,7 @@
 python tools/capture_screens.py        # 서버를 띄워 16종 × 2모드 + 대시보드 화면 캡처
 python tools/prep_slide_images.py      # 슬라이드에 넣을 크기로 자르기
 node   tools/deck_overview.js          # ① 전체 개요 덱
-node   tools/deck_products.js          # ②~⑤ 13·14·15·16번 덱
+node   tools/deck_products.js          # ②~⑤ 1·2·3·4번 덱
 python tools/qa_deck.py docs/training/*.pptx   # 밖으로 나간 것·겹친 것·넘칠 글
 ```
 
