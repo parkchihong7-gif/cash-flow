@@ -135,8 +135,13 @@ def test(번호: str) -> int:
             print("■ 점검 dry-run: 입력 파일이 정해져 있지 않아 건너뜀")
     if dry:
         print(f"■ 점검 dry-run: {' '.join(dry)}")
-        결과 |= subprocess.run([sys.executable if dry[0] == "python" else dry[0], *dry[1:]],
-                             cwd=뿌리 / "products" / p["id"]).returncode
+        코드 = subprocess.run([sys.executable if dry[0] == "python" else dry[0], *dry[1:]],
+                            cwd=뿌리 / "products" / p["id"]).returncode
+        # 대시보드(core/runner.py)와 같게 읽는다 — 0 성공, 2 «주의»(결과는 나왔고 볼 것이 있음), 그 밖은 실패.
+        if 코드 == 2:
+            print("■ 점검 결과: 주의(종료 코드 2) — 결과물은 나왔고, 위 ⚠ 항목을 보라는 뜻입니다. 실패가 아닙니다.")
+        else:
+            결과 |= 코드
     if p["id"] in 바깥:
         print(f"■ 본체 시험은 밖에서: {바깥[p['id']]['시험']}")
     print("✅ 통과" if 결과 == 0 else "❌ 실패가 있습니다")

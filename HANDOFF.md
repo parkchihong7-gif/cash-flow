@@ -54,10 +54,9 @@ fuser -k 8793/tcp                                 # 끄기 (pkill -f 는 셸까�
 
 ## 번호별 작업 (CLAUDE.md 11장 · PROGRAMS.md)
 - `python -m tools.programs list | scope N | test N | guard N | doc`
-- 2026-10-02 기준 `test N` 결과: pytest 는 1~16번 모두 통과. 점검(check.py dry-run)만 1~4번 실패 —
-  - 1번: `.env` 의 KEYSERVER_URL 없음 (이 환경 탓, 사장님 PC·서버에선 있음)
-  - 2·4번: program.yaml 의 run 명령이 없는 `check.py` 를 가리킴 (그 번호 수정 때 고칠 것)
-  - 3번: check.py 가 `live.client/admin` 만 봄 — 자체 설치형이라 `demo` 만 있어 실패 (그 번호 수정 때 고칠 것)
+- 2026-10-02 기준 `test N`: 2~16번 모두 통과. 1번만 점검 실패 — `.env` 의 KEYSERVER_URL 이 이 작업 환경에 없어서
+  (사장님 PC·서버에선 있음, 고칠 것 아님).
+- 점검 종료 코드는 대시보드(core/runner.py)와 같게 읽는다: 0 성공 · 2 주의(결과 나옴, ⚠ 볼 것) · 그 밖 실패.
 
 ## 다음 할 일
 1. 사용자가 배포 후 보내 주는 `⏱` 시간 보고 → 느린 단계가 있으면 그 단계만 손본다.
