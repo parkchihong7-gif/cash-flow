@@ -43,7 +43,7 @@ from core.keyauth import (
     DEFAULT_BULK, KIND_LEGACY, KIND_PRIMARY, KIND_SECONDARY, ROLE_ADMIN,
     KeyAuth, KeyError_, install_for_mail, manual_for_mail)
 from core.keymail import (
-    install_html, install_mail_html, install_subject, mail_html, manual_html)
+    install_html, install_mail_html, install_subject, mail_html, manual_html, 전용서버이름)
 from core.manifest import ProgramManifest
 from core.registry import Registry
 from core.runner import RunError, run_program
@@ -124,14 +124,27 @@ def register(app, page, registry, db, program_or_404):
         """접속키 저장소. 대시보드와 같은 SQLite 파일을 쓴다."""
         return KeyAuth(db().path)
 
+    def _키서버주소() -> str:
+        """설치 안내서 3단계에 채울 키 서버 주소. 키 서버를 안 쓰면 빈 글자."""
+        server = keyclient.from_env()
+        return str(getattr(server, "url", "") or "") if server else ""
+
     def _설치_따로(program, 보낼것) -> str:
         """판매용 키에 **따로** 붙어 나갈 설치 안내서(꾸민 판). 아니면 빈 글자.
 
         자기 서버에 세워 쓰는 상품을 산 분께만 간다. 체험용은 설치할 일이 없다.
+        이 분 전용 서버 이름과 키 서버 주소를 채워서 낸다.
         """
         if not 보낼것 or not 보낼것.for_admin or 보낼것.service_url:
             return ""
-        return install_html(program)
+        return install_html(program, server=보낼것.server_name, keyserver_url=_키서버주소())
+
+    def _전용서버붙이기(program, issued) -> None:
+        """자기 서버에 세우는 판매 키라면 이 분 전용 서버 이름을 붙인다(주소가 아직 없을 때)."""
+        live = program.live
+        if (issued and issued.for_admin and not issued.service_url and live
+                and live.self_hosted and live.server_base):
+            issued.server_name = 전용서버이름(live.server_base, issued.primary)
 
     def _stash(value: Any) -> str:
         """방금 만든 키를 **한 번만** 꺼내 볼 수 있게 넣어 둔다.
@@ -197,7 +210,7 @@ def register(app, page, registry, db, program_or_404):
             # 관리» 처럼 그분 화면에 없는 것을 찾게 된다.
             보낼것 = base.get("issued")
             base["manual_html"] = (
-                manual_html(program, 보낼것.for_admin) if 보낼것 else "")
+                manual_html(program, 보낼것.for_admin, server=보낼것.server_name) if 보낼것 else "")
             # 판매용이고 설치 안내서가 있으면 **두 번째 메일**이 따로 나간다.
             # 무엇이 나가는지 보이게 미리 보기도 따로 둔다.
             base["install_html"] = _설치_따로(program, 보낼것)
@@ -386,6 +399,15 @@ def register(app, page, registry, db, program_or_404):
         # 파는 키와 쓰는 키가 가는 곳이 다를 수 있다 — 1번은 `?admin=1`.
         열곳 = program.entrance(for_admin=(str(form.get("role") or ROLE_ADMIN)
                                            == ROLE_ADMIN), door=door)
+        # 설치를 대신 해 드렸거나 이미 세운 서버가 있으면 **그 분 주소**를 적는다 —
+        # 키마다 다른 주소. 그러면 안내문에 [프로그램 열기] 버튼이 그 주소로 간다.
+        이분주소 = str(form.get("own_url") or "").strip()
+        if 이분주소 and str(form.get("role") or ROLE_ADMIN) == ROLE_ADMIN:
+            if not 이분주소.startswith("https://"):
+                return RedirectResponse(
+                    _keys_back(program_id, error="서버 주소는 https:// 로 시작해야 합니다"),
+                    status_code=303)
+            열곳 = 이분주소
         # 판매 키는 산 사람을 그 프로그램의 관리자로 만든다.
         role = str(form.get("role") or ROLE_ADMIN)
         try:
@@ -422,6 +444,7 @@ def register(app, page, registry, db, program_or_404):
             return RedirectResponse(_keys_back(program_id, error=str(exc)),
                                     status_code=303)
 
+        _전용서버붙이기(program, issued)
         # 키 자체를 주소에 실어 보내면 브라우저 기록·서버 로그에 남는다.
         # 한 번만 쓰는 쪽지에 넣어 두고 화면에서 꺼내 보여 준다.
         token = _stash(issued)
@@ -459,7 +482,7 @@ def register(app, page, registry, db, program_or_404):
         글자매뉴얼 = (manual_for_mail(program, 보낼것.for_admin)
                       if 보낼것 else "")
         꾸민판 = (mail_html(program_name=program.name, issued=보낼것, note=쓴글,
-                            manual=manual_html(program, 보낼것.for_admin),
+                            manual=manual_html(program, 보낼것.for_admin, server=보낼것.server_name),
                             install_separate=bool(설치판))
                   if 보낼것 else "")
         받는분 = str(form.get("email") or "").strip()
@@ -484,7 +507,7 @@ def register(app, page, registry, db, program_or_404):
                 answer = server.send_text(
                     email=받는분,
                     subject=install_subject(program.name),
-                    body=install_for_mail(program),
+                    body=install_for_mail(program, server=보낼것.server_name, keyserver_url=_키서버주소()),
                     html=install_mail_html(program_name=program.name,
                                            holder_name=보낼것.holder_name,
                                            manual=설치판),

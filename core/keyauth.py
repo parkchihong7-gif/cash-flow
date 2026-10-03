@@ -244,6 +244,8 @@ class IssuedSet:
     service_url: str = ""
     role: str = ROLE_CLIENT
     primary_id: int = 0
+    #: 자기 서버에 세우는 상품일 때 이 분 전용 서버 이름(예: maim-k3f9qa). 저장하지 않고 발급 때 붙인다.
+    server_name: str = ""
 
     @property
     def for_admin(self) -> bool:
@@ -265,7 +267,12 @@ class IssuedSet:
             머리 = (f"{self.holder_name}님, 이 프로그램은 **사장님 서버에 직접 세워** "
                     f"쓰십니다. 따로 보내 드린 「설치 안내서」 메일을 따라 한 번만 세우시면, "
                     f"그 뒤로는 글도 설정도 전부 사장님 자리에 쌓입니다.")
-            자리 = "설치를 마치신 뒤, 그 화면에서 아래 인증키를 넣어 주세요."
+            자리 = ("설치는 여기서 시작합니다 (구글 클라우드 검은 창): "
+                    "https://console.cloud.google.com/?cloudshell=true\n"
+                    + (f"사장님 전용 서버 이름: {self.server_name} — 설치가 끝나면 "
+                       f"«{self.server_name}-» 로 시작하는 사장님만의 접속 주소(…run.app)가 생깁니다.\n"
+                       if self.server_name else "")
+                    + "설치를 마치신 뒤, 그 주소에서 아래 인증키를 넣어 주세요.")
         else:
             머리 = (f"{self.holder_name}님, 아래 링크로 접속하시면 1차, 2차 인증 후 "
                     f"이용 가능합니다.")
@@ -829,7 +836,7 @@ def _기호떼기(글: str) -> str:
     return "\n".join(쓸것).strip()
 
 
-def install_for_mail(program) -> str:
+def install_for_mail(program, *, server: str = "", keyserver_url: str = "") -> str:
     """두 번째 메일(설치 안내서)의 글자판. **자르지 않는다.**
 
     설치 절차가 중간에 끊기면 서버가 반쯤 선 채로 남는다. 이 메일은 설치
@@ -841,4 +848,5 @@ def install_for_mail(program) -> str:
     path = program.resolve(상대)
     if not path.is_file():
         return ""
-    return _기호떼기(path.read_text(encoding="utf-8"))
+    from core.keymail import 설치개인화
+    return _기호떼기(설치개인화(path.read_text(encoding="utf-8"), server=server, keyserver_url=keyserver_url))

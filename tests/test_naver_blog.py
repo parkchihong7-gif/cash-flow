@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -309,3 +310,59 @@ def test_all_sponsor_kinds_have_a_phrase():
         if kind == "none":
             continue
         assert kind in DISCLOSURE
+
+
+# ── 접속 안내 메일(판매용) — 키마다 전용 서버 · 설치 시작 링크 · 체험 서버 절차 없음 (2026-10-03) ──
+
+def _판매키(primary: str = "ABCD-EFGH-IJKL"):
+    from core.keyauth import IssuedSet
+    return IssuedSet(holder_name="홍길동", holder_email="hong@example.com", primary=primary,
+                     secondary={"PC": "P1", "노트북": "N1", "모바일": "M1"},
+                     program_id="naver-blog", service_url="", role="admin")
+
+
+def test_dedicated_server_name_is_stable_and_differs_per_key():
+    from core.keymail import 전용서버이름
+    가 = 전용서버이름("maim", "ABCD-EFGH-IJKL")
+    assert 가 == 전용서버이름("maim", "ABCD-EFGH-IJKL")          # 같은 키면 언제나 같은 이름
+    assert 가 != 전용서버이름("maim", "ZZZZ-YYYY-XXXX")           # 키마다 다른 서버
+    assert re.fullmatch(r"maim-[a-z2-7]{6}", 가)                  # Cloud Run 이름 규칙
+    assert "abcd" not in 가                                       # 키 글자를 그대로 드러내지 않음
+
+
+def test_install_guide_is_filled_for_this_key_and_has_no_trial_server():
+    from core.keymail import install_html, 설치개인화
+    program = Registry().require("naver-blog")
+    assert program.live.server_base == "maim"
+    원문 = (Path(program.resolve(program.manuals.install))).read_text(encoding="utf-8")
+    assert "체험" not in 원문                                      # 체험 서버 절차는 모두 뺐다
+    assert "📖 사용법" in 원문 and "처음 세팅 체크리스트" in 원문     # 새 사용법 흐름을 안내
+    채움 = 설치개인화(원문, server="maim-k3f9qa", keyserver_url="https://script.google.com/macros/s/X/exec")
+    assert "gcloud run deploy maim-k3f9qa \\" in 채움
+    assert "gcloud run services update maim-k3f9qa " in 채움
+    assert "maim-k3f9qa-data-YOUR_PROJECT_ID" in 채움 and "gs://maim-data-" not in 채움
+    assert "jobs create http maim-k3f9qa-daily" in 채움
+    assert "KEYSERVER_URL=https://script.google.com/macros/s/X/exec" in 채움
+    assert "KEYSERVER_URL=YOUR_KEYSERVER_URL" not in 채움
+    assert "git clone https://github.com/parkchihong7-gif/maim.git && cd maim" in 채움   # 폴더 이름은 그대로
+    assert "maim-k3f9qa" in install_html(program, server="maim-k3f9qa")
+
+
+def test_sale_mail_has_setup_link_and_dedicated_server():
+    from core.keymail import CLOUD_SHELL_URL, mail_html, 전용서버이름
+    키 = _판매키()
+    키.server_name = 전용서버이름("maim", 키.primary)
+    본문 = 키.mail_body("블로그 포스팅")
+    assert CLOUD_SHELL_URL in 본문 and 키.server_name in 본문
+    꾸민 = mail_html(program_name="블로그 포스팅", issued=키, note=본문, install_separate=True)
+    assert f'href="{CLOUD_SHELL_URL}"' in 꾸민 and "설치 시작하기" in 꾸민
+    assert "사장님 전용 서버" in 꾸민 and 키.server_name in 꾸민
+
+
+def test_sale_mail_with_known_server_opens_it():
+    from core.keymail import mail_html
+    키 = _판매키()
+    키.service_url = "https://maim-k3f9qa-uc.a.run.app"
+    꾸민 = mail_html(program_name="블로그 포스팅", issued=키, note=키.mail_body("블로그 포스팅"))
+    assert 'href="https://maim-k3f9qa-uc.a.run.app"' in 꾸민 and "프로그램 열기" in 꾸민
+    assert "설치 시작하기" not in 꾸민

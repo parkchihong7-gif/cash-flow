@@ -37,6 +37,8 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import html as _html
 import re
 
@@ -184,6 +186,45 @@ def _읽기(program, 상대: str) -> str:
     return path.read_text(encoding="utf-8").strip()
 
 
+#: 설치를 시작하는 곳 — 구글 클라우드 콘솔을 열면서 검은 창(Cloud Shell)까지 바로 연다.
+CLOUD_SHELL_URL = "https://console.cloud.google.com/?cloudshell=true"
+
+
+def 전용서버이름(바탕: str, primary: str) -> str:
+    """접속키마다 따로 세울 서버 이름. 예: ``maim-k3f9qa``.
+
+    **키에서 그대로 떼지 않는다.** 서버 이름은 주소(https://maim-k3f9qa-….run.app)에
+    드러나는데, 키 일부가 보이면 안 된다. 키의 해시에서 6자를 뽑는다 — 같은 키면
+    언제 다시 만들어도 같은 이름이다. Cloud Run 이름 규칙(소문자·숫자·하이픈,
+    글자로 시작)에 맞는다.
+    """
+    if not 바탕 or not primary:
+        return ""
+    꼬리 = base64.b32encode(hashlib.sha256(primary.encode("utf-8")).digest()).decode("ascii").lower()
+    꼬리 = re.sub(r"[^a-z0-9]", "", 꼬리)[:6]
+    return f"{바탕}-{꼬리}"
+
+
+def 설치개인화(글: str, *, server: str = "", keyserver_url: str = "") -> str:
+    """설치 안내서·관리자 매뉴얼의 명령을 **이 분 것으로** 채운다.
+
+    - 서버 이름 ``maim`` → ``maim-xxxxxx`` (deploy·update·describe·자명종·저장통·예시 주소)
+    - ``YOUR_KEYSERVER_URL`` → 실제 키 서버 주소 (예전엔 «메일로 보낸 주소» 라고만 하고 안 보내서
+      산 분이 3단계에서 막혔다)
+    비면 그대로 둔다 — 화면의 일반 안내서는 바뀌지 않는다.
+    """
+    if server:
+        바탕 = server.split("-")[0]
+        for 앞 in ("gcloud run deploy", "gcloud run services update", "gcloud run services describe"):
+            글 = re.sub(rf"({re.escape(앞)}) {re.escape(바탕)}(?=[\s\\])", rf"\1 {server}", 글)
+        글 = 글.replace(f"{바탕}-data-YOUR_PROJECT_ID", f"{server}-data-YOUR_PROJECT_ID")
+        글 = re.sub(rf"\b{re.escape(바탕)}-daily\b", f"{server}-daily", 글)
+        글 = 글.replace(f"https://{바탕}-xxxxx-uc.a.run.app", f"https://{server}-xxxxx-uc.a.run.app")
+    if keyserver_url:
+        글 = 글.replace("KEYSERVER_URL=YOUR_KEYSERVER_URL", f"KEYSERVER_URL={keyserver_url}")
+    return 글
+
+
 def install_markdown(program) -> str:
     """**따로 보낼** 설치 안내서의 원문.
 
@@ -196,9 +237,9 @@ def install_markdown(program) -> str:
     return _읽기(program, program.manuals.install)
 
 
-def install_html(program) -> str:
-    """설치 안내서의 꾸민 판. 없으면 빈 글자."""
-    글 = install_markdown(program)
+def install_html(program, *, server: str = "", keyserver_url: str = "") -> str:
+    """설치 안내서의 꾸민 판. 없으면 빈 글자. server·keyserver_url 을 주면 그 분 것으로 채운다."""
+    글 = 설치개인화(install_markdown(program), server=server, keyserver_url=keyserver_url)
     if not 글:
         return ""
     return _입히기(_md.markdown(
@@ -232,9 +273,9 @@ def install_mail_html(*, program_name: str, holder_name: str, manual: str) -> st
     return _겉(제목, "\n".join(조각))
 
 
-def manual_html(program, for_admin: bool) -> str:
+def manual_html(program, for_admin: bool, *, server: str = "") -> str:
     """매뉴얼을 **꾸민 판**으로. 화면의 매뉴얼과 같은 모습이 된다."""
-    글 = manual_markdown(program, for_admin)
+    글 = 설치개인화(manual_markdown(program, for_admin), server=server)
     if not 글:
         return ""
     return _입히기(_md.markdown(
@@ -258,6 +299,8 @@ def _글자를_문단으로(글: str) -> str:
         안전 = _주소.sub(
             lambda m: f'<a href="{m.group(1)}" style="{_모양["a"]}">{m.group(1)}</a>',
             안전)
+        # 안내문 글에 쓴 **굵게** 를 굵은 글씨로 — 예전엔 별표가 그대로 보였다.
+        안전 = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", 안전)
         문단.append(f'<p style="{_모양["p"]}">' + 안전.replace("\n", "<br>") + "</p>")
     return "\n".join(문단)
 
@@ -294,9 +337,27 @@ def mail_html(*, program_name: str, issued: IssuedSet, note: str,
             'font-size:15px;font-weight:700;text-decoration:none;'
             'padding:12px 24px;border-radius:10px;">프로그램 열기 →</a></div>')
     elif issued.for_admin:
-        # **누를 버튼이 없는 것이 맞다.** 자기 서버에 세워 쓰는 상품이라,
-        # 이 분이 설치를 마치기 전에는 열 주소가 세상에 없다. 여기에
-        # 우리 주소를 넣으면 그분 고객의 글이 우리 서버에 쌓인다.
+        # 자기 서버에 세워 쓰는 상품이라, 이 분이 설치를 마치기 전에는 열 주소가
+        # 세상에 없다. 우리 주소를 넣으면 그분 고객의 글이 우리 서버에 쌓인다.
+        # 대신 **설치를 시작하는 곳**을 버튼으로 준다(예전엔 누를 링크가 하나도 없었다).
+        조각.append(
+            f'<div style="margin:0 0 14px;"><a href="{_html.escape(CLOUD_SHELL_URL, quote=True)}" '
+            f'style="display:inline-block;background:{_강조};color:#ffffff;'
+            'font-size:15px;font-weight:700;text-decoration:none;'
+            'padding:12px 24px;border-radius:10px;">설치 시작하기 →</a>'
+            f'<div style="{_ㄱ}font-size:12px;color:{_아주흐린먹};margin-top:6px;">'
+            '구글 클라우드가 열리고 화면 아래에 검은 창(Cloud Shell)이 뜹니다 · 설치 안내서 1단계</div></div>')
+        if issued.server_name:
+            조각.append(
+                f'<div style="margin:0 0 14px;padding:14px 16px;border-radius:10px;'
+                f'background:#ffffff;border:1px solid {_선};">'
+                f'<div style="{_ㄱ}font-size:13px;font-weight:700;color:{_먹};margin:0 0 6px;">'
+                '사장님 전용 서버</div>'
+                f'<div style="{_ㄱ}font-size:13px;line-height:1.8;color:{_흐린먹};">'
+                f'서버 이름 <b style="font-family:monospace;color:{_먹};">{_html.escape(issued.server_name)}</b> '
+                '— 설치 안내서의 명령에 이미 채워 두었습니다.<br>'
+                f'설치가 끝나면 <b>https://{_html.escape(issued.server_name)}-…run.app</b> 같은 '
+                '<b>사장님만의 접속 주소</b>가 생깁니다. 그 주소를 즐겨찾기 해 두세요.</div></div>')
         조각.append(
             f'<div style="margin:0 0 22px;padding:14px 16px;border-radius:10px;'
             f'background:{_연강조};border:1px solid {_선};">'

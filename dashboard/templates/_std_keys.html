@@ -91,6 +91,10 @@
     <label><span class="ltext">이름</span> <input type="text" name="name" required placeholder="홍길동"></label>
     <label><span class="ltext">이메일</span> <input type="email" name="email" required placeholder="hong@example.com"></label>
     <label><span class="ltext">유효기간</span> <input type="number" name="expires_days" id="keydays" min="0" placeholder="비우면 무제한 (일)"></label>
+    {% if program.live and program.live.self_hosted and not through_door %}
+    <label id="ownurl-row"><span class="ltext">이 분 서버 주소</span>
+      <input type="url" name="own_url" placeholder="선택 — 설치를 대신 해 드렸다면 https://…run.app (비우면 설치 안내서)"></label>
+    {% endif %}
     <button class="btn primary" type="submit">발급하고 안내문 만들기</button>
   </form>
   {% if program.live and program.live.self_hosted %}
@@ -102,6 +106,8 @@
     var 고르개 = document.getElementById('keyrole'), 날짜 = document.getElementById('keydays');
     if (!고르개 || !날짜) return;
     function 맞추기() {
+      var 주소줄 = document.getElementById('ownurl-row');
+      if (주소줄) 주소줄.style.display = 고르개.value === 'client' ? 'none' : '';
       if (고르개.value === 'client') {
         if (!날짜.value) 날짜.value = '1';
         날짜.placeholder = '체험 기간 (일)';

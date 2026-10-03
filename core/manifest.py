@@ -312,6 +312,10 @@ class LiveSite(BaseModel):
         default=False,
         description="산 분은 자기 서버에 직접 세운다 — 안내문에 주소 대신 설치 안내서를 넣는다",
     )
+    server_base: str = Field(
+        default="",
+        description="자기 서버에 세울 때 서비스 이름의 바탕(예: maim). 키마다 «maim-xxxxxx» 로 따로 세워 주소가 겹치지 않게",
+    )
 
     @field_validator("admin", "client", "demo")
     @classmethod
