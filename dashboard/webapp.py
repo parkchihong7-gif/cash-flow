@@ -43,7 +43,8 @@ from core.keyauth import (
     DEFAULT_BULK, KIND_LEGACY, KIND_PRIMARY, KIND_SECONDARY, ROLE_ADMIN,
     KeyAuth, KeyError_, install_for_mail, manual_for_mail)
 from core.keymail import (
-    install_html, install_mail_html, install_subject, mail_html, manual_html, 전용서버이름)
+    install_html, install_mail_html, install_subject, mail_html, manual_html, 전용서버이름,
+    도우미주소, manual_mail_html, manual_subject, setup_mail_html, setup_subject, 서버만들기명령)
 from core.manifest import ProgramManifest
 from core.registry import Registry
 from core.runner import RunError, run_program
@@ -139,12 +140,23 @@ def register(app, page, registry, db, program_or_404):
             return ""
         return install_html(program, server=보낼것.server_name, keyserver_url=_키서버주소())
 
-    def _전용서버붙이기(program, issued) -> None:
-        """자기 서버에 세우는 판매 키라면 이 분 전용 서버 이름을 붙인다(주소가 아직 없을 때)."""
+    def _전용서버붙이기(program, issued, base_url: str = "") -> None:
+        """자기 서버에 세우는 판매 키라면 이 분 전용 서버 이름과 설치 도우미 주소를 붙인다(주소가 아직 없을 때)."""
         live = program.live
         if (issued and issued.for_admin and not issued.service_url and live
                 and live.self_hosted and live.server_base):
             issued.server_name = 전용서버이름(live.server_base, issued.primary)
+            if base_url and live.setup_script:
+                issued.helper_url = 도우미주소(base_url, program.id, issued.server_name)
+
+    def _첫메일(program, 보낼것, 쓴글: str) -> str:
+        """자기 서버 판매 키의 첫 메일(서버 만들기). 그 밖이면 빈 글자."""
+        if not 보낼것 or not 보낼것.server_name:
+            return ""
+        return setup_mail_html(program_name=program.name, issued=보낼것, note=쓴글,
+                               helper_url=보낼것.helper_url or "",
+                               script=서버만들기명령(program, server=보낼것.server_name,
+                                                    keyserver_url=_키서버주소()))
 
     def _stash(value: Any) -> str:
         """방금 만든 키를 **한 번만** 꺼내 볼 수 있게 넣어 둔다.
@@ -215,6 +227,10 @@ def register(app, page, registry, db, program_or_404):
             # 무엇이 나가는지 보이게 미리 보기도 따로 둔다.
             base["install_html"] = _설치_따로(program, 보낼것)
             base["install_subject"] = install_subject(program.name)
+            # 자기 서버 판매 키는 **세 통**: ① 서버 만들기 ② 관리자 매뉴얼 ③ 설치 안내서
+            base["setup_html"] = _첫메일(program, 보낼것, 보낼것.mail_body(program.name)) if 보낼것 else ""
+            base["setup_subject"] = setup_subject(program.name)
+            base["manual_subject"] = manual_subject(program.name)
             base["send_action"] = (
                 f"{APPS_PREFIX}/{program.id}/{mode}/keys/send"
                 f"?issued={base['issued_token']}")
@@ -444,12 +460,49 @@ def register(app, page, registry, db, program_or_404):
             return RedirectResponse(_keys_back(program_id, error=str(exc)),
                                     status_code=303)
 
-        _전용서버붙이기(program, issued)
+        _전용서버붙이기(program, issued, str(request.base_url))
         # 키 자체를 주소에 실어 보내면 브라우저 기록·서버 로그에 남는다.
         # 한 번만 쓰는 쪽지에 넣어 두고 화면에서 꺼내 보여 준다.
         token = _stash(issued)
         return RedirectResponse(_keys_back(program_id, issued=token),
                                 status_code=303)
+
+    async def _세통보내기(program, 보낼것, server, 받는분, 쓴글, 첫판, 설치판, 글자매뉴얼, token, 첫제목=""):
+        """자기 서버 판매 키 — **세 통**을 차례로 보낸다. ① 서버 만들기 ② 관리자 매뉴얼 ③ 설치 안내서.
+
+        첫 통이 «무엇을 먼저 하나» 하나에만 집중하게 하려고 매뉴얼을 떼어 냈다(2026-10-03 사장님 요청).
+        중간에 실패하면 몇 통째까지 갔는지 분명히 말한다.
+        """
+        통들 = [
+            (첫제목 or setup_subject(program.name), 보낼것.plain_mail(쓴글, ""), 첫판),
+            (manual_subject(program.name), 글자매뉴얼,
+             manual_mail_html(program_name=program.name, holder_name=보낼것.holder_name,
+                              manual=manual_html(program, True, server=보낼것.server_name))),
+        ]
+        if 설치판:
+            통들.append((install_subject(program.name),
+                        install_for_mail(program, server=보낼것.server_name, keyserver_url=_키서버주소()),
+                        install_mail_html(program_name=program.name, holder_name=보낼것.holder_name,
+                                          manual=설치판)))
+        left = None
+        for 몇, (제목, 글, 꾸민) in enumerate(통들, 1):
+            if not 글.strip() and not 꾸민:
+                continue
+            try:
+                answer = server.send_text(email=받는분, subject=제목, body=글 or 제목, html=꾸민,
+                                          program_id=program.id)
+                left = answer.get("remaining", left)
+            except keyclient.KeyServerError as exc:
+                앞 = f"{몇 - 1}통은 보냈지만 " if 몇 > 1 else ""
+                return RedirectResponse(
+                    _keys_back(program.id, issued=token,
+                               mail_error=f"{앞}{몇}번째 메일({제목})을 못 보냈습니다 — {exc}. "
+                                          "다시 [발송] 하시면 세 통이 처음부터 다시 나갑니다"),
+                    status_code=303)
+        return RedirectResponse(
+            _keys_back(program.id, issued=token, mail_sent="1",
+                       mail_left="" if left is None else str(left)),
+            status_code=303)
 
     @app.post(APPS_PREFIX + "/{program_id}/{mode}/keys/send")
     async def keys_send(request: Request, program_id: str, mode: str):
@@ -486,6 +539,10 @@ def register(app, page, registry, db, program_or_404):
                             install_separate=bool(설치판))
                   if 보낼것 else "")
         받는분 = str(form.get("email") or "").strip()
+        첫판 = _첫메일(program, 보낼것, 쓴글)
+        if 첫판:
+            return await _세통보내기(program, 보낼것, server, 받는분, 쓴글, 첫판, 설치판, 글자매뉴얼, token,
+                                     첫제목=str(form.get("subject") or "").strip())
         try:
             answer = server.send_text(
                 email=받는분,

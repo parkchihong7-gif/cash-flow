@@ -246,6 +246,8 @@ class IssuedSet:
     primary_id: int = 0
     #: 자기 서버에 세우는 상품일 때 이 분 전용 서버 이름(예: maim-k3f9qa). 저장하지 않고 발급 때 붙인다.
     server_name: str = ""
+    #: 이 분 전용 설치 도우미 페이지(대시보드 /c/<프로그램>/setup/<서버 이름>). 발급 때 붙인다.
+    helper_url: str = ""
 
     @property
     def for_admin(self) -> bool:
@@ -264,15 +266,14 @@ class IssuedSet:
         """
         자기서버 = self.for_admin and not self.service_url
         if 자기서버:
-            머리 = (f"{self.holder_name}님, 이 프로그램은 **사장님 서버에 직접 세워** "
-                    f"쓰십니다. 따로 보내 드린 「설치 안내서」 메일을 따라 한 번만 세우시면, "
-                    f"그 뒤로는 글도 설정도 전부 사장님 자리에 쌓입니다.")
-            자리 = ("설치는 여기서 시작합니다 (구글 클라우드 검은 창): "
-                    "https://console.cloud.google.com/?cloudshell=true\n"
-                    + (f"사장님 전용 서버 이름: {self.server_name} — 설치가 끝나면 "
-                       f"«{self.server_name}-» 로 시작하는 사장님만의 접속 주소(…run.app)가 생깁니다.\n"
-                       if self.server_name else "")
-                    + "설치를 마치신 뒤, 그 주소에서 아래 인증키를 넣어 주세요.")
+            머리 = (f"{self.holder_name}님, 블로그 포스팅 프로그램을 **사장님 전용 서버**에 세우는 첫 단계입니다. "
+                    "아래 [설치 도우미]를 열면 그림을 보며 **복사 한 번**으로 서버를 만들 수 있습니다 "
+                    "(약 15분, 한 번만).")
+            자리 = ((f"🛠️ 설치 도우미: {self.helper_url}\n" if self.helper_url
+                     else "🛠️ 설치 시작: https://console.cloud.google.com/?cloudshell=true\n")
+                    + (f"🏷️ 사장님 전용 서버 이름: {self.server_name}\n" if self.server_name else "")
+                    + "\n✅ 서버가 다 만들어지면 검은 창에 «🎉 완료! 사장님 접속 주소» 가 뜹니다. "
+                    "그 주소를 열고 아래 인증키를 넣으세요. (글로 된 자세한 판은 3번째 메일 «설치 안내서»)")
         else:
             머리 = (f"{self.holder_name}님, 아래 링크로 접속하시면 1차, 2차 인증 후 "
                     f"이용 가능합니다.")

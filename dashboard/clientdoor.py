@@ -51,10 +51,11 @@
 
 from __future__ import annotations
 
+import re
 import secrets
 from typing import Any
 
-from fastapi import Request
+from fastapi import HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from core.keymail import manual_html
@@ -130,6 +131,29 @@ def register(app, templates, registry, db, program_or_404, console_for) -> None:
         if row is None:
             return ROLE_CLIENT, 0
         return row["role"], (row["parent_id"] or row["id"])
+
+    # ------------------------------------------------------------ 설치 도우미
+    @app.get(DOOR_PREFIX + "/{program_id}/setup/{server}", response_class=HTMLResponse)
+    def setup_helper(request: Request, program_id: str, server: str):
+        """자기 서버에 세우는 판매 키의 **설치 도우미** — 첫 메일의 [설치 도우미 열기] 가 여는 곳.
+
+        접속키는 싣지 않는다(키는 메일에만). 서버 이름이 규칙에 맞을 때만 열고, 그 이름과
+        키 서버 주소를 채운 명령을 [복사] 버튼으로 낸다. 메일 앱은 «눌러서 복사» 를 막아서
+        복사는 이 페이지에서 한다.
+        """
+        from core import keyclient
+        from core.keymail import CLOUD_SHELL_URL, 서버만들기명령, 설치걸음
+        program = program_or_404(program_id)
+        live = program.live
+        if (not live or not live.self_hosted or not live.server_base or not live.setup_script
+                or not re.fullmatch(rf"{re.escape(live.server_base)}-[a-z0-9]{{6}}", server)):
+            raise HTTPException(status_code=404, detail="설치 도우미를 찾을 수 없습니다")
+        키서버 = keyclient.from_env()
+        return templates.TemplateResponse(
+            request, "setup_helper.html",
+            {"program": program, "server": server, "걸음": 설치걸음, "cloud_shell_url": CLOUD_SHELL_URL,
+             "script": 서버만들기명령(program, server=server,
+                                     keyserver_url=str(getattr(키서버, "url", "") or "") if 키서버 else "")})
 
     # ------------------------------------------------------------ 열쇠 넣기
     @app.get(DOOR_PREFIX + "/{program_id}", response_class=HTMLResponse)

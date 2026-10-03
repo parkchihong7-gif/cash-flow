@@ -354,7 +354,8 @@ def test_자기_서버에_세우는_상품은_안내문에_주소가_없다(clie
     칸 = re.search(r'<textarea id="issued-text"[^>]*>(.*?)</textarea>', body, re.S)
     글 = 칸.group(1)
     assert "maim-1048530680370" not in 글, "산 분 안내문에 우리 주소가 들어갔습니다"
-    assert "/c/" not in 글, "대시보드 문 주소로 메워졌습니다"
+    # 프로그램 문(/c/naver-blog) 으로 메우면 안 된다. 설치 도우미(/c/…/setup/<전용 서버>) 링크만 허용(10-03).
+    assert "/c/" not in re.sub(r"/c/naver-blog/setup/maim-[a-z0-9]{6}", "", 글), "대시보드 문 주소로 메워졌습니다"
     assert "설치 안내서" in 글, "주소를 뺐으면 그 자리에 무엇을 할지가 와야 합니다"
     assert "(서비스 주소)" not in 글, "빈 주소 자리가 그대로 보입니다"
 
@@ -389,19 +390,20 @@ def test_판매용_설치안내서는_두번째_메일로_간다(client, monkeyp
     # 발급은 진짜 길로 하고, **보낼 때만** 가짜 메일 서버를 쓴다.
     monkeypatch.setattr(keyclient, "from_env", lambda: 가짜서버())
     assert "설치 안내서」 미리 보기" in body, "두 번째 메일 미리 보기가 없습니다"
-    assert "두 통이 나갑니다" in body
+    assert "세 통이 나갑니다" in body          # 10-03: ① 서버 만들기 ② 관리자 매뉴얼 ③ 설치 안내서
     쪽지 = re.search(r'action="([^"]*keys/send\?issued=[^"]+)"', body).group(1)
     client.post(쪽지.replace("&amp;", "&"),
                 data={"email": "buyer@example.com", "subject": "접속 안내", "body": "안녕하세요"})
 
-    assert len(보낸것) == 2, f"두 통이 가야 합니다: {len(보낸것)}통"
-    첫째, 둘째 = 보낸것
-    assert "관리자 매뉴얼" in 첫째["html"]
-    assert "gcloud run deploy" not in 첫째["html"], "설치 절차가 첫 통에 섞였습니다"
-    assert "따로 보내 드린" in 첫째["html"]
-    assert "설치 안내서" in 둘째["subject"]
-    assert "gcloud run deploy" in 둘째["html"]
-    assert "gcloud run deploy" in 둘째["body"], "글자판에도 설치 절차가 있어야 합니다"
+    # 10-03 사장님 요청: 세 통 — ① 서버 만들기(설치 도우미 + 명령 한 묶음 + 인증키) ② 관리자 매뉴얼 ③ 설치 안내서
+    assert len(보낸것) == 3, f"세 통이 가야 합니다: {len(보낸것)}통"
+    첫째, 둘째, 셋째 = 보낸것
+    assert "설치 도우미 열기" in 첫째["html"] and "/c/naver-blog/setup/maim-" in 첫째["html"]
+    assert "관리자 매뉴얼" in 첫째["html"] and "<h2" not in 첫째["html"], "매뉴얼 본문이 첫 통에 섞였습니다"
+    assert "관리자 매뉴얼" in 둘째["subject"] and "<h2" in 둘째["html"]
+    assert "설치 안내서" in 셋째["subject"]
+    assert "gcloud run deploy" in 셋째["html"]
+    assert "gcloud run deploy" in 셋째["body"], "글자판에도 설치 절차가 있어야 합니다"
     for 통 in 보낸것:
         assert 통["email"] == "buyer@example.com"
         # 지메일은 102KB 가 넘으면 뒤를 감춘다.

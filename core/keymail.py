@@ -225,6 +225,110 @@ def 설치개인화(글: str, *, server: str = "", keyserver_url: str = "") -> s
     return 글
 
 
+def 서버만들기명령(program, *, server: str, keyserver_url: str = "") -> str:
+    """검은 창에 **한 번 붙여넣으면** 서버까지 다 만드는 명령(이 분 것으로 채움). 없으면 빈 글자."""
+    live = getattr(program, "live", None)
+    if not live or not live.setup_script or not server:
+        return ""
+    path = program.resolve(live.setup_script)
+    if not path.is_file():
+        return ""
+    글 = path.read_text(encoding="utf-8").strip()
+    return (글.replace("{{SERVER}}", server)
+              .replace("{{KEYSERVER_URL}}", keyserver_url or "YOUR_KEYSERVER_URL")
+              .replace("{{PROGRAM}}", program.id))
+
+
+def 도우미주소(base_url: str, program_id: str, server: str) -> str:
+    """첫 메일의 [설치 도우미 열기] 가 여는 곳 — 대시보드의 공개 문(/c/) 아래."""
+    base = base_url.rstrip("/")
+    if base.startswith("http://") and not re.search(r"//(localhost|127\.0\.0\.1)", base):
+        base = "https://" + base[len("http://"):]   # 클라우드 프록시 뒤에서는 http 로 보일 때가 있다
+    return f"{base}/c/{program_id}/setup/{server}"
+
+
+#: 첫 메일·도우미 페이지가 같이 쓰는 다섯 걸음.
+설치걸음 = [
+    ("🌐", "구글 클라우드 열기", "버튼 한 번 — 구글 계정으로 로그인"),
+    ("⬛", "검은 창 켜기", "화면 아래 검은 창 · [계속] · [승인]"),
+    ("📋", "명령 붙여넣기", "[복사] → 검은 창 클릭 → Ctrl+V → Enter"),
+    ("⏳", "5~10분 기다리기", "«🎉 완료! 사장님 접속 주소» 가 뜰 때까지"),
+    ("🔑", "내 주소 열고 인증키", "그 주소에서 아래 1차·2차 인증키"),
+]
+
+
+def setup_subject(program_name: str) -> str:
+    return f"[{program_name}] 접속 안내 (1/3) — 사장님 서버 만들기"
+
+
+def manual_subject(program_name: str) -> str:
+    return f"[{program_name}] 관리자 매뉴얼 (2/3)"
+
+
+def setup_mail_html(*, program_name: str, issued: IssuedSet, note: str,
+                    helper_url: str, script: str) -> str:
+    """**첫 메일** — 서버 주소 만들기 하나에만 집중한다(자기 서버에 세우는 판매 키).
+
+    받는 순간 «이게 뭐지?» 하지 않게: 큰 버튼 하나(설치 도우미 — 그림과 [복사] 버튼),
+    다섯 걸음 그림, 도우미가 안 열릴 때를 위한 명령 한 묶음. 매뉴얼·설치 안내서는
+    2·3번째 메일로 따로 간다. 메일 안에서는 «눌러서 복사» 가 안 되므로(메일 앱이 스크립트를
+    막는다) 복사 버튼은 도우미 페이지에 둔다.
+    """
+    제목 = _html.escape(f"{program_name} — 사장님 서버 만들기")
+    걸음 = "".join(
+        f'<tr><td style="width:34px;vertical-align:top;padding:6px 0;">'
+        f'<div style="width:26px;height:26px;border-radius:13px;background:{_강조};color:#fff;'
+        f'{_ㄱ}font-size:13px;font-weight:700;text-align:center;line-height:26px;">{i}</div></td>'
+        f'<td style="vertical-align:top;padding:6px 0;{_ㄱ}font-size:14px;color:{_먹};">'
+        f'{아이콘} <b>{_html.escape(이름)}</b><br>'
+        f'<span style="font-size:12.5px;color:{_흐린먹};">{_html.escape(설명)}</span></td></tr>'
+        for i, (아이콘, 이름, 설명) in enumerate(설치걸음, 1))
+    조각 = [
+        f'<h1 style="{_모양["h1"]}">{제목}</h1>',
+        f'<div style="{_ㄱ}font-size:13px;color:{_흐린먹};margin:-8px 0 16px;">'
+        '메일 3통 중 <b>1번째</b> · 이것만 먼저 하시면 됩니다 (약 15분, 한 번만)</div>',
+        f'<div style="margin:0 0 6px;"><a href="{_html.escape(helper_url, quote=True)}" '
+        f'style="display:inline-block;background:{_강조};color:#ffffff;font-size:16px;font-weight:700;'
+        'text-decoration:none;padding:14px 26px;border-radius:10px;">🛠️ 설치 도우미 열기 →</a></div>',
+        f'<div style="{_ㄱ}font-size:12.5px;color:{_아주흐린먹};margin:0 0 18px;">'
+        '그림을 보며 <b>[복사] 한 번</b>으로 진행합니다 · 이 분 전용으로 이미 채워져 있습니다</div>',
+        _카드(f'<div style="{_ㄱ}font-size:13px;font-weight:700;color:{_먹};margin:0 0 6px;">한눈에 — 다섯 걸음</div>'
+              f'<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;">{걸음}</table>'),
+        _카드(_글자를_문단으로(note)),
+    ]
+    if script:
+        조각.append(_카드(
+            f'<div style="{_ㄱ}font-size:13px;font-weight:700;color:{_먹};margin:0 0 4px;">'
+            '도우미가 안 열릴 때 — 이 명령을 그대로</div>'
+            f'<div style="{_ㄱ}font-size:12.5px;color:{_흐린먹};margin:0 0 8px;line-height:1.7;">'
+            f'① <a href="{_html.escape(CLOUD_SHELL_URL, quote=True)}" style="{_모양["a"]}">구글 클라우드 열기</a> '
+            '→ ② 화면 아래 검은 창 → ③ 아래 상자 안을 <b>길게 눌러 전부 선택·복사</b> → 검은 창에 붙여넣기 → Enter</div>'
+            f'<pre style="margin:0;white-space:pre-wrap;word-break:break-all;background:#0f172a;color:#e2e8f0;'
+            'border-radius:8px;padding:12px;font-size:11.5px;line-height:1.55;font-family:monospace;">'
+            f'{_html.escape(script)}</pre>', 연하게=True))
+    조각.append(
+        f'<p style="margin:22px 0 0;font-size:12.5px;line-height:1.8;color:{_흐린먹};">'
+        '📩 <b>2번째 메일</b> 관리자 매뉴얼(매일 쓰는 법·비용·막혔을 때)과 '
+        '<b>3번째 메일</b> 설치 안내서(글로 된 자세한 판)는 따로 보냈습니다. 서버를 만든 뒤 천천히 보셔도 됩니다.</p>')
+    조각.append(
+        f'<p style="margin:14px 0 0;font-size:12px;line-height:1.7;color:{_아주흐린먹};">'
+        f'이 메일은 {_html.escape(program_name)} 관리자 화면에서 보냈습니다. 접속키는 다른 분과 나눠 쓰지 마세요 — '
+        '같은 2차키로 다른 기기에서 들어오면 먼저 쓰던 기기가 잠깁니다.</p>')
+    return _겉(제목, "\n".join(조각))
+
+
+def manual_mail_html(*, program_name: str, holder_name: str, manual: str) -> str:
+    """**두 번째 메일** — 관리자 매뉴얼만."""
+    제목 = _html.escape(manual_subject(program_name))
+    머리 = _글자를_문단으로(f"{holder_name}님, 1번째 메일로 서버를 만드신 뒤 보실 **관리자 매뉴얼**입니다. "
+                            "매일 쓰는 법·비용·막혔을 때가 들어 있습니다. 프로그램 안 📖 사용법에도 같은 흐름이 있습니다.")
+    조각 = [f'<h1 style="{_모양["h1"]}">{제목}</h1>', _카드(머리),
+            f'<div style="margin:30px 0 12px;font-size:12px;font-weight:700;letter-spacing:.06em;color:{_아주흐린먹};">관리자 매뉴얼</div>',
+            _카드(manual),
+            f'<p style="margin:26px 0 0;font-size:12px;line-height:1.7;color:{_아주흐린먹};">메일 3통 중 2번째입니다.</p>']
+    return _겉(제목, "\n".join(조각))
+
+
 def install_markdown(program) -> str:
     """**따로 보낼** 설치 안내서의 원문.
 
@@ -248,18 +352,16 @@ def install_html(program, *, server: str = "", keyserver_url: str = "") -> str:
 
 
 def install_subject(program_name: str) -> str:
-    return f"[{program_name}] 설치 안내서"
+    return f"[{program_name}] 설치 안내서 (3/3)"
 
 
 def install_mail_html(*, program_name: str, holder_name: str, manual: str) -> str:
     """두 번째 메일 — 설치 안내서만."""
     제목 = _html.escape(install_subject(program_name))
-    머리 = (f"{holder_name}님, 앞서 보내 드린 「접속 안내」 메일에 이어 "
-            "**사장님 서버에 프로그램을 세우는 절차**를 보내 드립니다.\n\n"
-            "한 번만 하시면 되고 30~60분 걸립니다. 다 세우신 뒤 첫 번째 메일의 "
-            "인증키로 들어가시면 됩니다.")
-    머리 = _글자를_문단으로(머리).replace("**사장님 서버에 프로그램을 세우는 절차**",
-                                         "<b>사장님 서버에 프로그램을 세우는 절차</b>")
+    머리 = (f"{holder_name}님, 1번째 메일의 **설치 도우미**로 하시는 일을 **글로 자세히** 적은 판입니다.\n\n"
+            "도우미로 서버를 만드셨다면 이 메일은 참고만 하셔도 됩니다. 도우미가 안 될 때, 또는 단계마다 "
+            "왜 그런지 알고 싶을 때 보십시오.")
+    머리 = _글자를_문단으로(머리)
     조각 = [
         f'<h1 style="{_모양["h1"]}">{제목}</h1>',
         _카드(머리),
@@ -268,7 +370,7 @@ def install_mail_html(*, program_name: str, holder_name: str, manual: str) -> st
         _카드(manual),
         f'<p style="margin:26px 0 0;font-size:12px;line-height:1.7;'
         f'color:{_아주흐린먹};">이 메일은 {_html.escape(program_name)} 관리자 화면에서 '
-        '「접속 안내」 메일과 함께 보냈습니다.</p>',
+        '「접속 안내」 메일과 함께 보냈습니다 (메일 3통 중 3번째).</p>',
     ]
     return _겉(제목, "\n".join(조각))
 

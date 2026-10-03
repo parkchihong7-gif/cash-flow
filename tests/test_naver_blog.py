@@ -366,3 +366,50 @@ def test_sale_mail_with_known_server_opens_it():
     꾸민 = mail_html(program_name="블로그 포스팅", issued=키, note=키.mail_body("블로그 포스팅"))
     assert 'href="https://maim-k3f9qa-uc.a.run.app"' in 꾸민 and "프로그램 열기" in 꾸민
     assert "설치 시작하기" not in 꾸민
+
+
+# ── 메일 세 통 · 설치 도우미 페이지 (2026-10-03) ──
+
+def test_setup_helper_page_is_public_and_filled(monkeypatch):
+    from fastapi.testclient import TestClient
+    from dashboard.app import app
+    monkeypatch.setenv("KEYSERVER_URL", "https://script.google.com/macros/s/TESTKS/exec")
+    monkeypatch.setenv("KEYSERVER_PASSWORD", "pw")
+    c = TestClient(app)
+    r = c.get("/c/naver-blog/setup/maim-aero53", follow_redirects=False)
+    assert r.status_code == 200                                   # 대시보드 접속 코드 없이 열린다
+    assert "maim-aero53" in r.text and "📋 명령 복사" in r.text
+    assert "gcloud run deploy $S" in r.text and "S=maim-aero53" in r.text
+    assert "KEYSERVER_URL=https://script.google.com/macros/s/TESTKS/exec" in r.text
+    assert "console.cloud.google.com/?cloudshell=true" in r.text
+    assert c.get("/c/naver-blog/setup/maim-AAAA", follow_redirects=False).status_code == 404
+    assert c.get("/c/naver-blog/setup/other-aero53", follow_redirects=False).status_code == 404
+
+
+def test_setup_script_is_valid_bash_and_safe_to_rerun(tmp_path):
+    import subprocess
+    from core.keymail import 서버만들기명령
+    program = Registry().require("naver-blog")
+    s = 서버만들기명령(program, server="maim-aero53", keyserver_url="https://x.example/exec")
+    assert s.startswith("(") and s.rstrip().endswith(")")         # 하위 셸 — 실패해도 검은 창이 안 닫힌다
+    assert "{{" not in s and "S=maim-aero53" in s and "KEYSERVER_PROGRAM=naver-blog" in s
+    assert "|| gcloud storage buckets create" in s and "services describe $S" in s   # 두 번 붙여넣어도 안전
+    assert "--quiet" in s and "--concurrency=80" in s and "--max-instances=1" in s
+    f = tmp_path / "s.sh"; f.write_text(s, encoding="utf-8")
+    assert subprocess.run(["bash", "-n", str(f)]).returncode == 0
+
+
+def test_first_mail_focuses_on_server_and_points_to_helper():
+    from core.keymail import manual_mail_html, setup_mail_html, setup_subject, manual_subject, install_subject
+    키 = _판매키()
+    키.server_name = "maim-aero53"
+    키.helper_url = "https://dash.example/c/naver-blog/setup/maim-aero53"
+    본문 = 키.mail_body("블로그 포스팅")
+    assert 키.helper_url in 본문 and "복사 한 번" in 본문
+    첫 = setup_mail_html(program_name="블로그 포스팅", issued=키, note=본문, helper_url=키.helper_url, script="(echo 시험)")
+    assert f'href="{키.helper_url}"' in 첫 and "설치 도우미 열기" in 첫
+    assert "다섯 걸음" in 첫 and "(echo 시험)" in 첫                    # 도우미가 안 열릴 때 명령
+    assert "관리자 매뉴얼" in 첫 and "<h2" not in 첫                     # 매뉴얼 본문은 안 들어가고 «따로 보냈다» 만
+    assert "(1/3)" in setup_subject("x") and "(2/3)" in manual_subject("x") and "(3/3)" in install_subject("x")
+    둘 = manual_mail_html(program_name="블로그 포스팅", holder_name="홍길동", manual="<p>매뉴얼</p>")
+    assert "<p>매뉴얼</p>" in 둘 and "2번째" in 둘

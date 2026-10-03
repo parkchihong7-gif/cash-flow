@@ -316,6 +316,10 @@ class LiveSite(BaseModel):
         default="",
         description="자기 서버에 세울 때 서비스 이름의 바탕(예: maim). 키마다 «maim-xxxxxx» 로 따로 세워 주소가 겹치지 않게",
     )
+    setup_script: str = Field(
+        default="",
+        description="서버 만들기 명령 한 묶음(프로그램 폴더 기준 경로). {{SERVER}}·{{KEYSERVER_URL}}·{{PROGRAM}} 을 채워 설치 도우미·첫 메일에 낸다",
+    )
 
     @field_validator("admin", "client", "demo")
     @classmethod

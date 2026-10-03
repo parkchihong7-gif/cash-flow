@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>서버 만들기 도우미 — {{ program.name }}</title>
+<style>
+  :root{--bg:#f7f8fa;--card:#fff;--ink:#14161a;--muted:#545c6b;--faint:#8b93a1;--line:#e4e7ec;--blue:#1f5eff;--blue-soft:#eaf0ff;--green:#0f8a4f;--green-soft:#e7f6ee;--amber:#a8660a;--amber-soft:#fdf3e3}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:Pretendard,'Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;line-height:1.65}
+  main{max-width:860px;margin:0 auto;padding:24px 16px 60px}
+  h1{font-size:24px;margin:0 0 4px}
+  .sub{color:var(--muted);margin:0 0 18px;font-size:14.5px}
+  .tag{display:inline-block;background:var(--blue-soft);color:var(--blue);border-radius:999px;padding:3px 10px;font-size:13px;font-weight:600;font-family:monospace}
+  .flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:18px 0 22px}
+  .flow a{position:relative;text-decoration:none;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 10px;text-align:center;font-size:13px}
+  .flow a b{display:block;font-size:14px;margin-top:4px}
+  .flow a .n{display:inline-flex;width:24px;height:24px;border-radius:12px;background:var(--blue);color:#fff;font-size:12.5px;font-weight:700;align-items:center;justify-content:center}
+  .flow a:not(:last-child)::after{content:"→";position:absolute;right:-9px;top:50%;transform:translateY(-50%);color:var(--faint)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:0 0 16px}
+  .card h2{font-size:18px;margin:0 0 8px;display:flex;gap:10px;align-items:center}
+  .card h2 .n{flex:none;display:inline-flex;width:30px;height:30px;border-radius:15px;background:var(--blue);color:#fff;font-size:15px;align-items:center;justify-content:center}
+  .card p{margin:6px 0;font-size:14.5px}
+  .muted{color:var(--muted)} .small{font-size:13px}
+  .btn{display:inline-block;background:var(--blue);color:#fff;text-decoration:none;font-weight:700;border-radius:10px;padding:12px 22px;font-size:15.5px;border:0;cursor:pointer}
+  .btn.ghost{background:#fff;color:var(--blue);border:1px solid var(--blue)}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:10px 0}
+  .tip{background:var(--amber-soft);border-radius:10px;padding:10px 12px;font-size:13.5px;margin:10px 0}
+  .ok{background:var(--green-soft);border-radius:10px;padding:10px 12px;font-size:13.5px;margin:10px 0}
+  .shot{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:10px 0;background:#fff}
+  .shot svg{display:block;width:100%;height:auto}
+  .code{position:relative;margin:10px 0}
+  .code pre{margin:0;background:#0f172a;color:#e2e8f0;border-radius:12px;padding:16px;padding-top:52px;font-size:12.5px;line-height:1.6;white-space:pre-wrap;word-break:break-all;max-height:340px;overflow:auto}
+  .code .copy{position:absolute;top:10px;right:10px;left:10px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .code .copy span{color:#94a3b8;font-size:12.5px}
+  .copied{background:var(--green)!important}
+  .keys{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px}
+  ol{padding-left:22px;margin:6px 0} li{margin:3px 0;font-size:14.5px}
+  table{border-collapse:collapse;width:100%;font-size:13.5px} td,th{border-bottom:1px solid var(--line);padding:7px 6px;text-align:left;vertical-align:top}
+  @media(max-width:720px){.flow{grid-template-columns:1fr;gap:14px}.flow a:not(:last-child)::after{content:"↓";right:auto;left:50%;top:auto;bottom:-15px;transform:none}}
+</style>
+</head>
+<body>
+<main>
+  <h1>🛠️ 사장님 서버 만들기 도우미</h1>
+  <p class="sub">{{ program.name }} · 이 페이지는 <span class="tag">{{ server }}</span> 전용으로 채워져 있습니다 · 약 15분 · 한 번만</p>
+
+  <nav class="flow" aria-label="다섯 걸음">
+    {% for 아이콘, 이름, 설명 in 걸음 %}
+    <a href="#s{{ loop.index }}"><span class="n">{{ loop.index }}</span> {{ 아이콘 }}<b>{{ 이름 }}</b><span class="muted small">{{ 설명 }}</span></a>
+    {% endfor %}
+  </nav>
+
+  <div class="card">
+    <h2><span class="n" style="background:#8b93a1">0</span> 구글 클라우드가 처음이라면 (이미 쓰고 계시면 건너뛰기)</h2>
+    <p>구글 클라우드에 <b>프로젝트</b>와 <b>결제 계정(카드 등록)</b>이 하나씩 있어야 서버를 세울 수 있습니다.
+      무료 한도 안이라 실제로 나가는 돈은 거의 없습니다(아무도 안 쓸 때 서버가 잠듭니다).</p>
+    <div class="row">
+      <a class="btn ghost" href="https://console.cloud.google.com/freetrial" target="_blank" rel="noopener">무료 체험·결제 계정 만들기</a>
+      <a class="btn ghost" href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">프로젝트 만들기</a>
+    </div>
+    <p class="muted small">처음 가입하면 «My First Project» 가 자동으로 생깁니다. 그러면 프로젝트는 따로 만들 필요가 없습니다.</p>
+  </div>
+
+  <div class="card" id="s1">
+    <h2><span class="n">1</span> 🌐 구글 클라우드 열기</h2>
+    <p>아래 버튼을 누르면 구글 클라우드가 <b>새 탭</b>으로 열리고, 화면 아래에 검은 창이 함께 켜집니다. 구글 계정으로 로그인하세요.</p>
+    <div class="row"><a class="btn" href="{{ cloud_shell_url }}" target="_blank" rel="noopener">구글 클라우드 + 검은 창 열기 →</a></div>
+    <p class="muted small">이 도우미 페이지는 닫지 말고 두세요 — 3단계에서 다시 옵니다.</p>
+  </div>
+
+  <div class="card" id="s2">
+    <h2><span class="n">2</span> ⬛ 검은 창 켜기 — 창이 두 번 뜹니다</h2>
+    <p>검은 창이 안 보이면 화면 <b>오른쪽 위의 <code>&gt;_</code> 아이콘</b>을 누르세요. 처음에는 10~30초 걸립니다.</p>
+    <div class="shot" aria-label="구글 클라우드 화면 예시">
+      <svg viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg" font-family="Pretendard,'Malgun Gothic',sans-serif">
+        <rect width="760" height="300" fill="#f8fafc"/>
+        <rect width="760" height="44" fill="#ffffff" stroke="#e4e7ec"/>
+        <text x="16" y="28" font-size="15" font-weight="700" fill="#5f6368">☰  Google Cloud</text>
+        <rect x="170" y="10" width="150" height="24" rx="6" fill="#f1f3f4"/><text x="180" y="27" font-size="12" fill="#3c4043">My First Project ▾</text>
+        <rect x="340" y="10" width="220" height="24" rx="12" fill="#f1f3f4"/><text x="352" y="27" font-size="12" fill="#80868b">🔍 검색</text>
+        <circle cx="642" cy="22" r="15" fill="#fff" stroke="#d93025" stroke-width="3"/><text x="630" y="27" font-size="14" font-weight="700" fill="#3c4043">&gt;_</text>
+        <text x="672" y="27" font-size="14" fill="#5f6368">🔔  ⋮</text>
+        <path d="M642 40 L642 70" stroke="#d93025" stroke-width="2.5"/><text x="560" y="88" font-size="13" font-weight="700" fill="#d93025">여기 &gt;_ 를 누르세요</text>
+        <rect x="0" y="170" width="760" height="130" fill="#1f2937"/>
+        <rect x="0" y="170" width="760" height="26" fill="#111827"/><text x="12" y="188" font-size="12" fill="#cbd5e1">CLOUD SHELL  ·  터미널</text>
+        <text x="14" y="222" font-size="13" fill="#a7f3d0" font-family="monospace">사장님@cloudshell:~ (my-first-project)$ <tspan fill="#fff">▌</tspan></text>
+        <text x="420" y="270" font-size="13" font-weight="700" fill="#fbbf24">↑ 이 검은 창에 3단계 명령을 붙여넣습니다</text>
+      </svg>
+    </div>
+    <table>
+      <tr><th>뜨는 창</th><th>뭐라고 적혀 있나</th><th>누를 것</th></tr>
+      <tr><td><b>Cloud Shell</b></td><td>«모든 사용자가 Cloud Shell을 무료로 사용할 수 있습니다»</td><td><b>[계속]</b></td></tr>
+      <tr><td><b>Cloud Shell 승인</b></td><td>«Google Cloud API를 호출하기 위해 권한이 필요합니다»</td><td><b>[승인]</b> (거부하면 다음 명령이 실패합니다)</td></tr>
+    </table>
+  </div>
+
+  <div class="card" id="s3">
+    <h2><span class="n">3</span> 📋 명령 한 번 붙여넣기</h2>
+    <ol>
+      <li>아래 <b>[📋 명령 복사]</b>를 누릅니다</li>
+      <li>구글 클라우드 탭의 <b>검은 창을 한 번 클릭</b>합니다</li>
+      <li><b>Ctrl + V</b> (맥은 ⌘ + V, 또는 마우스 오른쪽 → 붙여넣기) → <b>Enter</b></li>
+    </ol>
+    <div class="code">
+      <div class="copy"><span>이 분 전용 — 서버 이름·키 서버 주소가 이미 들어 있습니다. 고치지 마세요</span>
+        <button class="btn" id="copy-btn" type="button">📋 명령 복사</button></div>
+      <pre id="script">{{ script }}</pre>
+    </div>
+    <div class="tip">⚠ 붙여넣을 때 «여러 줄을 붙여넣을까요?» 가 뜨면 <b>[붙여넣기]</b>를 누르세요.
+      «Y/n» 을 물으면 <b>Y</b> 를 치고 Enter. 같은 명령을 두 번 붙여넣어도 괜찮습니다 — 이미 된 것은 건너뜁니다.</div>
+  </div>
+
+  <div class="card" id="s4">
+    <h2><span class="n">4</span> ⏳ 5~10분 기다리기</h2>
+    <p>검은 창에 <b>▶ 1/5 … ▶ 5/5</b> 가 차례로 뜨고, 마지막에 이렇게 나옵니다.</p>
+    <div class="code"><pre style="padding-top:16px">▶ 5/5 아침 6시 자동 준비 걸기
+
+🎉 완료! 사장님 접속 주소 → https://{{ server }}-xxxxxxxxxx.us-central1.run.app
+   관리용 비밀번호 → 1a2b3c4d5e6f   (검은 창의 ~/{{ server }}-비밀번호.txt 에도 저장해 두었습니다)</pre></div>
+    <div class="ok">✅ 이 <b>접속 주소</b>가 사장님만의 프로그램 주소입니다. 즐겨찾기 하시고, 휴대폰 홈 화면에도 추가해 두세요.</div>
+    <p class="muted small">빨간 글씨로 멈췄다면 마지막 몇 줄을 캡처해서 보내 주세요. 흔한 것은 아래 «막혔을 때» 에 있습니다.</p>
+  </div>
+
+  <div class="card" id="s5">
+    <h2><span class="n">5</span> 🔑 내 주소 열고 인증키 넣기</h2>
+    <ol>
+      <li>4단계의 <b>접속 주소</b>를 엽니다</li>
+      <li>1번째 메일에 있는 <b>1차 인증키</b>와, 지금 기기에 맞는 <b>2차 인증키</b>를 넣습니다</li>
+      <li>들어가지면 왼쪽 메뉴 <b>📖 사용법 → ✅ 처음 세팅 체크리스트</b>대로 — AI 연결(Gemini 키 한 줄 등) · 무료 이미지 키 · 카테고리 · [지금 생성]</li>
+    </ol>
+    <div class="ok">🎉 [지금 생성]으로 글 한 편이 나오면 설치 끝입니다. 아침 6시마다 초안이 자동으로 준비됩니다.</div>
+  </div>
+
+  <div class="card">
+    <h2>🆘 막혔을 때</h2>
+    <table>
+      <tr><th>검은 창에 뜬 말</th><th>이렇게 하세요</th></tr>
+      <tr><td>«프로젝트가 아직 없습니다»</td><td>0단계에서 프로젝트를 만들고, 구글 클라우드 맨 위에서 그 프로젝트를 고른 뒤 다시 붙여넣기</td></tr>
+      <tr><td><code>billing</code> · 결제 계정 관련 오류</td><td>0단계 «무료 체험·결제 계정 만들기» 를 마치고 다시 붙여넣기</td></tr>
+      <tr><td><code>PERMISSION_DENIED</code> · 권한 오류</td><td>2단계의 [승인]을 거부했을 수 있습니다. 검은 창 탭을 닫았다 다시 열고 [승인] → 다시 붙여넣기</td></tr>
+      <tr><td>아무 반응이 없음</td><td>검은 창을 한 번 클릭한 뒤 붙여넣고 <b>Enter</b></td></tr>
+    </table>
+    <p class="muted small">글로 된 자세한 판은 3번째 메일 «설치 안내서» 에 있습니다.</p>
+  </div>
+</main>
+<script>
+(function () {
+  var 단추 = document.getElementById('copy-btn');
+  var 글 = document.getElementById('script').textContent;
+  단추.addEventListener('click', function () {
+    function 됨() { 단추.textContent = '✅ 복사됨 — 검은 창 클릭 → Ctrl+V → Enter'; 단추.classList.add('copied');
+      setTimeout(function () { 단추.textContent = '📋 명령 복사'; 단추.classList.remove('copied'); }, 4000); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(글).then(됨, 예전방식);
+    } else { 예전방식(); }
+    function 예전방식() {
+      var 칸 = document.createElement('textarea'); 칸.value = 글; document.body.appendChild(칸); 칸.select();
+      try { document.execCommand('copy'); 됨(); } catch (e) { alert('복사가 안 되면 검은 상자 안을 길게 눌러 전부 선택해 복사해 주세요.'); }
+      document.body.removeChild(칸);
+    }
+  });
+})();
+</script>
+</body>
+</html>
