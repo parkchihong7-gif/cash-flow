@@ -198,76 +198,37 @@ Service URL: https://maim-xxxxx-uc.a.run.app
 
 ---
 
-### [나] Claude · Codex — 검은 창에서 **네 줄**
+### [나] Claude · Codex — 화면을 따라 **한 걸음씩, 체크하며**
 
-**두 줄이 아니라 네 줄입니다.** 마지막 ④를 빠뜨리는 분이 제일 많은데,
-그러면 검은 창에서는 로그인이 됐는데 **서버는 그걸 모릅니다.**
+**[관리자 설정] → 1단계**에서 AI 를 고르면, 할 일이 **걸음마다 하나씩** 열립니다.
+명령에는 저장통 이름까지 채워져 있고 [복사] 단추가 붙어 있습니다.
+걸음마다 **«👀 이게 뜨면 성공»** 이 적혀 있으니, 그 글이 보이면
+**«✅ 됐어요»** 를 체크하세요. 그래야 다음 걸음이 열립니다.
 
-고르신 AI 의 줄을 쓰십시오.
+| 걸음 | 하는 일 | 이게 뜨면 성공 |
+|---|---|---|
+| 1 | ⬛ 검은 창(Cloud Shell) 열기 — **서버를 만든 구글 계정**으로 | `…@cloudshell:~$` 줄 |
+| 2 | 프로그램 설치 | *added … packages* |
+| 3 | 저장통 쓰기 허락 | *bindings:* 로 시작하는 글 |
+| 4 | 🔓 **(Codex 만)** ChatGPT 보안 설정 → «Codex, Excel, PowerPoint 및 Word의 기기 코드 로그인» 켜기 | 스위치가 켜진 색 |
+| 5 | 로그인 — 검은 창의 주소를 열어 로그인(Codex 는 코드 입력) | *Successfully logged in* |
+| 6 | 로그인 파일을 서버로 보내기 | **✅ 서버로 보냈습니다** |
 
-| 어느 AI | 설치 명령 | 로그인 명령 | 로그인이 남는 폴더 |
-|---|---|---|---|
-| **Claude** | `npm install -g @anthropic-ai/claude-code` | `claude login` | `.claude` |
-| **Codex** | `npm install -g @openai/codex` | `codex login` | `.codex` |
+다 마치면 **[연결 테스트]** → «연결 성공» 이면 끝입니다. (Claude 는 4번이 없어 다섯 걸음입니다.)
 
-> 화면에서 고르시면 **이 네 줄이 저장통 이름까지 채워진 채로** 그 자리에
-> 뜹니다. **[관리자 설정] → 1단계.** 복사 단추도 붙어 있습니다.
-> **손으로 옮겨 적는 것보다 그쪽이 훨씬 안전합니다.**
+> ⛔ **로그인 걸음에서는 성공 글이 뜰 때까지 Ctrl+C 를 누르거나 창을 닫지 마세요.**
+> 브라우저에서 로그인하는 동안 검은 창은 멈춘 것처럼 기다립니다 — 정상입니다.
+> 누르면 로그인이 저장되지 않아 마지막 걸음에서 **❌ 로그인 파일이 없습니다** 가 뜹니다.
 
-아래는 Claude 기준입니다. Codex 면 `claude` → `codex`, `.claude` → `.codex`
-로 **나오는 곳마다 전부** 바꾸십시오.
+> ⚠️ 명령 앞의 `HOME=` 을 지우거나 `export` 를 붙이지 마세요. `export HOME=...` 로 쓰면
+> 같은 검은 창의 `gcloud` 명령이 전부 제 설정을 못 찾아 실패합니다.
 
-**① 명령 도구를 설치합니다**
+**자주 막히는 자리**
 
-```bash
-npm install -g @anthropic-ai/claude-code
-```
-
-*added N packages* 같은 줄이 뜨면 된 것입니다.
-
-**② 내 계정이 저장통에 쓸 수 있게 허락합니다**
-
-```bash
-gcloud storage buckets add-iam-policy-binding gs://maim-data-YOUR_PROJECT_ID \
-  --member="user:$(gcloud config get-value account)" --role="roles/storage.objectAdmin"
-```
-
-`maim-data-YOUR_PROJECT_ID` 를 사장님 저장통 이름으로 바꾸십시오. 기억이
-안 나시면 먼저 `gcloud storage buckets list` 를 쳐 보십시오.
-*Updated IAM policy* 가 뜨면 된 것입니다.
-
-**③ 진짜 로그인입니다**
-
-```bash
-mkdir -p /tmp/maim-home && HOME=/tmp/maim-home claude login
-```
-
-파란 링크가 뜹니다. 누르셔서 **사장님 계정**으로 들어가고 승인하십시오.
-
-> ⚠️ **앞의 `HOME=` 을 지우지 마십시오. 그리고 앞에 `export` 를 붙이지
-> 마십시오.** `export HOME=...` 로 쓰시면 그 뒤로 **같은 검은 창의 `gcloud`
-> 명령이 전부 제 설정을 못 찾아 줄줄이 실패합니다.** 그런데 화면에는 그
-> 이유가 잘 안 보여서, 무엇이 잘못됐는지 알 수가 없습니다.
-
-**④ 로그인 정보를 서버가 읽는 자리로 옮깁니다 — 이게 빠지면 헛수고입니다**
-
-```bash
-gcloud storage rsync -r /tmp/maim-home/.claude gs://maim-data-YOUR_PROJECT_ID/home/.claude
-```
-
-제대로 갔는지 확인하시려면:
-
-```bash
-gcloud storage ls gs://maim-data-YOUR_PROJECT_ID/home/.claude/
-```
-
-파일 이름들이 보이면 맞습니다. `.claude/` 가 **한 번 더** 보이면 잘못 들어간
-것이니 ④를 다시 하십시오.
-
-**⑤ 확인**
-
-프로그램 주소 → **[관리자 설정] → 1단계 → [연결 테스트]**.
-«연결 성공» 이 뜨면 끝입니다.
+- **Codex 로그인 뒤 브라우저에 «127.0.0.1 에서 연결을 거부했습니다»** — 예전 명령(`codex login`)입니다.
+  화면의 명령(`--device-auth` 가 붙은 것)을 복사해 쓰세요.
+- **«기기 코드 로그인을 활성화하라»** — 4번 걸음(🔓)을 안 한 것입니다. 켜고 로그인 명령을 다시 붙여넣기.
+- **❌ 로그인 파일이 없습니다** — 로그인이 끝나기 전에 멈춘 것입니다. 로그인 걸음을 다시, 성공 글이 뜰 때까지.
 
 ## 5단계. 이미지 키 셋 — 셋 다 넣으십시오
 
