@@ -60,7 +60,7 @@
       <a class="btn ghost" href="https://console.cloud.google.com/freetrial" target="_blank" rel="noopener">무료 체험·결제 계정 만들기</a>
       <a class="btn ghost" href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">프로젝트 만들기</a>
     </div>
-    <p class="muted small">처음 가입하면 «My First Project» 가 자동으로 생깁니다. 그러면 프로젝트는 따로 만들 필요가 없습니다.</p>
+    <p class="muted small">프로젝트는 3단계 명령이 알아서 고르거나 만듭니다. <b>결제 계정만</b> 미리 있으면 됩니다 — 없으면 명령이 만들 곳을 알려 줍니다.</p>
   </div>
 
   <div class="card" id="s1">
@@ -137,8 +137,8 @@
     <h2>🆘 막혔을 때</h2>
     <table>
       <tr><th>검은 창에 뜬 말</th><th>이렇게 하세요</th></tr>
-      <tr><td>«프로젝트가 아직 없습니다»</td><td>0단계에서 프로젝트를 만들고, 구글 클라우드 맨 위에서 그 프로젝트를 고른 뒤 다시 붙여넣기</td></tr>
-      <tr><td><code>billing</code> · 결제 계정 관련 오류</td><td>0단계 «무료 체험·결제 계정 만들기» 를 마치고 다시 붙여넣기</td></tr>
+      <tr><td>«프로젝트가 여러 개입니다»</td><td>표에서 쓸 프로젝트 ID 를 골라 <code>gcloud config set project 그-ID</code> 를 치고 Enter → 다시 붙여넣기 (프로젝트가 없거나 하나뿐이면 명령이 알아서 정합니다)</td></tr>
+      <tr><td>«결제 계정이 없습니다» · <code>billing</code> 오류</td><td>안내된 주소(또는 0단계 «무료 체험·결제 계정 만들기»)에서 만든 뒤 다시 붙여넣기 — 이어 붙이는 것은 명령이 합니다</td></tr>
       <tr><td><code>PERMISSION_DENIED</code> · 권한 오류</td><td>2단계의 [승인]을 거부했을 수 있습니다. 검은 창 탭을 닫았다 다시 열고 [승인] → 다시 붙여넣기</td></tr>
       <tr><td>아무 반응이 없음</td><td>검은 창을 한 번 클릭한 뒤 붙여넣고 <b>Enter</b></td></tr>
     </table>

@@ -1,8 +1,32 @@
 (
 set -e
 S={{SERVER}}; R=us-central1
-P=$(gcloud config get-value project 2>/dev/null)
-[ -n "$P" ] || { echo "⚠ 구글 클라우드 프로젝트가 아직 없습니다 — 도우미 0단계(프로젝트·결제 계정)를 먼저 해 주세요."; false; }
+P=$(gcloud config get-value project 2>/dev/null || true)
+if [ -z "$P" ]; then
+  # 검은 창에 프로젝트가 안 정해져 있으면: 하나뿐이면 그것을, 없으면 새로 만든다. 여럿이면 고르게 한다.
+  N=$(gcloud projects list --format='value(projectId)' 2>/dev/null | grep -c . || true)
+  if [ "$N" = 1 ]; then
+    P=$(gcloud projects list --format='value(projectId)'); echo "▶ 0/5 프로젝트 $P 를 씁니다"
+  elif [ "$N" = 0 ]; then
+    P=$S-$(openssl rand -hex 2); echo "▶ 0/5 프로젝트 $P 만들기"
+    gcloud projects create $P --name="blog-posting"
+  else
+    echo "⚠ 프로젝트가 여러 개입니다. 쓸 것의 ID 를 골라 아래 한 줄을 친 뒤 다시 붙여넣으세요:"
+    gcloud projects list --format='table(projectId,name)'
+    echo "   gcloud config set project 고른-프로젝트-ID"; false
+  fi
+  gcloud config set project $P
+fi
+if [ "$(gcloud billing projects describe $P --format='value(billingEnabled)' 2>/dev/null)" != "True" ]; then
+  # 서버를 세우려면 결제 계정이 연결돼 있어야 한다(무료 한도 안이라 거의 0원). 있으면 이어 주고, 없으면 만들 곳을 알려 준다.
+  BA=$(gcloud billing accounts list --filter=open=true --format='value(name)' --limit=1 2>/dev/null)
+  if [ -n "$BA" ]; then
+    echo "▶ 0/5 결제 계정 연결"; gcloud billing projects link $P --billing-account=${BA##*/}
+  else
+    echo "⚠ 결제 계정이 없습니다. 아래 주소에서 만든 뒤(카드 등록 · 무료 한도 안이라 거의 0원) 이 명령을 다시 붙여넣으세요:"
+    echo "   https://console.cloud.google.com/billing/create"; false
+  fi
+fi
 echo "▶ 1/5 필요한 기능 켜기 (1~2분)"
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com cloudscheduler.googleapis.com storage.googleapis.com
 echo "▶ 2/5 저장통 만들기 (글이 쌓이는 곳)"
