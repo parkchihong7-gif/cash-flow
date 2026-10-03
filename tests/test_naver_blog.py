@@ -382,6 +382,8 @@ def test_setup_helper_page_is_public_and_filled(monkeypatch):
     assert "gcloud run deploy $S" in r.text and "S=maim-aero53" in r.text
     assert "KEYSERVER_URL=https://script.google.com/macros/s/TESTKS/exec" in r.text
     assert "console.cloud.google.com/?cloudshell=true" in r.text
+    assert "console.cloud.google.com/freetrial" in r.text and 'id="billing-ok"' in r.text      # 2단계 결제 계정
+    assert r.text.index('id="s2"') < r.text.index('id="s4"') and 'id="copy-btn" type="button" disabled' in r.text
     assert c.get("/c/naver-blog/setup/maim-AAAA", follow_redirects=False).status_code == 404
     assert c.get("/c/naver-blog/setup/other-aero53", follow_redirects=False).status_code == 404
 
@@ -408,7 +410,8 @@ def test_first_mail_focuses_on_server_and_points_to_helper():
     assert 키.helper_url in 본문 and "복사 한 번" in 본문
     첫 = setup_mail_html(program_name="블로그 포스팅", issued=키, note=본문, helper_url=키.helper_url, script="(echo 시험)")
     assert f'href="{키.helper_url}"' in 첫 and "설치 도우미 열기" in 첫
-    assert "다섯 걸음" in 첫 and "(echo 시험)" in 첫                    # 도우미가 안 열릴 때 명령
+    assert "여섯 걸음" in 첫 and "(echo 시험)" in 첫                    # 도우미가 안 열릴 때 명령
+    assert "결제 계정" in 첫 and 첫.index("결제 계정") < 첫.index("명령 붙여넣기")   # 결제 계정이 명령보다 먼저
     assert "관리자 매뉴얼" in 첫 and "<h2" not in 첫                     # 매뉴얼 본문은 안 들어가고 «따로 보냈다» 만
     assert "(1/3)" in setup_subject("x") and "(2/3)" in manual_subject("x") and "(3/3)" in install_subject("x")
     둘 = manual_mail_html(program_name="블로그 포스팅", holder_name="홍길동", manual="<p>매뉴얼</p>")

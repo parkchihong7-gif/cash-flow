@@ -188,6 +188,9 @@ def _읽기(program, 상대: str) -> str:
 
 #: 설치를 시작하는 곳 — 구글 클라우드 콘솔을 열면서 검은 창(Cloud Shell)까지 바로 연다.
 CLOUD_SHELL_URL = "https://console.cloud.google.com/?cloudshell=true"
+#: 결제 계정 — 새 구글 계정은 무료 체험을 시작하면 결제 계정이 생긴다. 이미 있는지 보는 곳은 BILLING_LIST_URL.
+BILLING_URL = "https://console.cloud.google.com/freetrial"
+BILLING_LIST_URL = "https://console.cloud.google.com/billing"
 
 
 def 전용서버이름(바탕: str, primary: str) -> str:
@@ -247,9 +250,10 @@ def 도우미주소(base_url: str, program_id: str, server: str) -> str:
     return f"{base}/c/{program_id}/setup/{server}"
 
 
-#: 첫 메일·도우미 페이지가 같이 쓰는 다섯 걸음.
+#: 첫 메일·도우미 페이지가 같이 쓰는 여섯 걸음. **결제 계정을 명령보다 먼저** — 없으면 명령이 0/5 에서 멈춘다(10-03 시험).
 설치걸음 = [
     ("🌐", "구글 클라우드 열기", "버튼 한 번 — 구글 계정으로 로그인"),
+    ("💳", "결제 계정 확인·만들기", "처음이면 [무료로 시작하기] · 카드 등록 · 이미 있으면 건너뛰기"),
     ("⬛", "검은 창 켜기", "화면 아래 검은 창 · [계속] · [승인]"),
     ("📋", "명령 붙여넣기", "[복사] → 검은 창 클릭 → Ctrl+V → Enter"),
     ("⏳", "5~10분 기다리기", "«🎉 완료! 사장님 접속 주소» 가 뜰 때까지"),
@@ -270,7 +274,7 @@ def setup_mail_html(*, program_name: str, issued: IssuedSet, note: str,
     """**첫 메일** — 서버 주소 만들기 하나에만 집중한다(자기 서버에 세우는 판매 키).
 
     받는 순간 «이게 뭐지?» 하지 않게: 큰 버튼 하나(설치 도우미 — 그림과 [복사] 버튼),
-    다섯 걸음 그림, 도우미가 안 열릴 때를 위한 명령 한 묶음. 매뉴얼·설치 안내서는
+    여섯 걸음 그림(결제 계정이 명령보다 먼저), 도우미가 안 열릴 때를 위한 명령 한 묶음. 매뉴얼·설치 안내서는
     2·3번째 메일로 따로 간다. 메일 안에서는 «눌러서 복사» 가 안 되므로(메일 앱이 스크립트를
     막는다) 복사 버튼은 도우미 페이지에 둔다.
     """
@@ -292,7 +296,7 @@ def setup_mail_html(*, program_name: str, issued: IssuedSet, note: str,
         'text-decoration:none;padding:14px 26px;border-radius:10px;">🛠️ 설치 도우미 열기 →</a></div>',
         f'<div style="{_ㄱ}font-size:12.5px;color:{_아주흐린먹};margin:0 0 18px;">'
         '그림을 보며 <b>[복사] 한 번</b>으로 진행합니다 · 이 분 전용으로 이미 채워져 있습니다</div>',
-        _카드(f'<div style="{_ㄱ}font-size:13px;font-weight:700;color:{_먹};margin:0 0 6px;">한눈에 — 다섯 걸음</div>'
+        _카드(f'<div style="{_ㄱ}font-size:13px;font-weight:700;color:{_먹};margin:0 0 6px;">한눈에 — 여섯 걸음 (② 결제 계정을 꼭 먼저)</div>'
               f'<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;">{걸음}</table>'),
         _카드(_글자를_문단으로(note)),
     ]
@@ -302,7 +306,8 @@ def setup_mail_html(*, program_name: str, issued: IssuedSet, note: str,
             '도우미가 안 열릴 때 — 이 명령을 그대로</div>'
             f'<div style="{_ㄱ}font-size:12.5px;color:{_흐린먹};margin:0 0 8px;line-height:1.7;">'
             f'① <a href="{_html.escape(CLOUD_SHELL_URL, quote=True)}" style="{_모양["a"]}">구글 클라우드 열기</a> '
-            '→ ② 화면 아래 검은 창 → ③ 아래 상자 안을 <b>길게 눌러 전부 선택·복사</b> → 검은 창에 붙여넣기 → Enter</div>'
+            f'→ ② <a href="{_html.escape(BILLING_URL, quote=True)}" style="{_모양["a"]}">결제 계정 만들기</a>(처음이면, 카드 등록) '
+            '→ ③ 화면 아래 검은 창 → ④ 아래 상자 안을 <b>길게 눌러 전부 선택·복사</b> → 검은 창에 붙여넣기 → Enter</div>'
             f'<pre style="margin:0;white-space:pre-wrap;word-break:break-all;background:#0f172a;color:#e2e8f0;'
             'border-radius:8px;padding:12px;font-size:11.5px;line-height:1.55;font-family:monospace;">'
             f'{_html.escape(script)}</pre>', 연하게=True))

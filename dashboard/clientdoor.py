@@ -142,7 +142,7 @@ def register(app, templates, registry, db, program_or_404, console_for) -> None:
         복사는 이 페이지에서 한다.
         """
         from core import keyclient
-        from core.keymail import CLOUD_SHELL_URL, 서버만들기명령, 설치걸음
+        from core.keymail import BILLING_LIST_URL, BILLING_URL, CLOUD_SHELL_URL, 서버만들기명령, 설치걸음
         program = program_or_404(program_id)
         live = program.live
         if (not live or not live.self_hosted or not live.server_base or not live.setup_script
@@ -152,6 +152,7 @@ def register(app, templates, registry, db, program_or_404, console_for) -> None:
         return templates.TemplateResponse(
             request, "setup_helper.html",
             {"program": program, "server": server, "걸음": 설치걸음, "cloud_shell_url": CLOUD_SHELL_URL,
+             "billing_url": BILLING_URL, "billing_list_url": BILLING_LIST_URL,
              "script": 서버만들기명령(program, server=server,
                                      keyserver_url=str(getattr(키서버, "url", "") or "") if 키서버 else "")})
 
