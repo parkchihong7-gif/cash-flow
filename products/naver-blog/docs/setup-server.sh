@@ -35,6 +35,10 @@ gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregi
 echo "▶ 2/5 저장통 만들기 (글이 쌓이는 곳)"
 B=$S-data-$P
 gcloud storage buckets describe gs://$B >/dev/null 2>&1 || gcloud storage buckets create gs://$B --location=$R
+# 새 프로젝트의 기본 서비스 계정은 권한이 비어 있어 빌드·저장통 읽기가 막힌다(PERMISSION_DENIED). 필요한 만큼만 준다.
+SA=$(gcloud projects describe $P --format='value(projectNumber)')-compute@developer.gserviceaccount.com
+gcloud projects add-iam-policy-binding $P --member=serviceAccount:$SA --role=roles/run.builder --condition=None --quiet >/dev/null
+gcloud storage buckets add-iam-policy-binding gs://$B --member=serviceAccount:$SA --role=roles/storage.objectAdmin >/dev/null
 echo "▶ 3/5 프로그램 받기"
 if [ -d ~/maim ]; then git -C ~/maim pull -q; else git clone -q https://github.com/parkchihong7-gif/maim.git ~/maim; fi
 cd ~/maim
@@ -44,9 +48,11 @@ else
   [ -s ~/$S-비밀번호.txt ] || openssl rand -hex 6 > ~/$S-비밀번호.txt
   PW=$(cat ~/$S-비밀번호.txt)
   echo "▶ 4/5 서버 세우기 (5~10분 — 이 창을 닫지 마세요)"
-  gcloud run deploy $S --source . --region=$R --allow-unauthenticated --quiet \
+  deploy_it() { gcloud run deploy $S --source . --region=$R --allow-unauthenticated --quiet \
     --memory=2Gi --min-instances=0 --max-instances=1 --concurrency=80 --timeout=1800 \
-    --set-env-vars=HOST=0.0.0.0,DATA_DIR=/tmp/maim-state,HOME=/tmp/maim-state/home,GCS_STATE_BUCKET=$B,TIMEZONE=Asia/Seoul,CLAUDE_BIN=claude,DASHBOARD_TOKEN=$PW,KEYSERVER_URL={{KEYSERVER_URL}},KEYSERVER_PROGRAM={{PROGRAM}}
+    --set-env-vars=HOST=0.0.0.0,DATA_DIR=/tmp/maim-state,HOME=/tmp/maim-state/home,GCS_STATE_BUCKET=$B,TIMEZONE=Asia/Seoul,CLAUDE_BIN=claude,DASHBOARD_TOKEN=$PW,KEYSERVER_URL={{KEYSERVER_URL}},KEYSERVER_PROGRAM={{PROGRAM}}; }
+  # 방금 준 권한은 퍼지는 데 1~2분 걸릴 수 있다 — 처음 실패하면 한 번만 기다렸다 다시 세운다.
+  deploy_it || { echo "   (권한이 퍼지는 중 — 1분 기다렸다 한 번 더 세웁니다)"; sleep 60; deploy_it; }
 fi
 URL=$(gcloud run services describe $S --region=$R --format='value(status.url)')
 PW=$(cat ~/$S-비밀번호.txt 2>/dev/null || true)
