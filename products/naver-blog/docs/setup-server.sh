@@ -23,8 +23,11 @@ if [ "$(gcloud billing projects describe $P --format='value(billingEnabled)' 2>/
   if [ -n "$BA" ]; then
     echo "▶ 0/5 결제 계정 연결"; gcloud billing projects link $P --billing-account=${BA##*/}
   else
-    echo "⚠ 결제 계정이 없습니다. 아래 주소에서 만든 뒤(카드 등록 · 무료 한도 안이라 거의 0원) 이 명령을 다시 붙여넣으세요:"
-    echo "   https://console.cloud.google.com/billing/create"; false
+    echo ""
+    echo "⚠ 이 구글 계정에 결제 계정이 없어 여기서 멈췄습니다 (서버는 아직 안 만들어졌습니다)."
+    echo "   ① 아래 주소를 열어 [무료로 시작하기] → 카드 등록 (무료 한도 안이라 거의 0원, 자동 결제 안 됨)"
+    echo "      https://console.cloud.google.com/freetrial"
+    echo "   ② 끝나면 이 명령을 **그대로 다시 붙여넣기** — 결제 계정 연결부터 이어서 합니다 (프로젝트: $P)"; false
   fi
 fi
 echo "▶ 1/5 필요한 기능 켜기 (1~2분)"
