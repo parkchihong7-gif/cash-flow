@@ -4,15 +4,17 @@ cd /d "%~dp0"
 echo ================================================
 echo   셀럽오르빗 설치
 echo ================================================
-where py >nul 2>nul
-if %errorlevel%==0 (set PY=py -3.11) else (set PY=python)
-%PY% --version >nul 2>nul
-if not %errorlevel%==0 (
-  echo [!] 파이썬이 없습니다. python.org 에서 3.11 을 설치하고
+set PY=
+py -3.11 --version >nul 2>nul && set PY=py -3.11
+if not defined PY py -3 --version >nul 2>nul && set PY=py -3
+if not defined PY python --version >nul 2>nul && set PY=python
+if not defined PY (
+  echo [!] 파이썬이 없습니다. python.org 에서 3.11 이상을 설치하고
   echo     설치 첫 화면의 "Add python.exe to PATH" 를 꼭 체크하세요.
   pause
   exit /b 1
 )
+echo 사용할 파이썬: %PY%
 if not exist .venv (
   echo 가상환경을 만듭니다...
   %PY% -m venv .venv || goto fail
