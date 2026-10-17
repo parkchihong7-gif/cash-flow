@@ -30,10 +30,12 @@ CREATE TABLE IF NOT EXISTS product (
     price INTEGER, price_source TEXT DEFAULT '', price_checked_at TEXT,
     available INTEGER, keyword TEXT DEFAULT '', created_at TEXT NOT NULL
 );
+-- 연예인 본인 영상은 «그 시간대» 가 근거라 timestamp 를 함께 둔다. 영상은 받지 않고 링크만.
 CREATE TABLE IF NOT EXISTS source (
     id INTEGER PRIMARY KEY, url TEXT NOT NULL, title TEXT DEFAULT '', publisher TEXT DEFAULT '',
     published_at TEXT, kind TEXT NOT NULL DEFAULT '기사'
-        CHECK (kind IN ('기사','공식SNS','브랜드','방송정보','기타')),
+        CHECK (kind IN ('기사','공식SNS','연예인 본인 영상','브랜드','방송정보','기타')),
+    timestamp TEXT DEFAULT '',
     added_at TEXT NOT NULL
 );
 -- 연예인-상품 관계. '추정' 이 아닌 값은 사람이 확인해야만 들어간다(verified_by).
@@ -104,7 +106,7 @@ DEFAULT_SETTINGS: dict[str, str] = {
     "color_coral": "#E85B4A",
     "color_pink": "#E89BA5",
     "color_cream": "#F6E7C8",
-    "video_seconds": "30",
+    "video_seconds": "20",
     "daily_upload_cap": "2",
 }
 
@@ -132,10 +134,39 @@ class OrbitDB:
     def __init__(self, path: Path | str = DEFAULT_DB) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._migrate()
         with self.connect() as con:
             con.executescript(SCHEMA)
             for key, value in DEFAULT_SETTINGS.items():
                 con.execute("INSERT OR IGNORE INTO setting(key, value) VALUES (?, ?)", (key, value))
+
+    def _migrate(self) -> None:
+        """① 뼈대로 만든 DB 를 지금 표 모양으로 맞춘다. 데이터는 그대로 옮긴다.
+
+        SQLite 는 CHECK 를 고칠 수 없어 표를 새로 만들어 옮긴다. 외래 키를 잠시 끈다.
+        """
+        if not self.path.exists():
+            return
+        con = sqlite3.connect(self.path)
+        try:
+            cols = {row[1] for row in con.execute("PRAGMA table_info(source)")}
+            if cols and "timestamp" not in cols:
+                con.execute("PRAGMA foreign_keys = OFF")
+                con.executescript("""
+                    ALTER TABLE source RENAME TO source_old;
+                    CREATE TABLE source (
+                        id INTEGER PRIMARY KEY, url TEXT NOT NULL, title TEXT DEFAULT '',
+                        publisher TEXT DEFAULT '', published_at TEXT,
+                        kind TEXT NOT NULL DEFAULT '기사'
+                            CHECK (kind IN ('기사','공식SNS','연예인 본인 영상','브랜드','방송정보','기타')),
+                        timestamp TEXT DEFAULT '', added_at TEXT NOT NULL);
+                    INSERT INTO source(id, url, title, publisher, published_at, kind, added_at)
+                        SELECT id, url, title, publisher, published_at, kind, added_at FROM source_old;
+                    DROP TABLE source_old;
+                """)
+                con.commit()
+        finally:
+            con.close()
 
     @contextmanager
     def connect(self):

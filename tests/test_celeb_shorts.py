@@ -479,3 +479,132 @@ def test_windows_batch_files_use_crlf_and_utf8():
         raw = (PRODUCT_DIR / name).read_bytes()
         assert b"\r\n" in raw and b"\n" not in raw.replace(b"\r\n", b""), name
         assert raw.decode("utf-8").startswith("@echo off")
+
+
+# ============================================================ 셀럽오르빗 앱 — ② 상품·출처·검증
+from orbit import catalog
+from orbit.catalog import CatalogError
+
+
+def test_orbit_default_length_is_20_seconds(orbit_db):
+    assert orbit_db.settings()["video_seconds"] == "20"
+
+
+def test_orbit_old_db_is_migrated_with_data(tmp_path):
+    """① 때 만든 DB(출처에 시간 칸 없음)를 열면 데이터는 그대로, 새 칸·새 종류가 생긴다."""
+    path = tmp_path / "old.db"
+    con = _sqlite3.connect(path)
+    con.executescript("""
+        CREATE TABLE source (id INTEGER PRIMARY KEY, url TEXT NOT NULL, title TEXT DEFAULT '',
+            publisher TEXT DEFAULT '', published_at TEXT, kind TEXT NOT NULL DEFAULT '기사'
+            CHECK (kind IN ('기사','공식SNS','브랜드','방송정보','기타')), added_at TEXT NOT NULL);
+        INSERT INTO source(url, added_at) VALUES ('https://example.com/a', 'then');
+    """)
+    con.commit(); con.close()
+    db = OrbitDB(path)
+    with db.connect() as c:
+        assert c.execute("SELECT url FROM source").fetchone()[0] == "https://example.com/a"
+        c.execute("INSERT INTO source(url, kind, timestamp, added_at) VALUES ('https://youtu.be/x', '연예인 본인 영상', '1:47', 'now')")
+
+
+def _product(db, **kw):
+    return catalog.add_product(db, **{"name": "쿠션 팩트", "category": "뷰티", **kw})
+
+
+def test_orbit_price_needs_its_source(orbit_db):
+    with pytest.raises(CatalogError):
+        _product(orbit_db, price="32000")
+    pid = _product(orbit_db, price="32,000원", price_source="쿠팡 10/17")
+    assert catalog.get_product(orbit_db, pid)["price"] == 32000
+
+
+def test_orbit_claim_starts_as_guess_and_needs_name_to_verify(orbit_db):
+    pid = _product(orbit_db)
+    cid = catalog.add_claim(orbit_db, pid, celebrity="배우 A", url="https://example.com/news", kind="기사")
+    assert catalog.list_claims(orbit_db, pid)[0]["relation"] == "추정"
+    with pytest.raises(CatalogError):
+        catalog.verify_claim(orbit_db, cid, relation="사용확인", verified_by="")
+    catalog.verify_claim(orbit_db, cid, relation="사용확인", verified_by="홍길동")
+    claim = catalog.list_claims(orbit_db, pid)[0]
+    assert claim["relation"] == "사용확인" and claim["verified_by"] == "홍길동"
+    catalog.verify_claim(orbit_db, cid, relation="추정", verified_by="")
+    assert catalog.list_claims(orbit_db, pid)[0]["verified_by"] == ""
+
+
+def test_orbit_claim_without_source_cannot_be_verified(orbit_db):
+    pid = _product(orbit_db)
+    cid = catalog.add_claim(orbit_db, pid, celebrity="배우 A")
+    with pytest.raises(CatalogError):
+        catalog.verify_claim(orbit_db, cid, relation="등장", verified_by="홍길동")
+
+
+def test_orbit_own_video_needs_a_timestamp_and_opens_there(orbit_db):
+    pid = _product(orbit_db)
+    with pytest.raises(CatalogError):
+        catalog.add_claim(orbit_db, pid, celebrity="배우 A", url="https://www.youtube.com/watch?v=abc",
+                          kind="연예인 본인 영상")
+    with pytest.raises(CatalogError):
+        catalog.add_claim(orbit_db, pid, celebrity="배우 A", url="https://www.youtube.com/watch?v=abc",
+                          kind="연예인 본인 영상", timestamp="1:75")
+    catalog.add_claim(orbit_db, pid, celebrity="배우 A", url="https://www.youtube.com/watch?v=abc",
+                      kind="연예인 본인 영상", timestamp="1:47")
+    assert catalog.list_claims(orbit_db, pid)[0]["open_url"].endswith("t=107s")
+
+
+def test_orbit_timestamp_parsing():
+    assert catalog.parse_timestamp("1:47") == 107
+    assert catalog.parse_timestamp("1:02:03") == 3723
+    assert catalog.timed_url("https://example.com/a", "1:00") == "https://example.com/a"
+
+
+def test_orbit_coupang_link_must_be_a_coupang_address(orbit_db):
+    pid = _product(orbit_db)
+    with pytest.raises(CatalogError):
+        catalog.add_link(orbit_db, pid, platform="쿠팡파트너스", url="https://evil.example.com/a", added_by="나")
+    with pytest.raises(CatalogError):
+        catalog.add_link(orbit_db, pid, platform="쿠팡파트너스", url="https://link.coupang.com/a/x", added_by="")
+    catalog.add_link(orbit_db, pid, platform="쿠팡파트너스", url="https://link.coupang.com/a/x", added_by="나")
+    link = catalog.list_links(orbit_db, pid)[0]
+    assert link["created_by_api"] == 0
+
+
+def test_orbit_image_needs_license_and_brand_proof(orbit_db):
+    pid = _product(orbit_db)
+    png = b"\x89PNG\r\n\x1a\n" + b"0" * 10
+    with pytest.raises(CatalogError):
+        catalog.add_image(orbit_db, pid, filename="a.png", data=png, license="")
+    with pytest.raises(CatalogError):
+        catalog.add_image(orbit_db, pid, filename="a.png", data=png, license="브랜드허락")
+    with pytest.raises(CatalogError):
+        catalog.add_image(orbit_db, pid, filename="a.gif", data=png, license="직접촬영")
+    aid = catalog.add_image(orbit_db, pid, filename="a.png", data=png, license="직접촬영")
+    asset = catalog.list_assets(orbit_db, pid)[0]
+    assert (catalog.assets_dir(orbit_db) / asset["path"]).read_bytes() == png
+    catalog.delete_asset(orbit_db, aid)
+    assert not catalog.list_assets(orbit_db, pid)
+
+
+def test_orbit_product_list_shows_strongest_relation(orbit_db):
+    pid = _product(orbit_db)
+    a = catalog.add_claim(orbit_db, pid, celebrity="배우 A", url="https://example.com/1")
+    catalog.add_claim(orbit_db, pid, celebrity="배우 B", url="https://example.com/2")
+    catalog.verify_claim(orbit_db, a, relation="추천확인", verified_by="나")
+    row = catalog.list_products(orbit_db)[0]
+    assert row["best"] == "추천확인" and set(row["celebs"]) == {"배우 A", "배우 B"}
+
+
+def test_orbit_product_screens_flow(orbit_client, orbit_db):
+    r = orbit_client.post("/products", data={"name": "립밤", "category": "뷰티"})
+    assert "/products/1" in str(r.url) and "립밤" in r.text
+    r = orbit_client.post("/products/1/claim", data={"celebrity": "배우 A", "url": "https://example.com/n", "kind": "기사"})
+    assert "추정" in r.text
+    r = orbit_client.post("/products/1/verify", data={"claim_id": "1", "relation": "등장", "verified_by": ""})
+    assert "error=" in str(r.url)
+    r = orbit_client.post("/products/1/image", data={"license": "직접촬영"},
+                          files={"file": ("a.png", b"\x89PNG....", "image/png")})
+    assert "msg=" in str(r.url)
+    path = catalog.list_assets(orbit_db, 1)[0]["path"]
+    assert orbit_client.get(f"/assets/{path}").status_code == 200
+    assert orbit_client.get("/assets/1/../../orbit.db").status_code == 404
+    assert orbit_client.get("/products/999").status_code == 404
+    assert "립밤" in orbit_client.get("/products").text

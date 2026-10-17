@@ -11,10 +11,12 @@ from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from . import catalog
+from .catalog import CatalogError
 from .db import COLOR_KEYS, COLOR_LABELS, OrbitDB, RestoreError, SettingError
 
 HERE = Path(__file__).resolve().parent
@@ -22,7 +24,7 @@ HERE = Path(__file__).resolve().parent
 #: (주소, 이름, 지금 쓸 수 있나)
 MENU = [
     ("/", "대시보드", True),
-    ("/products", "상품", False),
+    ("/products", "상품", True),
     ("/studio", "영상 제작", False),
     ("/calendar", "일정", False),
     ("/metrics", "성과", False),
@@ -81,6 +83,87 @@ def create_app(db: OrbitDB | None = None) -> FastAPI:
         except RestoreError as exc:
             return back("/settings", error=str(exc))
         return back("/settings", msg=f"복원했습니다. 이전 DB 는 {kept.name} 로 남겨 두었습니다")
+
+    # ------------------------------------------------------------ ② 상품
+    async def form_of(request: Request) -> dict[str, str]:
+        return {k: str(v) for k, v in (await request.form()).items() if not hasattr(v, "read")}
+
+    @app.get("/products", response_class=HTMLResponse)
+    def products(request: Request):
+        return page(request, "products.html", products=catalog.list_products(app.state.db),
+                    categories=catalog.CATEGORIES)
+
+    @app.post("/products")
+    async def product_add(request: Request):
+        form = await form_of(request)
+        try:
+            product_id = catalog.add_product(app.state.db, **{k: form.get(k, "") for k in
+                                             ("name", "brand", "model", "category", "price", "price_source", "keyword")})
+        except CatalogError as exc:
+            return back("/products", error=str(exc))
+        return back(f"/products/{product_id}", msg="상품을 등록했습니다. 이제 연예인과 출처를 붙이세요")
+
+    @app.get("/products/{product_id}", response_class=HTMLResponse)
+    def product_detail(request: Request, product_id: int):
+        db = app.state.db
+        try:
+            product = catalog.get_product(db, product_id)
+        except CatalogError:
+            return HTMLResponse("없는 상품입니다", status_code=404)
+        return page(request, "product.html", p=product, claims=catalog.list_claims(db, product_id),
+                    links=catalog.list_links(db, product_id), assets=catalog.list_assets(db, product_id),
+                    categories=catalog.CATEGORIES, kinds=catalog.SOURCE_KINDS, relations=catalog.RELATIONS,
+                    relation_help=catalog.RELATION_HELP, licenses=catalog.LICENSES, platforms=catalog.PLATFORMS)
+
+    @app.post("/products/{product_id}/{action}")
+    async def product_action(request: Request, product_id: int, action: str):
+        db, here = app.state.db, f"/products/{product_id}"
+        form = await form_of(request)
+        try:
+            if action == "edit":
+                catalog.update_product(db, product_id, **{k: form.get(k, "") for k in
+                                       ("name", "brand", "model", "category", "price", "price_source",
+                                        "keyword", "available")})
+                msg = "저장했습니다"
+            elif action == "claim":
+                catalog.add_claim(db, product_id, **{k: form.get(k, "") for k in
+                                  ("celebrity", "url", "title", "publisher", "published_at", "kind",
+                                   "timestamp", "note")})
+                msg = "관계를 '추정' 으로 등록했습니다. 출처를 열어 보고 확인 단계를 정하세요"
+            elif action == "verify":
+                catalog.verify_claim(db, int(form.get("claim_id", 0)), relation=form.get("relation", ""),
+                                     verified_by=form.get("verified_by", ""))
+                msg = "관계를 바꿨습니다"
+            elif action == "link":
+                catalog.add_link(db, product_id, platform=form.get("platform", ""), url=form.get("url", ""),
+                                 added_by=form.get("added_by", ""))
+                msg = "제휴 링크를 등록했습니다"
+            elif action == "unlink":
+                catalog.delete_link(db, int(form.get("link_id", 0)))
+                msg = "링크를 지웠습니다"
+            elif action == "image":
+                upload = (await request.form()).get("file")
+                if upload is None or not hasattr(upload, "read"):
+                    raise CatalogError("이미지 파일을 골라 주세요")
+                catalog.add_image(db, product_id, filename=upload.filename or "", data=await upload.read(),
+                                  license=form.get("license", ""), license_proof=form.get("license_proof", ""))
+                msg = "이미지를 등록했습니다"
+            elif action == "unimage":
+                catalog.delete_asset(db, int(form.get("asset_id", 0)))
+                msg = "이미지를 지웠습니다"
+            else:
+                return back(here, error="모르는 동작입니다")
+        except CatalogError as exc:
+            return back(here, error=str(exc))
+        return back(here, msg=msg)
+
+    @app.get("/assets/{product_id}/{name}")
+    def asset_file(product_id: int, name: str):
+        root = catalog.assets_dir(app.state.db).resolve()
+        path = (root / str(product_id) / name).resolve()
+        if root not in path.parents or not path.is_file():
+            return HTMLResponse("없는 파일입니다", status_code=404)
+        return FileResponse(path)
 
     @app.get("/logs", response_class=HTMLResponse)
     def logs(request: Request):

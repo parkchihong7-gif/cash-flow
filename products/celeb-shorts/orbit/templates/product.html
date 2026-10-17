@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block body %}
+<p><a href="/products">← 상품 목록</a></p>
+<h1>{{ p.name }}</h1>
+
+<form method="post" action="/products/{{ p.id }}/edit" class="card">
+  <h2>상품 정보</h2>
+  <div class="grid2">
+    <label>상품 이름 <input name="name" value="{{ p.name }}" required></label>
+    <label>브랜드 <input name="brand" value="{{ p.brand }}"></label>
+    <label>모델명 <input name="model" value="{{ p.model }}"></label>
+    <label>분류 <select name="category">{% for c in categories %}<option {{ 'selected' if c == p.category }}>{{ c }}</option>{% endfor %}</select></label>
+    <label>가격(원) <input name="price" value="{{ p.price or '' }}" inputmode="numeric"></label>
+    <label>가격 출처 <input name="price_source" value="{{ p.price_source }}">
+      {% if p.price_checked_at %}<small>마지막 확인 {{ p.price_checked_at[:10] }}</small>{% endif %}</label>
+    <label>쇼핑 검색어 <input name="keyword" value="{{ p.keyword }}"></label>
+    <label>판매 여부 <select name="available">
+      <option value="" {{ 'selected' if p.available is none }}>모름</option>
+      <option {{ 'selected' if p.available == 1 }}>판매중</option>
+      <option {{ 'selected' if p.available == 0 }}>품절</option></select></label>
+  </div>
+  <button>저장</button>
+</form>
+
+<section class="card">
+  <h2>연예인과의 관계</h2>
+  <p class="muted">처음엔 늘 <b>추정</b> 입니다. 출처를 직접 열어 본 사람이 단계를 올립니다. 추정 상태에서는 영상에 연예인 이름을 쓰지 않습니다.</p>
+  {% if claims %}
+  <table>
+    <tr><th>연예인</th><th>출처</th><th>관계</th><th>확인</th></tr>
+    {% for c in claims %}
+    <tr>
+      <td>{{ c.celebrity }}</td>
+      <td>{% if c.url %}<a href="{{ c.open_url }}" target="_blank" rel="noopener">{{ c.title or c.url[:40] }}</a>
+          <br><small class="muted">{{ c.kind }}{% if c.timestamp %} · {{ c.timestamp }}부터{% endif %}{% if c.publisher %} · {{ c.publisher }}{% endif %}{% if c.published_at %} · {{ c.published_at }}{% endif %}</small>
+          {% else %}<span class="muted">출처 없음 — 확인 불가</span>{% endif %}</td>
+      <td><span class="rel rel-{{ c.relation }}">{{ c.relation }}</span>
+          {% if c.verified_by %}<br><small class="muted">{{ c.verified_by }} · {{ c.verified_at[:10] }}</small>{% endif %}</td>
+      <td>
+        <form method="post" action="/products/{{ p.id }}/verify" class="inline">
+          <input type="hidden" name="claim_id" value="{{ c.id }}">
+          <select name="relation">{% for r in relations %}<option {{ 'selected' if r == c.relation }} title="{{ relation_help[r] }}">{{ r }}</option>{% endfor %}</select>
+          <input name="verified_by" placeholder="확인한 사람">
+          <button>바꾸기</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  <details><summary>관계 단계 설명</summary><ul>{% for r in relations %}<li><b>{{ r }}</b> — {{ relation_help[r] }}</li>{% endfor %}</ul></details>
+  {% endif %}
+
+  <form method="post" action="/products/{{ p.id }}/claim">
+    <h3>관계 추가</h3>
+    <div class="grid2">
+      <label>연예인 <input name="celebrity" required></label>
+      <label>출처 종류 <select name="kind">{% for k in kinds %}<option>{{ k }}</option>{% endfor %}</select></label>
+      <label>출처 주소 <input name="url" placeholder="https://"></label>
+      <label>시간 (본인 영상이면 필수) <input name="timestamp" placeholder="예: 1:47"></label>
+      <label>제목 <input name="title"></label>
+      <label>매체·채널 <input name="publisher"></label>
+      <label>게시일 <input name="published_at" type="date"></label>
+      <label>메모 <input name="note"></label>
+    </div>
+    <small class="muted">영상·사진은 내려받지 않습니다. 링크와 시간만 근거로 남깁니다.</small><br>
+    <button>추정으로 등록</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>제휴 링크</h2>
+  <p class="muted">파트너스 사이트에서 만든 링크를 그대로 붙여 넣으세요. 프로그램이 링크를 만들어 내지 않습니다.</p>
+  {% for l in links %}
+    <form method="post" action="/products/{{ p.id }}/unlink" class="inline row">
+      <input type="hidden" name="link_id" value="{{ l.id }}">
+      <span><b>{{ l.platform }}</b> <a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.url }}</a>
+        <small class="muted">· {{ l.added_by }} · {{ l.added_at[:10] }}</small></span>
+      <button class="small danger">지우기</button>
+    </form>
+  {% endfor %}
+  <form method="post" action="/products/{{ p.id }}/link">
+    <div class="grid2">
+      <label>플랫폼 <select name="platform">{% for x in platforms %}<option>{{ x }}</option>{% endfor %}</select></label>
+      <label>링크 <input name="url" required placeholder="https://link.coupang.com/a/..."></label>
+      <label>붙여 넣은 사람 <input name="added_by" required></label>
+    </div>
+    <button>링크 등록</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>상품 이미지</h2>
+  <p class="muted">권리를 고르지 않으면 저장되지 않습니다. 연예인 사진·방송 캡처는 올리지 마세요 — 쓸 권리가 있는 상품 이미지만.</p>
+  <div class="thumbs">
+  {% for a in assets %}
+    <figure>
+      <img src="/assets/{{ a.path }}" alt="상품 이미지 {{ a.id }}">
+      <figcaption>{{ a.license }}{% if not a.license_proof %} · <span class="warn-text">증빙 없음</span>{% endif %}
+        <form method="post" action="/products/{{ p.id }}/unimage" class="inline">
+          <input type="hidden" name="asset_id" value="{{ a.id }}"><button class="small danger">지우기</button></form>
+      </figcaption>
+    </figure>
+  {% endfor %}
+  </div>
+  <form method="post" action="/products/{{ p.id }}/image" enctype="multipart/form-data">
+    <div class="grid2">
+      <label>파일 (jpg·png·webp, 10MB) <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp" required></label>
+      <label>권리 <select name="license" required><option value="">— 골라 주세요 —</option>
+        {% for x in licenses %}<option>{{ x }}</option>{% endfor %}</select></label>
+      <label>증빙 <input name="license_proof" placeholder="허락 메일 날짜·담당자, 라이선스 주소 등"></label>
+    </div>
+    <button>이미지 등록</button>
+  </form>
+</section>
+{% endblock %}

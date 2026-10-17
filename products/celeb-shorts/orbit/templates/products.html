@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>상품</h1>
+<form method="post" action="/products" class="card">
+  <h2>새 상품</h2>
+  <div class="grid2">
+    <label>상품 이름 <input name="name" required placeholder="예: 쿠션 팩트"></label>
+    <label>브랜드 <input name="brand"></label>
+    <label>모델명 <input name="model"></label>
+    <label>분류 <select name="category">{% for c in categories %}<option>{{ c }}</option>{% endfor %}</select></label>
+    <label>가격(원) <input name="price" inputmode="numeric" placeholder="비워도 됩니다"></label>
+    <label>가격 출처 <input name="price_source" placeholder="가격을 적으면 필수 — 예: 쿠팡 10/17"></label>
+    <label>쇼핑 검색어 <input name="keyword" placeholder="비우면 상품 이름"></label>
+  </div>
+  <button>등록</button>
+</form>
+
+<div class="card">
+  <h2>등록된 상품 {{ products|length }}개</h2>
+  {% if products %}
+  <table>
+    <tr><th>#</th><th>상품</th><th>분류</th><th>연예인</th><th>가장 강한 관계</th><th>링크</th><th>이미지</th></tr>
+    {% for p in products %}
+    <tr>
+      <td>{{ p.id }}</td>
+      <td><a href="/products/{{ p.id }}">{{ p.name }}</a>{% if p.brand %}<br><small class="muted">{{ p.brand }}</small>{% endif %}</td>
+      <td>{{ p.category }}</td>
+      <td>{{ p.celebs|join(', ') or '-' }}</td>
+      <td>{% if p.best %}<span class="rel rel-{{ p.best }}">{{ p.best }}</span>{% else %}<span class="muted">관계 없음</span>{% endif %}</td>
+      <td>{{ p.links }}</td><td>{{ p.images }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="muted">아직 없습니다. 위에서 첫 상품을 등록하세요.</p>{% endif %}
+</div>
+{% endblock %}
