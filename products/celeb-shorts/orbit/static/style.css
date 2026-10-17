@@ -1,0 +1,49 @@
+/* 셀럽오르빗 관리자 — 80년대 잡지 느낌은 살리되, 관리 화면이라 읽기 쉬움을 먼저. */
+* { box-sizing: border-box; }
+body {
+  margin: 0; color: var(--navy); font: 16px/1.6 "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  background-color: var(--cream);
+  /* 하프톤 망점 */
+  background-image: radial-gradient(rgba(18, 58, 80, .07) 1px, transparent 1.4px);
+  background-size: 6px 6px;
+}
+.masthead { background: var(--navy); color: var(--cream); padding: 14px 16px 0;
+  border-bottom: 6px solid var(--mustard); box-shadow: 0 3px 0 var(--coral); }
+.brand { display: flex; gap: 12px; align-items: center; }
+.orbit { font-size: 34px; color: var(--mustard); transform: rotate(-12deg); text-shadow: 2px 2px 0 var(--coral); }
+.name { font-size: 24px; font-weight: 900; letter-spacing: -.5px; text-shadow: 2px 1px 0 var(--coral); }
+.name small { font-size: 13px; letter-spacing: 3px; color: var(--mustard); text-shadow: none; margin-left: 6px; }
+.slogan { font-size: 13px; color: var(--pink); }
+nav { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 12px; }
+nav a { color: var(--cream); text-decoration: none; padding: 8px 12px; border-radius: 8px 8px 0 0; font-weight: 700; }
+nav a.on { background: var(--cream); color: var(--navy); }
+nav a.soon { opacity: .55; }
+main { max-width: 980px; margin: 0 auto; padding: 20px 16px 40px; }
+h1 { font-size: 26px; margin: 4px 0 16px; text-shadow: 2px 2px 0 var(--pink); }
+h2 { font-size: 18px; margin: 0 0 10px; }
+.card { background: #fffaf0; border: 2px solid var(--navy); border-radius: 4px; padding: 16px;
+  margin-bottom: 16px; box-shadow: 4px 4px 0 var(--navy); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.tile { background: var(--mustard); border: 2px solid var(--navy); padding: 12px; box-shadow: 3px 3px 0 var(--navy); }
+.tile.warn { background: var(--coral); color: #fff; }
+.tile .n { font-size: 30px; font-weight: 900; }
+.tile .l { font-size: 14px; font-weight: 700; }
+.muted { color: #5b6b75; }
+.flash { padding: 10px 14px; border: 2px solid var(--navy); font-weight: 700; }
+.flash.ok { background: #e3f1dc; } .flash.err { background: #fde2dd; }
+label { display: block; margin: 10px 0; font-weight: 700; }
+label small { display: block; font-weight: 400; color: #5b6b75; }
+input { display: block; width: 100%; max-width: 420px; padding: 8px 10px; font: inherit;
+  border: 2px solid var(--navy); background: #fff; margin-top: 4px; }
+input[type=file] { border-style: dashed; }
+.colors { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
+.swatch { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--navy); vertical-align: -3px; margin-right: 6px; }
+button, .button { display: inline-block; background: var(--coral); color: #fff; border: 2px solid var(--navy);
+  padding: 9px 18px; font: inherit; font-weight: 800; cursor: pointer; text-decoration: none; box-shadow: 3px 3px 0 var(--navy); }
+button.danger { background: var(--navy); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid rgba(18, 58, 80, .2); vertical-align: top; }
+.card { overflow-x: auto; }
+.st-실패 { color: var(--coral); font-weight: 800; } .st-완료 { color: #2f7a3b; }
+.steps li { margin: 4px 0; } .steps li.done { font-weight: 800; } .steps li.done::after { content: " ✓"; color: #2f7a3b; }
+footer { text-align: center; font-size: 12px; color: #5b6b75; padding: 0 16px 24px; }

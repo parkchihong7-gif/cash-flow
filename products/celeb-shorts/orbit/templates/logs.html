@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>작업 기록</h1>
+<p class="muted">실패한 작업은 3번까지 다시 시도합니다. 쿼터 초과처럼 기다려야 하는 실패는 다시 시도하지 않고 «대기 필요» 로 남깁니다.</p>
+<div class="card">
+{% if jobs %}
+<table><tr><th>#</th><th>시각</th><th>작업</th><th>상태</th><th>시도</th><th>내용</th></tr>
+  {% for j in jobs %}<tr><td>{{ j.id }}</td><td>{{ j.created_at[:16].replace('T',' ') }}</td><td>{{ j.kind }}</td>
+    <td class="st-{{ j.status }}">{{ j.status }}</td><td>{{ j.tries }}</td><td>{{ j.message or j.last_error }}</td></tr>{% endfor %}
+</table>
+{% else %}<p class="muted">아직 기록이 없습니다.</p>{% endif %}
+</div>
+{% endblock %}

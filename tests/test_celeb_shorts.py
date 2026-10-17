@@ -342,3 +342,140 @@ def test_cli_dry_run_end_to_end(tmp_path):
         cwd=PRODUCT_DIR, capture_output=True, text=True)
     assert result.returncode in (0, 2), result.stdout + result.stderr
     assert list(tmp_path.glob("*/plan.md"))
+
+
+# ============================================================ 셀럽오르빗 앱 — ① 뼈대
+import sqlite3 as _sqlite3
+
+from fastapi.testclient import TestClient
+
+from orbit.app import create_app
+from orbit.db import DEFAULT_SETTINGS, TABLES, OrbitDB, RestoreError, SettingError, WaitError
+
+
+@pytest.fixture()
+def orbit_db(tmp_path):
+    return OrbitDB(tmp_path / "orbit.db")
+
+
+@pytest.fixture()
+def orbit_client(orbit_db):
+    return TestClient(create_app(orbit_db))
+
+
+def test_orbit_creates_every_table_and_default_brand(orbit_db):
+    with orbit_db.connect() as con:
+        names = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    assert set(TABLES) <= names
+    s = orbit_db.settings()
+    assert s["channel_name"] == "셀럽오르빗" and s["color_navy"] == "#123A50"
+    assert s["slogan"] == DEFAULT_SETTINGS["slogan"]
+
+
+def test_orbit_claim_cannot_be_verified_without_a_person_and_source(orbit_db):
+    """'추정' 이 아닌 관계는 확인한 사람과 출처가 있어야만 들어간다 — DB 가 직접 막는다."""
+    with orbit_db.connect() as con:
+        con.execute("INSERT INTO celebrity(name) VALUES ('배우 A')")
+        con.execute("INSERT INTO product(name, created_at) VALUES ('가방', 'now')")
+        con.execute("INSERT INTO claim(celebrity_id, product_id) VALUES (1, 1)")  # 추정은 됨
+    with pytest.raises(_sqlite3.IntegrityError):
+        with orbit_db.connect() as con:
+            con.execute("INSERT INTO claim(celebrity_id, product_id, relation) VALUES (1, 1, '사용확인')")
+
+
+def test_orbit_asset_needs_a_license(orbit_db):
+    with pytest.raises(_sqlite3.IntegrityError):
+        with orbit_db.connect() as con:
+            con.execute("INSERT INTO asset(path, kind, license, added_at) VALUES ('a.jpg', 'image', '모름', 'now')")
+
+
+def test_orbit_settings_validate_colors_and_limits(orbit_db):
+    with pytest.raises(SettingError):
+        orbit_db.save_settings({"color_coral": "빨강"})
+    with pytest.raises(SettingError):
+        orbit_db.save_settings({"video_seconds": "120"})
+    saved = orbit_db.save_settings({"color_coral": "#ff0000", "slogan": "새 문구", "unknown": "x"})
+    assert saved["color_coral"] == "#FF0000" and saved["slogan"] == "새 문구"
+    assert "unknown" not in saved
+
+
+def test_orbit_job_retries_three_times_then_fails(orbit_db):
+    calls = []
+
+    def flaky():
+        calls.append(1)
+        raise RuntimeError("잠깐 끊김")
+
+    assert orbit_db.run_job("시험", flaky) is None
+    job = orbit_db.jobs(1)[0]
+    assert len(calls) == 3 and job["status"] == "실패" and job["tries"] == 3
+
+
+def test_orbit_quota_wait_is_not_retried(orbit_db):
+    calls = []
+
+    def quota():
+        calls.append(1)
+        raise WaitError("쿼터 초과")
+
+    orbit_db.run_job("시험", quota)
+    assert len(calls) == 1 and "대기 필요" in orbit_db.jobs(1)[0]["last_error"]
+
+
+def test_orbit_backup_and_restore_roundtrip(orbit_db):
+    orbit_db.save_settings({"slogan": "백업 전"})
+    data = orbit_db.backup_bytes()
+    orbit_db.save_settings({"slogan": "백업 후"})
+    kept = orbit_db.restore_bytes(data)
+    assert orbit_db.settings()["slogan"] == "백업 전"
+    assert kept.exists()
+
+
+def test_orbit_restore_rejects_other_files(orbit_db, tmp_path):
+    with pytest.raises(RestoreError):
+        orbit_db.restore_bytes(b"not a zip")
+    import io
+    import zipfile
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("other.txt", "x")
+    with pytest.raises(RestoreError):
+        orbit_db.restore_bytes(buf.getvalue())
+
+
+def test_orbit_pages_render_with_brand_colors(orbit_client):
+    for path in ("/", "/settings", "/logs", "/products"):
+        response = orbit_client.get(path)
+        assert response.status_code == 200, path
+        assert "셀럽오르빗" in response.text
+    assert "#123A50" in orbit_client.get("/").text
+    assert "미연동" in orbit_client.get("/").text   # 추정 수익을 보여 주지 않는다
+    assert orbit_client.get("/없는화면").status_code == 404
+
+
+def test_orbit_settings_form_saves_and_shows_errors(orbit_client, orbit_db):
+    bad = orbit_client.post("/settings", data={"color_navy": "navy"})
+    assert "error=" in str(bad.url)
+    ok = orbit_client.post("/settings", data={"slogan": "스타 스타일"})
+    assert "msg=" in str(ok.url) and orbit_db.settings()["slogan"] == "스타 스타일"
+
+
+def test_orbit_restore_needs_the_confirm_word(orbit_client, orbit_db):
+    data = orbit_db.backup_bytes()
+    no = orbit_client.post("/restore", files={"file": ("b.zip", data)}, data={"confirm": ""})
+    assert "error=" in str(no.url)
+    yes = orbit_client.post("/restore", files={"file": ("b.zip", data)}, data={"confirm": "복원"})
+    assert "msg=" in str(yes.url)
+
+
+def test_orbit_backup_download(orbit_client):
+    response = orbit_client.get("/backup")
+    assert response.headers["content-type"] == "application/zip"
+    assert response.content[:2] == b"PK"
+
+
+def test_windows_batch_files_use_crlf_and_utf8():
+    for name in ("설치.bat", "실행.bat"):
+        raw = (PRODUCT_DIR / name).read_bytes()
+        assert b"\r\n" in raw and b"\n" not in raw.replace(b"\r\n", b""), name
+        assert raw.decode("utf-8").startswith("@echo off")

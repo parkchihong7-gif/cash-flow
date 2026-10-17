@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>설정</h1>
+<form method="post" action="/settings" class="card">
+  <h2>브랜드</h2>
+  <label>채널 이름 <input name="channel_name" value="{{ s.channel_name }}" required></label>
+  <label>영문 이름 <input name="channel_name_en" value="{{ s.channel_name_en }}" required></label>
+  <label>슬로건 <input name="slogan" value="{{ s.slogan }}" required>
+    <small>소개 상품이 «비슷한 상품» 일 때가 많습니다. «스타가 쓰는 바로 그 제품» 처럼 들리는 문구는 피하세요.</small></label>
+  <h3>색 (영상·화면 전체에 쓰입니다)</h3>
+  <div class="colors">
+    {% for key in color_keys %}
+      <label class="color"><span class="swatch" style="background: {{ s[key] }}"></span>
+        {{ color_labels[key] }}
+        <input name="{{ key }}" value="{{ s[key] }}" pattern="#[0-9A-Fa-f]{6}" required></label>
+    {% endfor %}
+  </div>
+  <h2>영상·업로드</h2>
+  <label>기본 영상 길이(초) <input name="video_seconds" type="number" min="15" max="60" value="{{ s.video_seconds }}"></label>
+  <label>하루 업로드 상한 <input name="daily_upload_cap" type="number" min="0" max="10" value="{{ s.daily_upload_cap }}">
+    <small>많이 올릴수록 양산형 콘텐츠로 판정될 위험이 커집니다. 기본 2편.</small></label>
+  <button>저장</button>
+</form>
+
+<section class="card">
+  <h2>백업과 복원</h2>
+  <p><a class="button" href="/backup">백업 파일 받기</a>
+    <span class="muted">상품·출처·대본·설정이 zip 하나에 담깁니다.</span></p>
+  <form method="post" action="/restore" enctype="multipart/form-data">
+    <label>백업 파일 <input type="file" name="file" accept=".zip" required></label>
+    <label>확인 — <b>복원</b> 이라고 적어 주세요 <input name="confirm" placeholder="복원"></label>
+    <button class="danger">복원</button>
+    <small>지금 DB 는 지우지 않고 옆에 따로 남겨 둡니다.</small>
+  </form>
+</section>
+{% endblock %}
