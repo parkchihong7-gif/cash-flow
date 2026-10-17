@@ -5,9 +5,7 @@
 //  손으로 고치지 마세요 — python -m tools.build_keyserver
 // ─────────────────────────────────────────────────────────────────
 
-var ADMIN_HTML_2 = `    try { window[창고이름].setItem(이름, 값); } catch (_) { /* 막혀 있다 */ }
-  }
-  function 지우기(창고이름, 이름) {
+var ADMIN_HTML_2 = `  function 지우기(창고이름, 이름) {
     delete 기억[이름];
     try { window[창고이름].removeItem(이름); } catch (_) { /* 막혀 있다 */ }
   }
@@ -244,6 +242,7 @@ var ADMIN_HTML_2 = `    try { window[창고이름].setItem(이름, 값); } catch
       var copy = document.createElement("button");
       copy.className = "quiet";
       copy.style.marginTop = "10px";
-      copy.textContent = "전부 복사";`;
+      copy.textContent = "전부 복사";
+      copy.onclick = function () {`;
 
 // ⛳ 2/6 끝 — 이 줄이 안 보이면 붙여넣기가 잘린 것입니다.

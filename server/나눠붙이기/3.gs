@@ -5,8 +5,7 @@
 //  손으로 고치지 마세요 — python -m tools.build_keyserver
 // ─────────────────────────────────────────────────────────────────
 
-var ADMIN_HTML_3 = `      copy.onclick = function () {
-        navigator.clipboard.writeText(lines.join("\\n")).then(function () {
+var ADMIN_HTML_3 = `        navigator.clipboard.writeText(lines.join("\\n")).then(function () {
           copy.textContent = "복사했습니다";
         }).catch(function () { copy.textContent = "복사하지 못했습니다"; });
       };

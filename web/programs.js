@@ -13,9 +13,7 @@ window.PROGRAMS = [
   },
   {
     "id": "naver-blog",
-    "name": "네이버 블로그 초안 생성기",
-    "url": "https://maim-1048530680370.us-central1.run.app/",
-    "adminUrl": "https://maim-1048530680370.us-central1.run.app/"
+    "name": "네이버 블로그 초안 생성기"
   },
   {
     "id": "speaker-desk",
@@ -68,6 +66,10 @@ window.PROGRAMS = [
   {
     "id": "niche-research",
     "name": "니치 리서치"
+  },
+  {
+    "id": "celeb-shorts",
+    "name": "연예인 착용템 쇼츠 기획기"
   },
   {
     "id": "maim",
