@@ -73,3 +73,12 @@ table.scenes input { max-width: none; margin: 0; padding: 4px 6px; }
 table.scenes td:nth-child(2) { min-width: 140px; } table.scenes td:nth-child(3) { min-width: 180px; }
 form.approve { margin-top: 12px; }
 .ok-text { color: #2f7a3b; }
+.tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin: 10px 0 16px; }
+.tpl { margin: 0; text-align: center; font-size: 14px; cursor: pointer; }
+.tpl img { width: 100%; aspect-ratio: 9 / 16; object-fit: cover; border: 3px solid var(--navy); display: block; }
+.tpl input { display: inline; width: auto; margin: 6px 4px 0 0; }
+.tpl input:checked + img { border-color: var(--coral); box-shadow: 0 0 0 4px var(--mustard); }
+label.check input { display: inline; width: auto; margin-right: 6px; }
+.videos { display: flex; flex-wrap: wrap; gap: 16px; }
+.videos figure { margin: 0; width: 240px; } .videos video { width: 240px; aspect-ratio: 9 / 16; background: #000; border: 2px solid var(--navy); }
+a.button.small { padding: 4px 10px; font-size: 13px; margin-top: 6px; }

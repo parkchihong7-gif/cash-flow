@@ -53,4 +53,53 @@
   </form>
 </section>
 {% endfor %}
+
+{% set approved = scripts|selectattr('approved_by')|list %}
+<section class="card">
+  <h2>영상 만들기</h2>
+  {% if approved %}
+    {% set sc = approved[0] %}
+    <p class="muted">승인된 대본: {{ sc.body.angle }} · «{{ sc.plan.title }}» — 템플릿을 고르세요 (미리보기는 상품이 나오는 장면).</p>
+    <form method="post" action="/studio/{{ p.id }}/render">
+      <input type="hidden" name="script_id" value="{{ sc.id }}">
+      <div class="tpl-grid">
+        {% for key, t in templates.items() %}
+        <label class="tpl">
+          <input type="radio" name="template" value="{{ key }}" {{ 'checked' if loop.first }}>
+          <img src="/studio/{{ p.id }}/preview/{{ sc.id }}/{{ key }}.jpg" alt="{{ t.label }} 미리보기" loading="lazy">
+          <span>{{ t.label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <div class="grid2">
+        <label>배경음악 <select name="music_id"><option value="">음악 없음</option>
+          {% for m in music %}<option value="{{ m.id }}">#{{ m.id }} · {{ m.license }}{% if m.license_proof %} · {{ m.license_proof[:30] }}{% endif %}</option>{% endfor %}</select>
+          <small><a href="/settings">설정</a>에서 라이선스를 기록하고 올린 음악만 고를 수 있습니다.</small></label>
+        <label class="check"><input type="checkbox" name="tts" {{ '' if tts_ready else 'disabled' }}> AI 음성(Google TTS)
+          <small>{{ '내레이션을 장면 시작에 맞춰 읽습니다.' if tts_ready else '키(GOOGLE_TTS_API_KEY)가 없어 자막만으로 만듭니다.' }}</small></label>
+      </div>
+      <button>영상 만들기 (20초 영상에 1분 안팎)</button>
+    </form>
+  {% else %}
+    <p class="muted">대본을 승인하면 여기서 영상을 만들 수 있습니다.</p>
+  {% endif %}
+</section>
+
+{% if videos %}
+<section class="card">
+  <h2>만든 영상</h2>
+  <div class="videos">
+  {% for v in videos %}
+    <figure>
+      <video src="/videos/{{ v.path }}" controls preload="metadata" playsinline></video>
+      <figcaption>#{{ v.id }} · {{ templates[v.template].label if v.template in templates else v.template }}
+        · {{ '%.1f' % (v.duration or 0) }}초 · {{ v.status }}<br>
+        <small class="muted">이미지: {{ v.checks.image }} · 음악: {{ v.checks.music }} · 음성: {{ v.checks.tts }}</small><br>
+        <a class="button small" href="/videos/{{ v.path }}?download=1">mp4 받기</a></figcaption>
+    </figure>
+  {% endfor %}
+  </div>
+  <p class="muted">업로드 전 권리 검사·제목과 설명 만들기·최종 승인은 다음 조각(⑤)에서 붙습니다.</p>
+</section>
+{% endif %}
 {% endblock %}

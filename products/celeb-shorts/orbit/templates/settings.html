@@ -23,6 +23,21 @@
 </form>
 
 <section class="card">
+  <h2>배경음악</h2>
+  <p class="muted">라이선스를 확인한 음악만 올리세요 (예: 유튜브 오디오 보관함 — 곡마다 출처 표기 조건이 다릅니다). 다른 사람 노래·방송 음원은 쓰지 않습니다.</p>
+  {% for m in music %}<p>#{{ m.id }} · <b>{{ m.license }}</b> · {{ m.license_proof or '증빙 없음' }}</p>{% endfor %}
+  <form method="post" action="/music" enctype="multipart/form-data">
+    <div class="grid2">
+      <label>파일 (mp3·m4a·wav·ogg, 20MB) <input type="file" name="file" accept=".mp3,.m4a,.wav,.ogg" required></label>
+      <label>권리 <select name="license" required><option value="">— 골라 주세요 —</option>
+        <option>무료라이선스</option><option>자체제작</option></select></label>
+      <label>곡 주소·조건 <input name="license_proof" placeholder="무료 라이선스면 필수"></label>
+    </div>
+    <button>음악 등록</button>
+  </form>
+</section>
+
+<section class="card">
   <h2>백업과 복원</h2>
   <p><a class="button" href="/backup">백업 파일 받기</a>
     <span class="muted">상품·출처·대본·설정이 zip 하나에 담깁니다.</span></p>

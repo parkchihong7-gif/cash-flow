@@ -744,3 +744,152 @@ def test_orbit_studio_screens(orbit_client, orbit_db):
     r = orbit_client.post(f"/studio/{pid}/approve", data={"script_id": sid, "approved_by": "나"})
     assert "error=" in str(r.url)
     assert orbit_client.get("/studio/999").status_code == 404
+
+
+# ============================================================ 셀럽오르빗 앱 — ④ 레트로 렌더
+import shutil as _shutil
+
+from orbit import render as orbit_render
+from orbit import videos as orbit_videos
+from orbit.videos import VideoError
+
+_needs_ffmpeg = pytest.mark.skipif(not _shutil.which("ffmpeg"), reason="FFmpeg 없음")
+
+
+def _approved_script(db, **kw):
+    pid = _verified_product(db, **kw)
+    orbit_scripts.generate(db, pid, dry_run=False, ask=_real_ask_from([_good_plan()]))
+    sid = orbit_scripts.list_scripts(db, pid)[0]["id"]
+    orbit_scripts.save_edit(db, sid, {"own_comment": "봄에 잘 어울려요"})
+    orbit_scripts.approve(db, sid, "나")
+    return pid, sid
+
+
+def test_orbit_five_templates_exist_with_brand_colors_only():
+    data = orbit_render.load_templates()
+    labels = [t["label"] for t in data["templates"].values()]
+    assert labels == ["80년대 화장품 광고형", "빈티지 패션잡지형", "레트로 팝아트형", "방송 속 화제템 소개형", "스타 쇼핑 리스트형"]
+    allowed = {"navy", "mustard", "coral", "pink", "cream"}
+    for t in data["templates"].values():
+        for key in ("bg", "block", "band", "band_text", "accent", "halftone_color", "subtitle_bg", "subtitle_text"):
+            assert t[key] in allowed, (t["label"], key)
+    for name in data["fonts"].values():
+        assert (orbit_render.FONT_DIR / name).is_file()
+
+
+def test_orbit_bundled_fonts_carry_their_license():
+    files = {p.name for p in orbit_render.FONT_DIR.iterdir()}
+    assert {"OFL-BlackHanSans.txt", "OFL-DoHyeon.txt"} <= files
+
+
+def test_orbit_text_never_uses_glyphs_missing_from_the_fonts():
+    assert "·" not in orbit_render.clean("광고 · 제휴") and "…" not in orbit_render.clean("그래서…")
+    assert "·" not in orbit_render.DISCLOSURE
+
+
+def test_orbit_still_is_full_size_for_every_template(orbit_db):
+    _, sid = _approved_script(orbit_db)
+    for template in orbit_render.load_templates()["templates"]:
+        img = orbit_render.render_still(orbit_videos.make_job(orbit_db, sid, template), 2)
+        assert img.size == (1080, 1920)
+
+
+def test_orbit_brand_color_change_reaches_the_video(orbit_db):
+    _, sid = _approved_script(orbit_db)
+    before = orbit_render.render_still(orbit_videos.make_job(orbit_db, sid, "cosmetic_ad"), 0).getpixel((540, 200))
+    orbit_db.save_settings({"color_navy": "#00FF00"})
+    after = orbit_render.render_still(orbit_videos.make_job(orbit_db, sid, "cosmetic_ad"), 0).getpixel((540, 200))
+    assert before != after and after[1] > 200      # 제목 띠(네이비 자리)가 바꾼 색으로
+
+
+def test_orbit_only_approved_scripts_render(orbit_db):
+    pid = _verified_product(orbit_db)
+    orbit_scripts.generate(orbit_db, pid, dry_run=True)
+    sid = orbit_scripts.list_scripts(orbit_db, pid)[0]["id"]
+    with pytest.raises(VideoError, match="승인"):
+        orbit_videos.make_job(orbit_db, sid, "cosmetic_ad")
+
+
+def test_orbit_licensed_image_is_used_otherwise_self_made_card(orbit_db):
+    pid, sid = _approved_script(orbit_db)
+    assert orbit_videos.make_job(orbit_db, sid, "magazine").product_image is None
+    from PIL import Image as _Image
+    import io as _io
+    buf = _io.BytesIO(); _Image.new("RGB", (50, 50), (1, 2, 3)).save(buf, "PNG")
+    catalog.add_image(orbit_db, pid, filename="p.png", data=buf.getvalue(), license="직접촬영")
+    assert orbit_videos.make_job(orbit_db, sid, "magazine").product_image is not None
+
+
+def test_orbit_music_needs_license_and_proof(orbit_db):
+    with pytest.raises(VideoError):
+        orbit_videos.add_music(orbit_db, filename="a.mp3", data=b"x", license="", license_proof="")
+    with pytest.raises(VideoError):
+        orbit_videos.add_music(orbit_db, filename="a.mp3", data=b"x", license="무료라이선스", license_proof="")
+    with pytest.raises(VideoError):
+        orbit_videos.add_music(orbit_db, filename="a.exe", data=b"x", license="자체제작", license_proof="")
+    orbit_videos.add_music(orbit_db, filename="a.mp3", data=b"x", license="자체제작", license_proof="")
+    assert len(orbit_videos.list_music(orbit_db)) == 1
+
+
+def test_orbit_tts_without_key_is_refused_before_rendering(orbit_db, monkeypatch):
+    monkeypatch.delenv("GOOGLE_TTS_API_KEY", raising=False)
+    _, sid = _approved_script(orbit_db)
+    if not _shutil.which("ffmpeg"):
+        pytest.skip("FFmpeg 없음")
+    with pytest.raises(VideoError, match="GOOGLE_TTS_API_KEY"):
+        orbit_videos.make_video(orbit_db, sid, "cosmetic_ad", use_tts=True)
+
+
+def test_orbit_tts_calls_the_official_endpoint(monkeypatch, tmp_path):
+    from orbit import tts as orbit_tts
+    seen = {}
+
+    class Resp:
+        status_code = 200
+        def json(self):
+            import base64
+            return {"audioContent": base64.b64encode(b"ID3fake").decode()}
+
+    def fake_post(url, params, json, timeout):
+        seen.update(url=url, key=params["key"], lang=json["voice"]["languageCode"], text=json["input"]["text"])
+        return Resp()
+
+    monkeypatch.setenv("GOOGLE_TTS_API_KEY", "k")
+    monkeypatch.setattr(orbit_tts.requests, "post", fake_post)
+    out = orbit_tts.synthesize("안녕하세요", tmp_path / "v.mp3")
+    assert out.read_bytes() == b"ID3fake"
+    assert seen["url"].startswith("https://texttospeech.googleapis.com/") and seen["lang"] == "ko-KR"
+
+
+def test_orbit_missing_ffmpeg_is_explained(orbit_db, monkeypatch):
+    _, sid = _approved_script(orbit_db)
+    monkeypatch.setattr(orbit_render.shutil, "which", lambda name: None)
+    monkeypatch.delenv("FFMPEG_PATH", raising=False)
+    with pytest.raises(orbit_render.FFmpegMissing, match="winget"):
+        orbit_videos.make_video(orbit_db, sid, "cosmetic_ad")
+
+
+@_needs_ffmpeg
+def test_orbit_renders_a_real_20_second_short(orbit_db):
+    _, sid = _approved_script(orbit_db)
+    video_id = orbit_videos.make_video(orbit_db, sid, "popart")
+    row = orbit_videos.list_videos(orbit_db, 1)[0]
+    info = row["checks"]["probe"]
+    assert row["id"] == video_id
+    assert (info["width"], info["height"]) == (1080, 1920)
+    assert abs(info["duration"] - 20) < 0.3 and info["audio"]
+    assert "자체 그래픽" in row["checks"]["image"]
+
+
+@_needs_ffmpeg
+def test_orbit_render_screens(orbit_client, orbit_db):
+    pid, sid = _approved_script(orbit_db)
+    r = orbit_client.get(f"/studio/{pid}")
+    assert "영상 만들기" in r.text and "80년대 화장품 광고형" in r.text
+    img = orbit_client.get(f"/studio/{pid}/preview/{sid}/broadcast.jpg")
+    assert img.headers["content-type"] == "image/jpeg"
+    r = orbit_client.post(f"/studio/{pid}/render", data={"script_id": sid, "template": "magazine"})
+    assert "msg=" in str(r.url)
+    video = orbit_videos.list_videos(orbit_db, pid)[0]
+    assert orbit_client.get(f"/videos/{video['path']}").status_code == 200
+    assert orbit_client.get("/videos/../orbit.db").status_code == 404

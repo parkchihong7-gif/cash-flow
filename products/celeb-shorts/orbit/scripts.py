@@ -158,7 +158,8 @@ def generate(db: OrbitDB, product_id: int, *, dry_run: bool, model: str = "",
 
     ids = []
     with db.connect() as con:
-        con.execute("DELETE FROM script WHERE product_id = ? AND approved_by = ''", (product_id,))
+        con.execute("DELETE FROM script WHERE product_id = ? AND approved_by = ''"
+                    " AND id NOT IN (SELECT script_id FROM video)", (product_id,))
         start = (con.execute("SELECT COALESCE(MAX(variant), 0) FROM script WHERE product_id = ?",
                              (product_id,)).fetchone()[0])
         for n, body in enumerate(variants[:3], 1):

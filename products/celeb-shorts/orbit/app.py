@@ -15,9 +15,12 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import catalog, scripts
+import io
+
+from . import catalog, render, scripts, tts, videos
 from .catalog import CatalogError
 from .scripts import ScriptError
+from .videos import VideoError
 from .db import COLOR_KEYS, COLOR_LABELS, OrbitDB, RestoreError, SettingError
 
 HERE = Path(__file__).resolve().parent
@@ -57,7 +60,8 @@ def create_app(db: OrbitDB | None = None) -> FastAPI:
 
     @app.get("/settings", response_class=HTMLResponse)
     def settings_page(request: Request):
-        return page(request, "settings.html", color_keys=COLOR_KEYS, color_labels=COLOR_LABELS)
+        return page(request, "settings.html", color_keys=COLOR_KEYS, color_labels=COLOR_LABELS,
+                    music=videos.list_music(app.state.db))
 
     @app.post("/settings")
     async def settings_save(request: Request):
@@ -186,7 +190,45 @@ def create_app(db: OrbitDB | None = None) -> FastAPI:
         review, claim = scripts.product_review(db)(product_id)
         return page(request, "studio_product.html", p=product, claim=claim, review=review,
                     scripts=scripts.list_scripts(db, product_id), hook_end=scripts.HOOK_END,
-                    reveal_after=scripts.REVEAL_AFTER)
+                    reveal_after=scripts.REVEAL_AFTER, templates=render.load_templates()["templates"],
+                    music=videos.list_music(db), tts_ready=tts.available(),
+                    videos=videos.list_videos(db, product_id))
+
+    @app.get("/studio/{product_id}/preview/{script_id}/{template}.jpg")
+    def studio_preview(product_id: int, script_id: int, template: str, scene: int = -1):
+        try:
+            job = videos.make_job(app.state.db, script_id, template)
+        except VideoError as exc:
+            return HTMLResponse(str(exc), status_code=404)
+        scenes = job.plan["scenes"]
+        if scene < 0:   # 상품이 보이는 첫 장면을 미리보기로
+            scene = next((i for i, s in enumerate(scenes) if s.get("visual") != "text_card"), 0)
+        image = render.render_still(job, min(scene, len(scenes) - 1)).resize((360, 640))
+        buf = io.BytesIO()
+        image.save(buf, "JPEG", quality=82)
+        return Response(buf.getvalue(), media_type="image/jpeg")
+
+    @app.get("/videos/{name}")
+    def video_file(name: str, download: int = 0):
+        root = videos.videos_dir(app.state.db).resolve()
+        path = (root / name).resolve()
+        if root not in path.parents or not path.is_file() or path.suffix != ".mp4":
+            return HTMLResponse("없는 파일입니다", status_code=404)
+        return FileResponse(path, media_type="video/mp4",
+                            filename=f"celeb-orbit-{path.stem}.mp4" if download else None)
+
+    @app.post("/music")
+    async def music_add(request: Request):
+        raw = await request.form()
+        upload = raw.get("file")
+        try:
+            if upload is None or not hasattr(upload, "read"):
+                raise VideoError("음악 파일을 골라 주세요")
+            videos.add_music(app.state.db, filename=upload.filename or "", data=await upload.read(),
+                             license=str(raw.get("license", "")), license_proof=str(raw.get("license_proof", "")))
+        except VideoError as exc:
+            return back("/settings", error=str(exc))
+        return back("/settings", msg="음악을 등록했습니다")
 
     @app.post("/studio/{product_id}/{action}")
     async def studio_action(request: Request, product_id: int, action: str):
@@ -202,10 +244,15 @@ def create_app(db: OrbitDB | None = None) -> FastAPI:
                 msg = "저장하고 다시 검사했습니다" + (f" — 막음 {blocks}개" if blocks else "")
             elif action == "approve":
                 scripts.approve(db, int(form.get("script_id", 0)), form.get("approved_by", ""))
-                msg = "승인했습니다. 다음 단계(영상 렌더)에서 이 대본을 씁니다"
+                msg = "승인했습니다. 아래에서 템플릿을 골라 영상을 만드세요"
+            elif action == "render":
+                music_id = int(form["music_id"]) if form.get("music_id") else None
+                video_id = videos.make_video(db, int(form.get("script_id", 0)), form.get("template", ""),
+                                             music_id=music_id, use_tts=form.get("tts") == "on")
+                msg = f"영상 #{video_id} 을(를) 만들었습니다"
             else:
                 return back(here, error="모르는 동작입니다")
-        except (ScriptError, CatalogError) as exc:
+        except (ScriptError, CatalogError, VideoError, render.FFmpegMissing) as exc:
             return back(here, error=str(exc))
         return back(here, msg=msg)
 
