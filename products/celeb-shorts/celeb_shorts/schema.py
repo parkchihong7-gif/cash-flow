@@ -11,7 +11,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-__all__ = ["Item", "ShortsInput", "Scene", "PlanDraft", "parse_item", "slugify", "VISUALS"]
+__all__ = ["Item", "ShortsInput", "Scene", "PlanDraft", "parse_item", "slugify", "VISUALS", "CATEGORIES"]
 
 #: 장면 화면으로 쓸 수 있는 것. 연예인 얼굴·방송 화면은 여기 없다 — 일부러다.
 VISUALS: dict[str, str] = {
@@ -24,6 +24,10 @@ Visual = Literal["product_image", "own_photo", "text_card"]
 
 _YES = {"o", "y", "yes", "true", "1", "확인", "예", "ㅇ"}
 
+#: 아이템 분류. 건강식품·뷰티는 효능 표현 규칙이 따로 붙는다 (`rules.py`).
+CATEGORIES = ("패션", "뷰티", "건강식품", "기타")
+Category = Literal["패션", "뷰티", "건강식품", "기타"]
+
 
 class Item(BaseModel):
     """아이템 하나."""
@@ -34,6 +38,17 @@ class Item(BaseModel):
     price: int | None = Field(default=None, ge=0)
     price_source: str = ""
     keyword: str = Field(default="", description="쇼핑 검색어. 비우면 이름을 쓴다")
+    category: Category = "패션"
+
+    @field_validator("category", mode="before")
+    @classmethod
+    def _category(cls, value):
+        value = (value or "").strip() if isinstance(value, str) else value
+        if not value:
+            return "패션"
+        aliases = {"건강": "건강식품", "영양제": "건강식품", "건기식": "건강식품",
+                   "화장품": "뷰티", "코스메틱": "뷰티", "옷": "패션", "잡화": "패션"}
+        return aliases.get(value, value)
 
     @property
     def search_keyword(self) -> str:
@@ -41,17 +56,20 @@ class Item(BaseModel):
 
 
 def parse_item(raw: str | dict) -> Item:
-    """`이름 | 브랜드 | o | 가격 | 가격 출처 | 검색어` 한 줄 또는 dict 를 Item 으로."""
+    """`이름 | 브랜드 | o | 가격 | 가격 출처 | 검색어 | 분류` 한 줄 또는 dict 를 Item 으로.
+
+    분류(패션·뷰티·건강식품·기타)는 비우면 패션이다. 옛 6칸 줄도 그대로 읽힌다.
+    """
     if isinstance(raw, dict):
         return Item(**raw)
     cells = [cell.strip() for cell in str(raw).split("|")]
-    cells += [""] * (6 - len(cells))
-    name, brand, ok, price, price_source, keyword = cells[:6]
+    cells += [""] * (7 - len(cells))
+    name, brand, ok, price, price_source, keyword, category = cells[:7]
     digits = re.sub(r"[^\d]", "", price)
     return Item(
         name=name, brand=brand, confirmed=ok.lower() in _YES,
         price=int(digits) if digits else None,
-        price_source=price_source, keyword=keyword,
+        price_source=price_source, keyword=keyword, category=category,
     )
 
 

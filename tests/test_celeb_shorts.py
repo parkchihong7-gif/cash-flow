@@ -142,6 +142,93 @@ def test_banned_phrase_is_blocked():
     assert any(i.level == "block" and "금지 문구" in i.message for i in issues)
 
 
+# ------------------------------------------------------------ 분류·효능·추천
+def _one_item_plan(subtitle, index=0, **kw):
+    return _plan(scenes=[
+        {"start": 0, "end": 5, "subtitle": subtitle, "visual": "product_image", "item_index": index},
+        {"start": 5, "end": 15, "subtitle": "상품 태그", "visual": "text_card"},
+    ], **kw)
+
+
+def test_category_is_read_from_the_seventh_cell():
+    assert parse_item("비타민 | | x | | | 비타민 | 영양제").category == "건강식품"
+    assert parse_item("립밤 | | x | | | 립밤 | 화장품").category == "뷰티"
+    assert parse_item("가방 | | x | | | 가방").category == "패션"
+    with pytest.raises(ValidationError):
+        parse_item("가방 | | x | | | 가방 | 자동차")
+
+
+def test_health_claim_is_blocked():
+    data = _input(items=["비타민C | | x | | | 비타민C | 건강식품"])
+    _, issues, _ = review_plan(_one_item_plan("면역력 끝판왕"), review_input(data))
+    assert any(i.level == "block" and "효능" in i.message for i in issues)
+
+
+def test_health_claim_in_the_hook_is_blocked_too():
+    data = _input(items=["비타민C | | x | | | 비타민C | 건강식품"])
+    _, issues, _ = review_plan(_one_item_plan("비타민C", hook="다이어트 영양제"), review_input(data))
+    assert any(i.where == "후크" and "효능" in i.message for i in issues)
+
+
+def test_same_words_on_a_fashion_item_are_fine():
+    """효능 낱말 검사는 건강식품·뷰티 아이템에만. 패션 아이템 장면은 건드리지 않는다."""
+    _, issues, _ = review_plan(_one_item_plan("예방 차원 우산"), review_input(_input()))
+    assert not [i for i in issues if "효능" in i.message]
+
+
+def test_beauty_medical_word_blocks_and_whitening_warns():
+    data = _input(items=["크림 | | x | | | 크림 | 뷰티"])
+    _, blocked, _ = review_plan(_one_item_plan("피부 재생 크림"), review_input(data))
+    assert any(i.level == "block" and "의약품" in i.message for i in blocked)
+    _, warned, _ = review_plan(_one_item_plan("미백 크림"), review_input(data))
+    assert any(i.level == "warn" and "기능성" in i.message for i in warned)
+    assert not [i for i in warned if i.level == "block"]
+
+
+def test_endorsement_only_on_confirmed_items():
+    review = review_input(_input())
+    _, ok, _ = review_plan(_one_item_plan("배우 A 애용 가방", index=0), review)
+    assert not [i for i in ok if "확인된 아이템에만" in i.message]
+    _, bad, _ = review_plan(_one_item_plan("인생템 데님", index=1), review)
+    assert any(i.level == "block" and "확인된 아이템에만" in i.message for i in bad)
+
+
+def test_endorsement_without_source_is_blocked_everywhere():
+    review = review_input(_input(source_url=""))
+    _, issues, _ = review_plan(_plan(title="추천템 모음"), review)
+    assert any(i.where == "제목" and i.level == "block" for i in issues)
+
+
+def test_crowd_claim_is_always_blocked():
+    """'연예인들끼리 공유한다는 면역력 영양제' — 실제로 본 문구 그대로."""
+    data = _input(items=["영양제 | | o | | | 영양제 | 건강식품"])
+    _, issues, _ = review_plan(_one_item_plan("연예인들끼리\n공유한다는 영양제"), review_input(data))
+    messages = " ".join(i.message for i in issues)
+    assert "'연예인들'" in messages
+
+
+def test_checklist_has_channel_setup_and_category_lines(tmp_path):
+    data = _input(items=["블랙 숄더백 | 브랜드B | o | 3200000 | 예시뉴스 | 숄더백 | 패션",
+                         "비타민C | | x | | | 비타민C | 건강식품"])
+    out, *_ = _build(tmp_path, data)
+    text = (out / "checklist.md").read_text(encoding="utf-8")
+    assert "## 채널 설정" in text and "브랜드 계정" in text and "유료 프로모션" in text
+    assert "건강식품: 효능" in text
+    assert "화장품:" not in text
+
+
+def test_dry_run_with_health_item_is_still_clean(tmp_path):
+    """모의 실행 예시는 규칙을 지켜야 한다 — 예시가 막히면 쓰는 사람이 헷갈린다."""
+    data = _input(items=["비타민C | | x | | | 비타민C | 건강식품"])
+    _, _, _, issues = _build(tmp_path, data)
+    assert not [i for i in issues if i.level == "block"]
+
+
+def test_request_carries_the_category():
+    data = _input(items=["비타민C | | x | | | 비타민C | 건강식품"])
+    assert build_request(review_input(data))["items"][0]["category"] == "건강식품"
+
+
 # ------------------------------------------------------------ 시간·자막
 def test_timing_is_fitted_to_duration():
     plan = _plan(scenes=[
@@ -204,6 +291,7 @@ def test_shopping_list_marks_modes_and_links(tmp_path):
     out, *_ = _build(tmp_path)
     rows = list(csv.DictReader((out / "shopping_list.csv").open(encoding="utf-8-sig")))
     assert [r["소개 방식"] for r in rows] == ["확인", "비슷한 스타일"]
+    assert [r["분류"] for r in rows] == ["패션", "패션"]
     assert rows[0]["쿠팡 검색 주소"].startswith("https://www.coupang.com/np/search?q=")
 
 

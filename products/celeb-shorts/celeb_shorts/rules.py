@@ -6,6 +6,8 @@
 2. 확인 안 된 아이템을 "○○ 착용템" 이라고 한다 → 허위 표시.
 3. 출처 없는 가격·"원가" 를 띄운다 → 허위 표시, 신뢰 하락.
 4. 대가성 문구를 빠뜨린다 → 쿠팡 자격 정지, 유튜브 제재.
+5. "연예인들끼리 공유한다는 면역력 영양제" 처럼 추천을 지어내고 효능을 말한다
+   → 허위 표시, 건강기능식품 광고 사전 심의 위반, 화장품의 의약품 오인 광고.
 
 1번은 장면 화면 종류(`schema.VISUALS`)에서 아예 고를 수 없게 막았다. 나머지는 여기서 본다.
 고칠 수 있는 것은 고치고(`notes`), 사람이 봐야 하는 것은 경고(`warn`),
@@ -21,13 +23,33 @@ from shared.banned_phrases import check as banned_check
 
 from .schema import PlanDraft, Scene, ShortsInput
 
-__all__ = ["Issue", "InputReview", "review_input", "review_plan", "SUBTITLE_MAX", "split_subtitle"]
+__all__ = ["Issue", "InputReview", "review_input", "review_plan", "SUBTITLE_MAX", "split_subtitle",
+           "HEALTH_CLAIMS", "BEAUTY_BLOCK", "BEAUTY_WARN", "ENDORSE_WORDS", "CROWD_WORDS"]
 
 #: 자막 한 장 한 줄 최대 글자 수. 15초 쇼츠는 한 장이 1~2초라 길면 못 읽는다.
 SUBTITLE_MAX = 15
 
 #: 같은 물건이라고 단정하는 말 — 확인 안 된 아이템에는 쓰면 안 된다.
 _SAME_WORDS = ("똑같은", "똑같이", "동일 제품", "동일제품", "같은 제품", "바로 그", "정품")
+
+#: 건강식품에 쓰면 막는 효능 표현. 건강기능식품 광고는 사전 심의를 받은 문구만 쓸 수 있고,
+#: 일반 식품이 효능을 말하면 질병 예방·치료 오인 광고가 된다.
+HEALTH_CLAIMS = ("면역", "다이어트", "살 빠", "살빠", "체지방", "혈당", "혈압", "콜레스테롤",
+                 "간 건강", "피로 회복", "피로회복", "치료", "예방", "완치", "디톡스", "해독",
+                 "항암", "노화 방지", "갱년기")
+
+#: 화장품에 쓰면 막는 말 — 의약품으로 오인하게 하는 표현.
+BEAUTY_BLOCK = ("치료", "재생", "완치", "아토피", "염증", "탈모 치료", "여드름 치료", "흉터 제거")
+
+#: 화장품에서 '기능성 인증' 이 있어야 쓸 수 있는 말 — 경고만.
+BEAUTY_WARN = ("미백", "주름 개선", "주름개선", "자외선 차단", "탈모 완화", "여드름 완화")
+
+#: 연예인이 쓴다·추천한다는 말. 출처로 확인된 아이템에만 쓸 수 있다.
+ENDORSE_WORDS = ("추천한", "추천하는", "추천템", "애용", "즐겨 쓰는", "즐겨쓰는", "인생템",
+                 "공유한다는", "쓴다는", "먹는다는")
+
+#: 누가 썼는지 특정할 수 없는 '연예인들' 주장 — 확인할 방법이 없어 늘 막는다.
+CROWD_WORDS = ("연예인들", "셀럽들", "스타들", "아이돌들")
 
 #: 가격처럼 보이는 숫자.
 _PRICE_RE = re.compile(r"\d[\d,\.]*\s*(?:만\s*)?(?:천\s*)?원")
@@ -216,7 +238,52 @@ def review_plan(plan: PlanDraft, review: InputReview) -> tuple[PlanDraft, list[I
             issues.append(Issue("block", where,
                                 f"출처 없는 가격이 들어갔습니다: {_PRICE_RE.search(text).group(0)!r}"))
 
-    # 7) 판매 금지 문구 (공용 목록)
+    # 7) 효능 표현 — 건강식품·뷰티 아이템이 있을 때. 장면은 그 아이템만, 제목·후크·설명은 전부 본다.
+    categories = {item.category for item in data.items}
+
+    def claim_targets():
+        """(어디, 글, 아이템 번호). 두 줄로 나눈 자막도 한 줄로 이어서 본다."""
+        found = [("제목", plan.title, None), ("후크", plan.hook, None), ("설명", plan.description, None)]
+        found += [(f"장면 {n}", f"{s.subtitle} {s.narration}", s.item_index)
+                  for n, s in enumerate(plan.scenes, 1)]
+        for where, text, index in found:
+            yield where, (text or "").replace("\n", " "), index
+
+    for where, squashed, index in claim_targets():
+        cats = {data.items[index].category} if index is not None else categories
+        if "건강식품" in cats:
+            hit = next((w for w in HEALTH_CLAIMS if w in squashed), None)
+            if hit:
+                issues.append(Issue("block", where,
+                                    f"건강식품에 효능 표현 '{hit}' 을 썼습니다. 심의받은 문구 외에는 쓸 수 없습니다. "
+                                    "맛·성분·먹는 방법처럼 사실만 쓰세요."))
+        if "뷰티" in cats:
+            hit = next((w for w in BEAUTY_BLOCK if w in squashed), None)
+            if hit:
+                issues.append(Issue("block", where,
+                                    f"화장품에 '{hit}' 은 의약품으로 오인하게 하는 표현입니다. 빼세요."))
+            warn = next((w for w in BEAUTY_WARN if w in squashed), None)
+            if warn:
+                issues.append(Issue("warn", where,
+                                    f"'{warn}' 은 기능성 화장품 인증이 있는 제품에만 씁니다. 인증을 확인하세요."))
+
+    # 8) 연예인 추천 표현 — 확인 아이템에만. '연예인들' 은 늘 막는다.
+    any_confirmed = any(review.item_mode(i) == "확인" for i in range(len(data.items)))
+    for where, text, index in claim_targets():
+        crowd = next((w for w in CROWD_WORDS if w in text), None)
+        if crowd:
+            issues.append(Issue("block", where,
+                                f"'{crowd}' 처럼 누가 썼는지 특정할 수 없는 주장은 확인할 방법이 없습니다. 빼세요."))
+        endorse = next((w for w in ENDORSE_WORDS if w in text), None)
+        if not endorse:
+            continue
+        ok = (review.item_mode(index) == "확인") if index is not None else any_confirmed
+        if not ok:
+            issues.append(Issue("block", where,
+                                f"'{endorse}' 은 출처로 확인된 아이템에만 쓸 수 있습니다. "
+                                "'비슷한 스타일' 로 바꾸거나 출처를 넣으세요."))
+
+    # 9) 판매 금지 문구 (공용 목록)
     for where, text in _texts(plan):
         found = banned_check(text or "")
         if found:

@@ -101,7 +101,7 @@ def _plan_md(plan: PlanDraft, review: InputReview, issues: list[Issue], notes: l
     for i, item in enumerate(data.items):
         price = review.shown_price(i)
         price_txt = f" · {price:,}원 ({item.price_source})" if price is not None else ""
-        lines.append(f"{i + 1}. {item.name} — {review.item_mode(i)}"
+        lines.append(f"{i + 1}. {item.name} [{item.category}] — {review.item_mode(i)}"
                      f"{' · ' + item.brand if item.brand else ''}{price_txt} · 검색어 '{item.search_keyword}'")
     if blocks or issues:
         lines += ["", "## 검사 결과", ""] + [f"- {i.line()}" for i in issues]
@@ -114,8 +114,19 @@ def _plan_md(plan: PlanDraft, review: InputReview, issues: list[Issue], notes: l
     return add_text_label(text) if ai_label_on else text
 
 
+#: 채널을 처음 만들 때 한 번 해 두는 설정. 유튜브 공식 메뉴 기준(이름은 바뀔 수 있다).
+CHANNEL_SETUP = (
+    "채널을 **브랜드 계정**으로 만들었다 (관리자 추가·소유권 이전이 됩니다)",
+    "유튜브 스튜디오 → 설정 → 업로드 기본설정에서 '유료 프로모션 포함' 을 기본으로 켜 두었다",
+    "유튜브 쇼핑 제휴 프로그램에 가입했다 (구독자 500명 + YPP 이후. 그 전에는 채널 프로필 링크)",
+    "채널 설명에 '제휴 링크·상품 태그로 수수료를 받는다' 는 문장을 넣었다",
+    "다른 사람 채널을 사지 않고 새로 만들었다 (구독자 관심사가 안 맞고 정책 위험)",
+)
+
+
 def _checklist(review: InputReview, issues: list[Issue]) -> str:
     data = review.data
+    categories = {item.category for item in data.items}
     lines = ["# 올리기 전 확인 (사람이 직접)", ""]
     if issues:
         lines += ["## 자동 검사에서 나온 것", ""] + [f"- [ ] {i.line()}" for i in issues] + [""]
@@ -132,6 +143,23 @@ def _checklist(review: InputReview, issues: list[Issue]) -> str:
         "- [ ] 업로드 화면에서 '유료 프로모션 포함' 을 체크했다",
         "- [ ] 업로드 화면에서 '변경되거나 합성된 콘텐츠' 를 사실대로 체크했다 (AI 음성·이미지를 썼다면 예)",
         "- [ ] 내 말·내 의견을 한 줄 이상 넣었다 (양산형 판정 회피)",
+        "- [ ] '추천한·애용·인생템' 같은 말은 출처로 확인된 아이템에만 썼다",
+    ]
+    if "건강식품" in categories:
+        lines += [
+            "- [ ] 건강식품: 효능(면역·다이어트·혈당·피로 회복 등)을 말하지 않았다",
+            "- [ ] 건강식품: 건강기능식품이면 포장의 인증 마크와 광고 심의 여부를 확인했다",
+        ]
+    if "뷰티" in categories:
+        lines += [
+            "- [ ] 화장품: '치료·재생·아토피' 같은 의약품 표현을 쓰지 않았다",
+            "- [ ] 화장품: '미백·주름 개선' 을 썼다면 기능성 화장품 인증이 있는 제품이다",
+        ]
+    lines += [
+        "",
+        "## 채널 설정 (처음 한 번)",
+        "",
+        *[f"- [ ] {line}" for line in CHANNEL_SETUP],
         "",
         "## 링크",
         "",
@@ -153,10 +181,10 @@ def write_outputs(out_dir: Path, review: InputReview, plan: PlanDraft, issues: l
 
     with (out_dir / "shopping_list.csv").open("w", encoding="utf-8-sig", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["번호", "아이템", "소개 방식", "브랜드", "가격", "가격 출처", "검색어", "쿠팡 검색 주소"])
+        writer.writerow(["번호", "아이템", "분류", "소개 방식", "브랜드", "가격", "가격 출처", "검색어", "쿠팡 검색 주소"])
         for i, item in enumerate(data.items):
             price = review.shown_price(i)
-            writer.writerow([i + 1, item.name, review.item_mode(i), item.brand,
+            writer.writerow([i + 1, item.name, item.category, review.item_mode(i), item.brand,
                              price if price is not None else "", item.price_source if price is not None else "",
                              item.search_keyword, coupang_search(item.search_keyword)])
 

@@ -38,8 +38,9 @@ def _fields() -> list[Field]:
         Field("duration_sec", "길이(초)", "number", default=value("duration_sec", 15),
               help="기본 15초. 10~60초."),
         Field("items", "아이템 (한 줄에 하나)", "textarea", default=value("items"), required=True,
-              help="`이름 | 브랜드 | o/x | 가격 | 가격 출처 | 검색어` — "
-                   "확인 x 는 '비슷한 스타일' 로만, 가격은 출처가 있을 때만 나옵니다."),
+              help="`이름 | 브랜드 | o/x | 가격 | 가격 출처 | 검색어 | 분류` — "
+                   "확인 x 는 '비슷한 스타일' 로만, 가격은 출처가 있을 때만 나옵니다. "
+                   "분류는 패션·뷰티·건강식품·기타. 건강식품은 효능을 말할 수 없습니다."),
         Field("cta", "마지막에 시킬 것", "text", default=value("cta", "고정 상품 태그에서 비슷한 제품 보기")),
     ]
 
@@ -92,7 +93,8 @@ def console(program, ctx) -> Console:
             Trouble("연예인 이름이 빠졌다",
                     "출처 주소가 비어 있어서입니다. 착용 사실을 확인한 기사 주소를 넣으세요."),
             Trouble("'막음' 이 떠서 승인이 안 된다",
-                    "plan.md 의 검사 결과를 보세요. 출처 없는 가격·'원가'·'똑같은' 같은 말이 대부분입니다."),
+                    "plan.md 의 검사 결과를 보세요. 출처 없는 가격·'원가'·'똑같은', "
+                    "건강식품 효능 표현, 확인 안 된 '추천' 이 대부분입니다."),
         ],
         files=[
             FileLoc("입력", "products/celeb-shorts/shorts_input.yaml"),

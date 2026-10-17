@@ -31,6 +31,7 @@ def build_request(review: InputReview) -> dict:
                 "brand": item.brand if review.item_mode(i) == "확인" else "",
                 "mode": review.item_mode(i),
                 "price": review.shown_price(i),
+                "category": item.category,
             }
             for i, item in enumerate(data.items)
         ],
