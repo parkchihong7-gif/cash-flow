@@ -15,8 +15,9 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import catalog
+from . import catalog, scripts
 from .catalog import CatalogError
+from .scripts import ScriptError
 from .db import COLOR_KEYS, COLOR_LABELS, OrbitDB, RestoreError, SettingError
 
 HERE = Path(__file__).resolve().parent
@@ -25,7 +26,7 @@ HERE = Path(__file__).resolve().parent
 MENU = [
     ("/", "대시보드", True),
     ("/products", "상품", True),
-    ("/studio", "영상 제작", False),
+    ("/studio", "영상 제작", True),
     ("/calendar", "일정", False),
     ("/metrics", "성과", False),
     ("/settings", "설정", True),
@@ -164,6 +165,49 @@ def create_app(db: OrbitDB | None = None) -> FastAPI:
         if root not in path.parents or not path.is_file():
             return HTMLResponse("없는 파일입니다", status_code=404)
         return FileResponse(path)
+
+    # ------------------------------------------------------------ ③ 대본
+    @app.get("/studio", response_class=HTMLResponse)
+    def studio(request: Request):
+        db = app.state.db
+        rows = []
+        for p in catalog.list_products(db):
+            made = scripts.list_scripts(db, p["id"])
+            rows.append({**p, "scripts": len(made), "approved": any(x["approved_by"] for x in made)})
+        return page(request, "studio.html", products=rows)
+
+    @app.get("/studio/{product_id}", response_class=HTMLResponse)
+    def studio_product(request: Request, product_id: int):
+        db = app.state.db
+        try:
+            product = catalog.get_product(db, product_id)
+        except CatalogError:
+            return HTMLResponse("없는 상품입니다", status_code=404)
+        review, claim = scripts.product_review(db)(product_id)
+        return page(request, "studio_product.html", p=product, claim=claim, review=review,
+                    scripts=scripts.list_scripts(db, product_id), hook_end=scripts.HOOK_END,
+                    reveal_after=scripts.REVEAL_AFTER)
+
+    @app.post("/studio/{product_id}/{action}")
+    async def studio_action(request: Request, product_id: int, action: str):
+        db, here = app.state.db, f"/studio/{product_id}"
+        form = await form_of(request)
+        try:
+            if action in ("dry", "real"):
+                ids = scripts.generate(db, product_id, dry_run=action == "dry")
+                msg = f"대본 {len(ids)}안을 만들었습니다" + (" (모의 — 승인 불가)" if action == "dry" else "")
+            elif action == "edit":
+                issues = scripts.save_edit(db, int(form.get("script_id", 0)), form)
+                blocks = sum(1 for i in issues if i.level == "block")
+                msg = "저장하고 다시 검사했습니다" + (f" — 막음 {blocks}개" if blocks else "")
+            elif action == "approve":
+                scripts.approve(db, int(form.get("script_id", 0)), form.get("approved_by", ""))
+                msg = "승인했습니다. 다음 단계(영상 렌더)에서 이 대본을 씁니다"
+            else:
+                return back(here, error="모르는 동작입니다")
+        except (ScriptError, CatalogError) as exc:
+            return back(here, error=str(exc))
+        return back(here, msg=msg)
 
     @app.get("/logs", response_class=HTMLResponse)
     def logs(request: Request):

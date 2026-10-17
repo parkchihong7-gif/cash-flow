@@ -608,3 +608,139 @@ def test_orbit_product_screens_flow(orbit_client, orbit_db):
     assert orbit_client.get("/assets/1/../../orbit.db").status_code == 404
     assert orbit_client.get("/products/999").status_code == 404
     assert "립밤" in orbit_client.get("/products").text
+
+
+# ============================================================ 셀럽오르빗 앱 — ③ 대본 3안
+from orbit import scripts as orbit_scripts
+from orbit.scripts import ScriptError
+
+
+def _verified_product(db, relation="추천확인", **kw):
+    pid = catalog.add_product(db, **{"name": "쿠션 팩트", "brand": "브랜드C", "category": "뷰티",
+                                     "price": "32000", "price_source": "쿠팡", **kw})
+    cid = catalog.add_claim(db, pid, celebrity="배우 A", url="https://www.youtube.com/watch?v=x",
+                            kind="연예인 본인 영상", timestamp="1:47")
+    if relation != "추정":
+        catalog.verify_claim(db, cid, relation=relation, verified_by="나")
+    return pid
+
+
+def _real_ask_from(plans):
+    """실제 생성 흉내 — 주어진 3안을 그대로 돌려준다(Claude 없이 '실제' 경로 시험)."""
+    def ask(system, user, **kw):
+        return {"variants": plans}
+    return ask
+
+
+def _good_plan(**over):
+    plan = {"angle": "호기심형", "title": "배우 A 파우치 속 그것", "hook": "이거 어디 거?",
+            "scenes": [
+                {"start": 0, "end": 3, "subtitle": "이거 어디 거?", "narration": "이거 어디 거?", "visual": "text_card"},
+                {"start": 3, "end": 6, "subtitle": "배우 A가 즐겨 쓴다는", "narration": "", "visual": "text_card"},
+                {"start": 6, "end": 12, "subtitle": "브랜드C 쿠션 팩트", "narration": "", "visual": "product_image", "item_index": 0},
+                {"start": 12, "end": 20, "subtitle": "설명란에서 확인", "narration": "", "visual": "text_card"}],
+            "description": "정보를 모았습니다.", "hashtags": ["#쇼츠"]}
+    plan.update(over)
+    return plan
+
+
+def test_orbit_dry_run_makes_three_clean_variants(orbit_db):
+    pid = _verified_product(orbit_db)
+    ids = orbit_scripts.generate(orbit_db, pid, dry_run=True)
+    made = orbit_scripts.list_scripts(orbit_db, pid)
+    assert len(ids) == 3 and len(made) == 3
+    assert {m["body"]["angle"] for m in made} == {"호기심형", "정보형", "가격·비교형"}
+    for m in made:
+        assert not m["blocked"], m["issues"]
+        assert m["plan"]["scenes"][0]["end"] <= 3
+
+
+def test_orbit_name_is_not_used_when_only_guessed(orbit_db):
+    pid = _verified_product(orbit_db, relation="추정")
+    review, claim = orbit_scripts.product_review(orbit_db)(pid)
+    assert claim is None and not review.name_allowed
+    orbit_scripts.generate(orbit_db, pid, dry_run=True)
+    for m in orbit_scripts.list_scripts(orbit_db, pid):
+        assert "배우 A" not in json.dumps(m["plan"], ensure_ascii=False)
+
+
+def test_orbit_appearance_only_blocks_endorsement(orbit_db):
+    pid = _verified_product(orbit_db, relation="등장")
+    orbit_scripts.generate(orbit_db, pid, dry_run=False, ask=_real_ask_from([_good_plan()]))
+    made = orbit_scripts.list_scripts(orbit_db, pid)[0]
+    assert made["blocked"] and any("쓴다는" in i["message"] for i in made["issues"])
+
+
+def test_orbit_long_hook_is_blocked_and_early_name_warns(orbit_db):
+    pid = _verified_product(orbit_db)
+    plan = _good_plan()
+    plan["scenes"][0]["end"] = 5
+    plan["scenes"][1]["start"] = 5
+    plan["scenes"][0]["subtitle"] = "브랜드C 이거 뭐야"
+    orbit_scripts.generate(orbit_db, pid, dry_run=False, ask=_real_ask_from([plan]))
+    issues = orbit_scripts.list_scripts(orbit_db, pid)[0]["issues"]
+    assert any(i["level"] == "block" and "훅" in i["message"] for i in issues)
+    assert any(i["level"] == "warn" and "브랜드C" in i["message"] for i in issues)
+
+
+def test_orbit_approval_needs_own_comment_name_and_real_run(orbit_db):
+    pid = _verified_product(orbit_db)
+    orbit_scripts.generate(orbit_db, pid, dry_run=True)
+    dry = orbit_scripts.list_scripts(orbit_db, pid)[0]["id"]
+    with pytest.raises(ScriptError, match="모의"):
+        orbit_scripts.approve(orbit_db, dry, "나")
+
+    orbit_scripts.generate(orbit_db, pid, dry_run=False, ask=_real_ask_from([_good_plan()]))
+    sid = orbit_scripts.list_scripts(orbit_db, pid)[0]["id"]
+    with pytest.raises(ScriptError, match="내 말"):
+        orbit_scripts.approve(orbit_db, sid, "나")
+    orbit_scripts.save_edit(orbit_db, sid, {"own_comment": "봄에 더 잘 어울려요"})
+    with pytest.raises(ScriptError, match="이름"):
+        orbit_scripts.approve(orbit_db, sid, "")
+    orbit_scripts.approve(orbit_db, sid, "사장님")
+    assert orbit_scripts.list_scripts(orbit_db, pid)[0]["approved_by"] == "사장님"
+
+
+def test_orbit_editing_rechecks_and_drops_approval(orbit_db):
+    pid = _verified_product(orbit_db)
+    orbit_scripts.generate(orbit_db, pid, dry_run=False, ask=_real_ask_from([_good_plan()]))
+    sid = orbit_scripts.list_scripts(orbit_db, pid)[0]["id"]
+    orbit_scripts.save_edit(orbit_db, sid, {"own_comment": "제 생각엔 좋아요"})
+    orbit_scripts.approve(orbit_db, sid, "나")
+    issues = orbit_scripts.save_edit(orbit_db, sid, {"description": "무조건 사야 할 템"})
+    row = orbit_scripts.list_scripts(orbit_db, pid)[0]
+    assert row["approved_by"] == "" and any(i.level == "block" for i in issues)
+
+
+def test_orbit_regenerate_keeps_approved_script(orbit_db):
+    pid = _verified_product(orbit_db)
+    orbit_scripts.generate(orbit_db, pid, dry_run=False, ask=_real_ask_from([_good_plan()]))
+    sid = orbit_scripts.list_scripts(orbit_db, pid)[0]["id"]
+    orbit_scripts.save_edit(orbit_db, sid, {"own_comment": "좋아요"})
+    orbit_scripts.approve(orbit_db, sid, "나")
+    orbit_scripts.generate(orbit_db, pid, dry_run=True)
+    made = orbit_scripts.list_scripts(orbit_db, pid)
+    assert len(made) == 4 and made[0]["id"] == sid and made[0]["approved_by"] == "나"
+
+
+def test_orbit_failed_generation_is_logged_with_retries(orbit_db):
+    pid = _verified_product(orbit_db)
+
+    def broken(system, user, **kw):
+        raise RuntimeError("연결 끊김")
+
+    with pytest.raises(ScriptError, match="연결 끊김"):
+        orbit_scripts.generate(orbit_db, pid, dry_run=False, ask=broken)
+    job = [j for j in orbit_db.jobs(10) if j["kind"] == "대본 생성"][0]
+    assert job["status"] == "실패" and job["tries"] == 3
+
+
+def test_orbit_studio_screens(orbit_client, orbit_db):
+    pid = _verified_product(orbit_db)
+    assert "쿠션 팩트" in orbit_client.get("/studio").text
+    r = orbit_client.post(f"/studio/{pid}/dry")
+    assert "3안" in r.text and "모의" in r.text
+    sid = orbit_scripts.list_scripts(orbit_db, pid)[0]["id"]
+    r = orbit_client.post(f"/studio/{pid}/approve", data={"script_id": sid, "approved_by": "나"})
+    assert "error=" in str(r.url)
+    assert orbit_client.get("/studio/999").status_code == 404

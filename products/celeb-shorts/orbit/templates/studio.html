@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>영상 제작</h1>
+<p class="muted">상품을 골라 대본 3안을 만들고, 고치고, 승인합니다. 승인한 대본만 다음 단계(영상 렌더)로 갑니다.</p>
+<div class="card">
+{% if products %}
+<table>
+  <tr><th>상품</th><th>가장 강한 관계</th><th>대본</th><th>상태</th></tr>
+  {% for p in products %}
+  <tr>
+    <td><a href="/studio/{{ p.id }}">{{ p.name }}</a></td>
+    <td>{% if p.best %}<span class="rel rel-{{ p.best }}">{{ p.best }}</span>{% else %}<span class="muted">관계 없음</span>{% endif %}</td>
+    <td>{{ p.scripts }}안</td>
+    <td>{% if p.approved %}<b class="ok-text">승인됨</b>{% elif p.scripts %}검토 중{% else %}<span class="muted">아직 없음</span>{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}<p class="muted">먼저 <a href="/products">상품</a>을 등록하세요.</p>{% endif %}
+</div>
+{% endblock %}

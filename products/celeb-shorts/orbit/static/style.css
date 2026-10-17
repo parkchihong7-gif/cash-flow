@@ -63,3 +63,13 @@ button.small { padding: 4px 10px; font-size: 13px; box-shadow: 2px 2px 0 var(--n
 .warn-text { color: var(--coral); font-weight: 800; }
 h3 { font-size: 16px; margin: 18px 0 6px; }
 details { margin: 8px 0; font-size: 14px; }
+button.quiet { background: #fff; color: var(--navy); }
+button[disabled] { opacity: .45; cursor: not-allowed; }
+.tag { display: inline-block; font-size: 12px; padding: 1px 8px; margin-left: 6px; border: 2px solid var(--navy); background: #eee; vertical-align: 2px; }
+.tag.ok { background: #d8f0d0; } .tag.bad { background: var(--coral); color: #fff; }
+.script.approved { border-color: #2f7a3b; box-shadow: 4px 4px 0 #2f7a3b; }
+.issues { padding-left: 18px; font-size: 14px; } .issues .block { color: var(--coral); font-weight: 800; }
+table.scenes input { max-width: none; margin: 0; padding: 4px 6px; }
+table.scenes td:nth-child(2) { min-width: 140px; } table.scenes td:nth-child(3) { min-width: 180px; }
+form.approve { margin-top: 12px; }
+.ok-text { color: #2f7a3b; }
