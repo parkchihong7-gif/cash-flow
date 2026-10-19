@@ -78,6 +78,22 @@
         <label class="check"><input type="checkbox" name="tts" {{ '' if tts_ready else 'disabled' }}> AI 음성(Google TTS)
           <small>{{ '내레이션을 장면 시작에 맞춰 읽습니다.' if tts_ready else '키(GOOGLE_TTS_API_KEY)가 없어 자막만으로 만듭니다.' }}</small></label>
       </div>
+      <fieldset class="remix">
+        <legend>유튜브 리믹스 연결 (선택)</legend>
+        <p class="muted">유튜브 앱의 «리믹스 → 잘라내기» 로 원본 1~5초를 앞에 붙이고, 이 영상을 뒤에 잇습니다. 원본은 내려받지 않습니다.</p>
+        {% if remix_ok %}
+        <div class="grid2">
+          <label>원본 <select name="remix_claim_id"><option value="">리믹스 없이</option>
+            {% for c in remix_ok %}<option value="{{ c.id }}">{{ c.celebrity }} · {{ c.title or c.url[:30] }} · {{ c.timestamp }}부터</option>{% endfor %}</select></label>
+          <label>잘라낼 길이 <select name="cut_seconds">{% for n in cut_range %}<option value="{{ n }}">{{ n }}초</option>{% endfor %}</select></label>
+        </div>
+        {% else %}
+        <p class="warn-text">쓸 수 있는 원본이 없습니다.</p>
+        {% endif %}
+        {% if remix_bad %}<details><summary>원본으로 못 쓰는 출처 {{ remix_bad|length }}개 — 이유 보기</summary><ul>
+          {% for c, why in remix_bad %}<li>{{ c.celebrity }} · {{ c.url[:40] }} — {{ why|join(' / ') }}</li>{% endfor %}</ul></details>{% endif %}
+        <small class="muted">조건: 유튜브 영상 · 연예인 본인 채널 · 시간 기록 · «추천확인/사용확인». 얼굴을 상품 판매에 쓰는 문제는 남을 수 있어 본인이 제품을 이야기하는 장면만 고르세요.</small>
+      </fieldset>
       <button>영상 만들기 (20초 영상에 1분 안팎)</button>
     </form>
   {% else %}
@@ -95,7 +111,12 @@
       <figcaption>#{{ v.id }} · {{ templates[v.template].label if v.template in templates else v.template }}
         · {{ '%.1f' % (v.duration or 0) }}초 · {{ v.status }}<br>
         <small class="muted">이미지: {{ v.checks.image }} · 음악: {{ v.checks.music }} · 음성: {{ v.checks.tts }}</small><br>
-        <a class="button small" href="/videos/{{ v.path }}?download=1">mp4 받기</a></figcaption>
+        <a class="button small" href="/videos/{{ v.path }}?download=1">mp4 받기</a>
+        {% if v.remix_steps %}
+        <details class="remix-steps" open><summary>리믹스 연결형 — 앱에서 할 일 (원본 {{ v.checks.remix.cut_seconds }}초 + 이 영상 = 약 {{ '%.0f' % v.total_seconds }}초)</summary>
+          <ol>{% for step in v.remix_steps %}<li>{{ step }}</li>{% endfor %}</ol>
+          <a href="{{ v.checks.remix.open_url }}" target="_blank" rel="noopener">원본 열기 ({{ v.checks.remix.timestamp }})</a></details>
+        {% endif %}</figcaption>
     </figure>
   {% endfor %}
   </div>

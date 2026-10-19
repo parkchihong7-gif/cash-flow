@@ -893,3 +893,67 @@ def test_orbit_render_screens(orbit_client, orbit_db):
     video = orbit_videos.list_videos(orbit_db, pid)[0]
     assert orbit_client.get(f"/videos/{video['path']}").status_code == 200
     assert orbit_client.get("/videos/../orbit.db").status_code == 404
+
+
+# ============================================================ 셀럽오르빗 앱 — 리믹스 연결형
+from orbit import remix as orbit_remix
+
+
+def test_orbit_youtube_id_parsing():
+    assert orbit_remix.youtube_id("https://www.youtube.com/watch?v=abc123&t=10s") == "abc123"
+    assert orbit_remix.youtube_id("https://youtu.be/xyz?t=5") == "xyz"
+    assert orbit_remix.youtube_id("https://youtube.com/shorts/s1") == "s1"
+    assert orbit_remix.youtube_id("https://m.youtube.com/watch?v=m1") == "m1"
+    assert orbit_remix.youtube_id("https://www.tiktok.com/@a/video/1") == ""
+
+
+def test_orbit_remix_source_rules(orbit_db):
+    pid = catalog.add_product(orbit_db, name="핑크 팩트", category="뷰티")
+    good = catalog.add_claim(orbit_db, pid, celebrity="배우 A", url="https://www.youtube.com/watch?v=own",
+                             kind="연예인 본인 영상", timestamp="3:12")
+    catalog.verify_claim(orbit_db, good, relation="추천확인", verified_by="나")
+    tiktok = catalog.add_claim(orbit_db, pid, celebrity="배우 A", url="https://www.tiktok.com/@x/video/1", kind="기타")
+    guess = catalog.add_claim(orbit_db, pid, celebrity="배우 A", url="https://www.youtube.com/watch?v=g",
+                              kind="연예인 본인 영상", timestamp="0:10")
+    seen = catalog.add_claim(orbit_db, pid, celebrity="배우 A", url="https://www.youtube.com/watch?v=s",
+                             kind="방송정보")
+    catalog.verify_claim(orbit_db, seen, relation="등장", verified_by="나")
+    ok, bad = orbit_remix.remix_sources(orbit_db, pid)
+    assert [c["id"] for c in ok] == [good]
+    reasons = {c["id"]: " ".join(r) for c, r in bad}
+    assert "유튜브 영상이 아닙니다" in reasons[tiktok]
+    assert "확인하지 않았습니다" in reasons[guess]
+    assert "본인 채널" in reasons[seen]
+
+
+def test_orbit_remix_cut_length_and_source_are_checked(orbit_db):
+    pid, sid = _approved_script(orbit_db)     # 출처: 본인 영상 + 1:47 + 추천확인
+    claim = catalog.list_claims(orbit_db, pid)[0]
+    with pytest.raises(VideoError, match="1~5초"):
+        orbit_videos.make_video(orbit_db, sid, "cosmetic_ad", remix_claim_id=claim["id"], cut_seconds=8)
+    with pytest.raises(VideoError, match="출처가 아닙니다"):
+        orbit_videos.make_video(orbit_db, sid, "cosmetic_ad", remix_claim_id=9999)
+
+
+@_needs_ffmpeg
+def test_orbit_remix_video_records_steps(orbit_db):
+    pid, sid = _approved_script(orbit_db)
+    claim = catalog.list_claims(orbit_db, pid)[0]
+    orbit_videos.make_video(orbit_db, sid, "magazine", remix_claim_id=claim["id"], cut_seconds=4)
+    video = orbit_videos.list_videos(orbit_db, pid)[0]
+    assert video["checks"]["remix"]["cut_seconds"] == 4
+    assert video["checks"]["remix"]["open_url"].endswith("t=107s")
+    steps = " ".join(video["remix_steps"])
+    assert "잘라내기" in steps and "1:47" in steps and "4초" in steps
+    assert abs(video["total_seconds"] - 24) < 0.5
+
+
+@_needs_ffmpeg
+def test_orbit_remix_form_on_screen(orbit_client, orbit_db):
+    pid, sid = _approved_script(orbit_db)
+    page = orbit_client.get(f"/studio/{pid}").text
+    assert "유튜브 리믹스 연결" in page and "1:47부터" in page
+    claim = catalog.list_claims(orbit_db, pid)[0]
+    r = orbit_client.post(f"/studio/{pid}/render", data={"script_id": sid, "template": "popart",
+                                                        "remix_claim_id": claim["id"], "cut_seconds": "5"})
+    assert "msg=" in str(r.url) and "앱에서 할 일" in r.text

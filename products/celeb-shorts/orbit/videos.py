@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from . import catalog, render, tts
+from . import catalog, remix, render, tts
 from .db import OrbitDB, now
 
 __all__ = ["VideoError", "MUSIC_TYPES", "add_music", "list_music", "make_job", "make_video", "list_videos",
@@ -89,8 +89,22 @@ def make_job(db: OrbitDB, script_id: int, template: str) -> render.RenderJob:
 
 
 def make_video(db: OrbitDB, script_id: int, template: str, *, music_id: int | None = None,
-               use_tts: bool = False) -> int:
+               use_tts: bool = False, remix_claim_id: int | None = None, cut_seconds: int = remix.CUT_MAX) -> int:
+    """영상을 만든다. `remix_claim_id` 를 주면 «리믹스 연결형» — 유튜브 앱에서 원본 1~5초를 앞에 붙일 영상."""
     job = make_job(db, script_id, template)
+    remix_info = None
+    if remix_claim_id:
+        if not remix.CUT_MIN <= int(cut_seconds) <= remix.CUT_MAX:
+            raise VideoError(f"잘라내기는 {remix.CUT_MIN}~{remix.CUT_MAX}초입니다")
+        with db.connect() as con:
+            product_id = con.execute("SELECT product_id FROM script WHERE id = ?", (script_id,)).fetchone()[0]
+        try:
+            src = remix.get_source(db, product_id, int(remix_claim_id))
+        except remix.RemixError as exc:
+            raise VideoError(str(exc)) from exc
+        remix_info = {"claim_id": src["id"], "url": src["url"], "open_url": src["open_url"],
+                      "timestamp": src["timestamp"], "cut_seconds": int(cut_seconds),
+                      "celebrity": src["celebrity"], "video_id": remix.youtube_id(src["url"])}
     render.find_ffmpeg()          # 없으면 기록 전에 바로 알린다(다시 시도해도 소용없으므로)
     if use_tts and not tts.available():
         raise VideoError("GOOGLE_TTS_API_KEY 가 없어 음성을 만들 수 없습니다. 음성 없이 만들거나 .env 에 키를 넣으세요")
@@ -106,7 +120,8 @@ def make_video(db: OrbitDB, script_id: int, template: str, *, music_id: int | No
                                (script_id, template, now())).lastrowid
     out = videos_dir(db) / f"{video_id}.mp4"
     checks = {"image": "상품 이미지(권리 기록 있음)" if job.product_image else "자체 그래픽 카드(쓸 수 있는 이미지 없음)",
-              "music": f"#{music_id}" if music else "없음", "tts": "Google TTS" if use_tts else "없음(자막만)"}
+              "music": f"#{music_id}" if music else "없음", "tts": "Google TTS" if use_tts else "없음(자막만)",
+              "remix": remix_info}
 
     def work():
         voices = []
@@ -135,4 +150,12 @@ def list_videos(db: OrbitDB, product_id: int) -> list[dict]:
     with db.connect() as con:
         rows = con.execute("SELECT v.* FROM video v JOIN script s ON s.id = v.script_id WHERE s.product_id = ?"
                            " ORDER BY v.id DESC", (product_id,)).fetchall()
-    return [{**dict(r), "checks": json.loads(r["checks_json"] or "{}")} for r in rows]
+    out = []
+    for r in rows:
+        checks = json.loads(r["checks_json"] or "{}")
+        item = {**dict(r), "checks": checks}
+        if checks.get("remix"):
+            item["remix_steps"] = remix.steps(checks["remix"])
+            item["total_seconds"] = (r["duration"] or 0) + checks["remix"]["cut_seconds"]
+        out.append(item)
+    return out

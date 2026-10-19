@@ -17,7 +17,7 @@ from fastapi.templating import Jinja2Templates
 
 import io
 
-from . import catalog, render, scripts, tts, videos
+from . import catalog, remix, render, scripts, tts, videos
 from .catalog import CatalogError
 from .scripts import ScriptError
 from .videos import VideoError
@@ -192,6 +192,8 @@ def create_app(db: OrbitDB | None = None) -> FastAPI:
                     scripts=scripts.list_scripts(db, product_id), hook_end=scripts.HOOK_END,
                     reveal_after=scripts.REVEAL_AFTER, templates=render.load_templates()["templates"],
                     music=videos.list_music(db), tts_ready=tts.available(),
+                    remix_ok=remix.remix_sources(db, product_id)[0], remix_bad=remix.remix_sources(db, product_id)[1],
+                    cut_range=range(remix.CUT_MAX, remix.CUT_MIN - 1, -1),
                     videos=videos.list_videos(db, product_id))
 
     @app.get("/studio/{product_id}/preview/{script_id}/{template}.jpg")
@@ -247,8 +249,10 @@ def create_app(db: OrbitDB | None = None) -> FastAPI:
                 msg = "승인했습니다. 아래에서 템플릿을 골라 영상을 만드세요"
             elif action == "render":
                 music_id = int(form["music_id"]) if form.get("music_id") else None
+                remix_id = int(form["remix_claim_id"]) if form.get("remix_claim_id") else None
                 video_id = videos.make_video(db, int(form.get("script_id", 0)), form.get("template", ""),
-                                             music_id=music_id, use_tts=form.get("tts") == "on")
+                                             music_id=music_id, use_tts=form.get("tts") == "on",
+                                             remix_claim_id=remix_id, cut_seconds=int(form.get("cut_seconds") or 5))
                 msg = f"영상 #{video_id} 을(를) 만들었습니다"
             else:
                 return back(here, error="모르는 동작입니다")
