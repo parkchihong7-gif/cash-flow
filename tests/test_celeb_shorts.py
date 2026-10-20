@@ -957,3 +957,121 @@ def test_orbit_remix_form_on_screen(orbit_client, orbit_db):
     r = orbit_client.post(f"/studio/{pid}/render", data={"script_id": sid, "template": "popart",
                                                         "remix_claim_id": claim["id"], "cut_seconds": "5"})
     assert "msg=" in str(r.url) and "앱에서 할 일" in r.text
+
+
+# ============================================================ 셀럽오르빗 앱 — ⑤ 업로드 준비
+from orbit import publish as orbit_publish
+from orbit.publish import PublishError
+
+
+def _rendered(db, **kw):
+    pid, sid = _approved_script(db)
+    vid = orbit_videos.make_video(db, sid, "cosmetic_ad", **kw)
+    return pid, sid, vid
+
+
+def _levels(results):
+    return {c.label: c.level for c in results}
+
+
+@_needs_ffmpeg
+def test_orbit_fresh_video_passes_checks(orbit_db):
+    _, _, vid = _rendered(orbit_db)
+    results = orbit_publish.run_checks(orbit_db, vid)
+    assert not [c for c in results if c.level == "block"], [(c.label, c.detail) for c in results]
+    levels = _levels(results)
+    assert levels["제휴 링크"] == "warn" and levels["채널 설정 점검표"] == "warn"
+    assert levels["연예인 관계"] == "ok"
+
+
+@_needs_ffmpeg
+def test_orbit_downgraded_relation_blocks_the_video(orbit_db):
+    pid, _, vid = _rendered(orbit_db)
+    claim = catalog.list_claims(orbit_db, pid)[0]
+    catalog.verify_claim(orbit_db, claim["id"], relation="추정", verified_by="")
+    assert _levels(orbit_publish.run_checks(orbit_db, vid))["연예인 관계"] == "block"
+
+
+@_needs_ffmpeg
+def test_orbit_editing_script_after_render_blocks(orbit_db):
+    _, sid, vid = _rendered(orbit_db)
+    orbit_scripts.save_edit(orbit_db, sid, {"description": "고친 설명"})
+    assert _levels(orbit_publish.run_checks(orbit_db, vid))["대본 승인"] == "block"
+
+
+@_needs_ffmpeg
+def test_orbit_removed_image_rights_block(orbit_db):
+    from PIL import Image as _Image
+    import io as _io
+    pid, sid = _approved_script(orbit_db)
+    buf = _io.BytesIO(); _Image.new("RGB", (40, 40)).save(buf, "PNG")
+    aid = catalog.add_image(orbit_db, pid, filename="p.png", data=buf.getvalue(), license="직접촬영")
+    vid = orbit_videos.make_video(orbit_db, sid, "magazine")
+    catalog.delete_asset(orbit_db, aid)
+    assert _levels(orbit_publish.run_checks(orbit_db, vid))["이미지 권리"] == "block"
+
+
+@_needs_ffmpeg
+def test_orbit_metadata_has_disclosure_source_and_ai_label(orbit_db):
+    pid, _, vid = _rendered(orbit_db)
+    catalog.add_link(orbit_db, pid, platform="쿠팡파트너스", url="https://link.coupang.com/a/x", added_by="나")
+    meta = orbit_publish.metadata(orbit_db, vid)
+    d = meta["description"]
+    assert d.startswith("유료 프로모션 포함") and "쿠팡 파트너스" in d.splitlines()[1]
+    assert "출처: 배우 A" in d and "t=107s" in d
+    assert "봄에 잘 어울려요" in d and "생성형 AI" in d.splitlines()[-1]
+    assert "#Shorts" in meta["hashtags"] and len(meta["hashtags"]) <= 10
+    assert "배우 A" in meta["tags"] and meta["links"][0]["url"].startswith("https://link.coupang.com")
+    assert banned_phrases.check(d) == []
+    text = orbit_publish.upload_text(orbit_db, vid)
+    assert "[제목]" in text and "유료 프로모션 포함" in text and "link.coupang.com" in text
+
+
+@_needs_ffmpeg
+def test_orbit_remix_note_in_description(orbit_db):
+    pid, sid = _approved_script(orbit_db)
+    claim = catalog.list_claims(orbit_db, pid)[0]
+    vid = orbit_videos.make_video(orbit_db, sid, "popart", remix_claim_id=claim["id"], cut_seconds=3)
+    assert "리믹스" in orbit_publish.metadata(orbit_db, vid)["description"]
+    assert _levels(orbit_publish.run_checks(orbit_db, vid))["리믹스 원본"] == "ok"
+
+
+@_needs_ffmpeg
+def test_orbit_final_approval_needs_manual_checks_name_and_no_blocks(orbit_db):
+    pid, sid, vid = _rendered(orbit_db)
+    with pytest.raises(PublishError, match="이름"):
+        orbit_publish.approve(orbit_db, vid, "")
+    with pytest.raises(PublishError, match="직접 할 일"):
+        orbit_publish.approve(orbit_db, vid, "나")
+    orbit_publish.save_manual(orbit_db, vid, {k for k, _ in orbit_publish.UPLOAD_MANUAL})
+    orbit_publish.approve(orbit_db, vid, "나")
+    assert orbit_videos.list_videos(orbit_db, pid)[0]["status"] == "승인됨"
+    # 승인 뒤에 관계가 풀리면 다시 승인할 수 없다
+    catalog.verify_claim(orbit_db, catalog.list_claims(orbit_db, pid)[0]["id"], relation="추정", verified_by="")
+    with pytest.raises(PublishError, match="막음"):
+        orbit_publish.approve(orbit_db, vid, "나")
+    assert orbit_videos.list_videos(orbit_db, pid)[0]["status"] == "검사실패"
+
+
+def test_orbit_channel_checklist_roundtrip(orbit_db):
+    orbit_publish.save_channel_checklist(orbit_db, {"0", "2"})
+    done = orbit_publish.channel_checklist(orbit_db)
+    assert done["0"] and done["2"] and not done["1"]
+
+
+@_needs_ffmpeg
+def test_orbit_review_screens(orbit_client, orbit_db):
+    pid, _, vid = _rendered(orbit_db)
+    page = orbit_client.get(f"/videos/{vid}/review").text
+    assert "자동 검사" in page and "업로드 문구" in page and "유료 프로모션 포함" in page
+    r = orbit_client.post(f"/videos/{vid}/approve", data={"approved_by": "나"})
+    assert "error=" in str(r.url)
+    form = {k: "on" for k, _ in orbit_publish.UPLOAD_MANUAL}
+    orbit_client.post(f"/videos/{vid}/manual", data=form)
+    r = orbit_client.post(f"/videos/{vid}/approve", data={"approved_by": "나"})
+    assert "msg=" in str(r.url) and "승인됨" in r.text
+    txt = orbit_client.get(f"/videos/{vid}/upload.txt")
+    assert "attachment" in txt.headers["content-disposition"] and "[설명]" in txt.text
+    r = orbit_client.post("/channel-checklist", data={"c0": "on"})
+    assert "msg=" in str(r.url)
+    assert orbit_client.get("/videos/999/review").status_code == 404

@@ -17,9 +17,10 @@ from fastapi.templating import Jinja2Templates
 
 import io
 
-from . import catalog, remix, render, scripts, tts, videos
+from . import catalog, publish, remix, render, scripts, tts, videos
 from .catalog import CatalogError
 from .scripts import ScriptError
+from .publish import PublishError
 from .videos import VideoError
 from .db import COLOR_KEYS, COLOR_LABELS, OrbitDB, RestoreError, SettingError
 
@@ -61,7 +62,8 @@ def create_app(db: OrbitDB | None = None) -> FastAPI:
     @app.get("/settings", response_class=HTMLResponse)
     def settings_page(request: Request):
         return page(request, "settings.html", color_keys=COLOR_KEYS, color_labels=COLOR_LABELS,
-                    music=videos.list_music(app.state.db))
+                    music=videos.list_music(app.state.db), channel_setup=publish.CHANNEL_SETUP,
+                    channel_done=publish.channel_checklist(app.state.db))
 
     @app.post("/settings")
     async def settings_save(request: Request):
@@ -209,6 +211,54 @@ def create_app(db: OrbitDB | None = None) -> FastAPI:
         buf = io.BytesIO()
         image.save(buf, "JPEG", quality=82)
         return Response(buf.getvalue(), media_type="image/jpeg")
+
+    # ------------------------------------------------------------ ⑤ 업로드 준비
+    @app.get("/videos/{video_id}/review", response_class=HTMLResponse)
+    def video_review(request: Request, video_id: int):
+        db = app.state.db
+        try:
+            results = publish.run_checks(db, video_id)
+            meta = publish.metadata(db, video_id)
+            video = publish._video(db, video_id)
+        except PublishError:
+            return HTMLResponse("없는 영상입니다", status_code=404)
+        return page(request, "review.html", v=video, results=results, meta=meta,
+                    blocked=any(c.level == "block" for c in results),
+                    manual=publish.UPLOAD_MANUAL, done=set(video["checks"].get("manual", [])),
+                    product=catalog.get_product(db, video["product_id"]),
+                    remix_steps=remix.steps(video["checks"]["remix"]) if video["checks"].get("remix") else [])
+
+    @app.get("/videos/{video_id}/upload.txt")
+    def video_upload_text(video_id: int):
+        try:
+            text = publish.upload_text(app.state.db, video_id)
+        except PublishError:
+            return HTMLResponse("없는 영상입니다", status_code=404)
+        return Response(text.encode("utf-8"), media_type="text/plain; charset=utf-8",
+                        headers={"Content-Disposition": f'attachment; filename="celeb-orbit-{video_id}-upload.txt"'})
+
+    @app.post("/videos/{video_id}/{action}")
+    async def video_action(request: Request, video_id: int, action: str):
+        db, here = app.state.db, f"/videos/{video_id}/review"
+        raw = await request.form()
+        try:
+            if action == "manual":
+                publish.save_manual(db, video_id, {k for k in raw.keys() if k.startswith(("paid", "synthetic", "kids", "watch", "link"))})
+                msg = "체크를 저장했습니다"
+            elif action == "approve":
+                publish.approve(db, video_id, str(raw.get("approved_by", "")))
+                msg = "최종 승인했습니다. 업로드 문구를 받아 유튜브 스튜디오에서 올리세요"
+            else:
+                return back(here, error="모르는 동작입니다")
+        except PublishError as exc:
+            return back(here, error=str(exc))
+        return back(here, msg=msg)
+
+    @app.post("/channel-checklist")
+    async def channel_checklist_save(request: Request):
+        raw = await request.form()
+        publish.save_channel_checklist(app.state.db, {k.removeprefix("c") for k in raw.keys() if k.startswith("c")})
+        return back("/settings", msg="채널 점검표를 저장했습니다")
 
     @app.get("/videos/{name}")
     def video_file(name: str, download: int = 0):

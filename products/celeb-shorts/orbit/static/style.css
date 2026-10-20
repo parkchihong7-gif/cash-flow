@@ -86,3 +86,9 @@ fieldset.remix { border: 2px dashed var(--navy); padding: 10px 14px; margin: 12p
 fieldset.remix legend { font-weight: 800; padding: 0 6px; }
 .remix-steps { font-size: 13px; margin-top: 8px; } .remix-steps ol { padding-left: 18px; margin: 6px 0; }
 .videos figure { width: 300px; } .videos video { width: 240px; }
+.review-grid { display: grid; grid-template-columns: minmax(220px, 300px) 1fr; gap: 20px; align-items: start; }
+@media (max-width: 720px) { .review-grid { grid-template-columns: 1fr; } }
+.review-video { width: 100%; max-width: 300px; aspect-ratio: 9 / 16; background: #000; border: 3px solid var(--navy); }
+textarea { width: 100%; font: inherit; font-size: 14px; border: 2px solid var(--navy); padding: 8px; background: #fff; margin-top: 4px; }
+tr.lv-block td { color: var(--coral); } tr.lv-warn td { color: #9a6a00; }
+a.button.quiet { background: #fff; color: var(--navy); }

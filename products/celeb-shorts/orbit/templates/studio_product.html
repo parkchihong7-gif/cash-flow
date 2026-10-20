@@ -107,11 +107,12 @@
   <div class="videos">
   {% for v in videos %}
     <figure>
-      <video src="/videos/{{ v.path }}" controls preload="metadata" playsinline></video>
+      <video src="/videos/{{ v.path }}#t=0.6" controls preload="metadata" playsinline></video>
       <figcaption>#{{ v.id }} · {{ templates[v.template].label if v.template in templates else v.template }}
         · {{ '%.1f' % (v.duration or 0) }}초 · {{ v.status }}<br>
         <small class="muted">이미지: {{ v.checks.image }} · 음악: {{ v.checks.music }} · 음성: {{ v.checks.tts }}</small><br>
-        <a class="button small" href="/videos/{{ v.path }}?download=1">mp4 받기</a>
+        <a class="button small" href="/videos/{{ v.id }}/review">업로드 준비 →</a>
+        <a class="button small quiet" href="/videos/{{ v.path }}?download=1">mp4 받기</a>
         {% if v.remix_steps %}
         <details class="remix-steps" open><summary>리믹스 연결형 — 앱에서 할 일 (원본 {{ v.checks.remix.cut_seconds }}초 + 이 영상 = 약 {{ '%.0f' % v.total_seconds }}초)</summary>
           <ol>{% for step in v.remix_steps %}<li>{{ step }}</li>{% endfor %}</ol>
@@ -120,7 +121,7 @@
     </figure>
   {% endfor %}
   </div>
-  <p class="muted">업로드 전 권리 검사·제목과 설명 만들기·최종 승인은 다음 조각(⑤)에서 붙습니다.</p>
+  <p class="muted">«업로드 준비» 에서 권리·고지 검사, 직접 할 일 체크, 최종 승인, 업로드 문구 받기를 합니다.</p>
 </section>
 {% endif %}
 {% endblock %}

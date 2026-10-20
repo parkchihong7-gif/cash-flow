@@ -22,6 +22,15 @@
   <button>저장</button>
 </form>
 
+<form method="post" action="/channel-checklist" class="card">
+  <h2>채널 설정 점검표 (처음 한 번)</h2>
+  <p class="muted">유튜브 스튜디오에서 직접 확인하고 체크하세요. 강의 분석과 공식 안내를 합친 목록입니다 — «확인 필요» 는 메뉴가 바뀌었을 수 있다는 뜻입니다.</p>
+  {% for line in channel_setup %}
+    <label class="check"><input type="checkbox" name="c{{ loop.index0 }}" {{ 'checked' if channel_done.get(loop.index0|string) }}> {{ line|replace('**', '') }}</label>
+  {% endfor %}
+  <button>저장</button>
+</form>
+
 <section class="card">
   <h2>배경음악</h2>
   <p class="muted">라이선스를 확인한 음악만 올리세요 (예: 유튜브 오디오 보관함 — 곡마다 출처 표기 조건이 다릅니다). 다른 사람 노래·방송 음원은 쓰지 않습니다.</p>

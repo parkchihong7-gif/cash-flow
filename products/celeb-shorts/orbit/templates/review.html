@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block body %}
+<p><a href="/studio/{{ v.product_id }}">← {{ product.name }} 영상 제작</a></p>
+<h1>업로드 준비 — 영상 #{{ v.id }}</h1>
+
+<div class="review-grid">
+  <div>
+    <video src="/videos/{{ v.path }}#t=0.6" controls preload="metadata" playsinline class="review-video"></video>
+    <p><a class="button small" href="/videos/{{ v.path }}?download=1">mp4 받기</a>
+       <a class="button small quiet" href="/videos/{{ v.id }}/upload.txt">업로드 문구 받기</a></p>
+    <p>상태: <b>{{ v.status }}</b>{% if v.approved_by %} · {{ v.approved_by }} · {{ v.approved_at[:16].replace('T', ' ') }}{% endif %}</p>
+  </div>
+  <div>
+    <section class="card">
+      <h2>자동 검사 {% if blocked %}<span class="tag bad">막음 있음</span>{% else %}<span class="tag ok">통과</span>{% endif %}</h2>
+      <table>
+        {% for c in results %}<tr class="lv-{{ c.level }}"><td>{{ c.mark }}</td><td><b>{{ c.label }}</b></td><td>{{ c.detail }}</td></tr>{% endfor %}
+      </table>
+    </section>
+  </div>
+</div>
+
+{% if remix_steps %}
+<section class="card">
+  <h2>리믹스 연결형 — 유튜브 앱에서 할 일</h2>
+  <ol>{% for step in remix_steps %}<li>{{ step }}</li>{% endfor %}</ol>
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>업로드 문구</h2>
+  <label>제목 ({{ meta.title|length }}자) <textarea rows="2" readonly onclick="this.select()">{{ meta.title }}</textarea></label>
+  <label>설명 <textarea rows="14" readonly onclick="this.select()">{{ meta.description }}</textarea></label>
+  <label>태그 <textarea rows="2" readonly onclick="this.select()">{{ meta.tags|join(', ') }}</textarea></label>
+  <p class="muted">칸을 누르면 전체가 선택됩니다. 복사해서 유튜브 스튜디오에 붙여 넣으세요.</p>
+  <h3>채널 프로필 링크에 넣을 상품 링크</h3>
+  {% for l in meta.links %}<p><b>{{ l.platform }}</b> <a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.url }}</a></p>
+  {% else %}<p class="warn-text">등록된 제휴 링크가 없습니다. <a href="/products/{{ v.product_id }}">상품 화면</a>에서 붙여 넣으세요.</p>{% endfor %}
+</section>
+
+<form method="post" action="/videos/{{ v.id }}/manual" class="card">
+  <h2>업로드 화면에서 직접 할 일</h2>
+  <p class="muted">유튜브 API 는 아직 연결하지 않았습니다(3단계). 스튜디오에서 올리면서 아래를 직접 합니다. 모두 체크해야 승인됩니다.</p>
+  {% for key, label in manual %}
+    <label class="check"><input type="checkbox" name="{{ key }}" {{ 'checked' if key in done }}> {{ label }}</label>
+  {% endfor %}
+  <button>체크 저장</button>
+</form>
+
+<form method="post" action="/videos/{{ v.id }}/approve" class="card inline approve">
+  <h2 style="width:100%">최종 승인</h2>
+  <input name="approved_by" placeholder="승인한 사람">
+  <button {{ 'disabled' if blocked }}>이 영상 최종 승인</button>
+  {% if blocked %}<small class="warn-text">막음을 먼저 해결하세요</small>{% endif %}
+</form>
+{% endblock %}
