@@ -1,0 +1,1283 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<title>학술대회 출결 체크</title>
+<script>
+  // 화면 테마는 그리기 전에 정한다(깜빡임 방지)
+  (function () {
+    try {
+      var t = localStorage.getItem('conf-attendance-theme');
+      if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      }
+    } catch (e) {}
+  })();
+</script>
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<script>tailwind.config = { darkMode: 'class' };</script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<style>
+  html, body { -webkit-tap-highlight-color: transparent; }
+  body { word-break: keep-all; }
+  #flash { background: transparent; }
+  .tabbtn[aria-selected="true"] { color: #059669; }
+  .dark .tabbtn[aria-selected="true"] { color: #34d399; }
+  .tabbtn[aria-selected="true"]::after { content: ""; display: block; height: 4px; width: 48px; margin: 4px auto 0; border-radius: 4px; background: currentColor; }
+  button:disabled { opacity: .35; cursor: not-allowed; }
+  input[type=search]::-webkit-search-cancel-button { transform: scale(1.6); }
+</style>
+</head>
+<body class="min-h-screen bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased text-lg">
+
+<div id="flash" class="fixed inset-0 z-50 pointer-events-none" style="opacity:0"></div>
+
+<!-- 머리: 행사명 · 시계 · 현황 -->
+<header class="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-800">
+  <div class="max-w-5xl mx-auto px-4 pt-3 pb-2 flex items-center gap-3">
+    <div class="min-w-0 flex-1">
+      <div id="evName" class="text-xl sm:text-2xl font-extrabold truncate"></div>
+      <div class="text-base text-slate-500 dark:text-slate-400 truncate">
+        <span id="clock" class="font-mono font-semibold"></span> · <span id="locLabel"></span> · <span id="modeLabel"></span>
+      </div>
+    </div>
+    <button id="themeBtn" type="button" class="h-12 w-12 shrink-0 rounded-xl border border-slate-300 dark:border-slate-700 text-2xl" aria-label="밝은 화면/어두운 화면 전환">🌓</button>
+  </div>
+  <div id="stats" class="max-w-5xl mx-auto px-4 pb-3 grid grid-cols-4 gap-2"></div>
+</header>
+
+<main class="max-w-5xl mx-auto px-4 pt-4 pb-36">
+
+  <!-- ① 스캔 -->
+  <section id="tab-scan" role="tabpanel">
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="space-y-3">
+        <div id="modeBtns" class="grid grid-cols-3 gap-2" role="radiogroup" aria-label="스캔 방식">
+          <button type="button" data-mode="auto" class="h-16 rounded-xl border-2 font-bold leading-tight">자동<br><span class="text-sm font-medium">입실↔퇴실</span></button>
+          <button type="button" data-mode="in" class="h-16 rounded-xl border-2 font-bold leading-tight">입실<br><span class="text-sm font-medium">전용</span></button>
+          <button type="button" data-mode="out" class="h-16 rounded-xl border-2 font-bold leading-tight">퇴실<br><span class="text-sm font-medium">전용</span></button>
+        </div>
+        <label class="flex items-center gap-2">
+          <span class="text-base font-semibold shrink-0">현재 장소</span>
+          <select id="locSel" class="flex-1 min-w-0 h-12 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-lg"></select>
+        </label>
+
+        <div class="relative aspect-[4/3] rounded-2xl overflow-hidden bg-black">
+          <video id="video" playsinline muted autoplay class="w-full h-full object-cover"></video>
+          <div id="camPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center text-center text-white p-6 gap-3">
+            <div class="text-6xl">📷</div>
+            <div class="text-xl font-semibold">카메라를 켜고 QR 코드를 비추세요</div>
+            <div id="camErr" class="text-base text-red-300"></div>
+          </div>
+          <div id="aim" class="hidden absolute inset-0 pointer-events-none flex items-center justify-center">
+            <div class="w-3/5 aspect-square border-4 border-white/80 rounded-3xl shadow-[0_0_0_2000px_rgba(0,0,0,.25)]"></div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="camBtn" type="button" class="h-16 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xl font-bold">카메라 켜기</button>
+          <button id="camSwitch" type="button" class="h-16 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-lg font-semibold">카메라 전환</button>
+        </div>
+        <form id="readerForm" class="flex gap-2" autocomplete="off">
+          <input id="readerInput" class="flex-1 min-w-0 h-14 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 text-lg" placeholder="QR 리더기 / 코드 직접 입력" aria-label="QR 코드 직접 입력">
+          <button class="h-14 px-5 rounded-xl bg-slate-800 dark:bg-slate-200 dark:text-slate-900 text-white text-lg font-bold">처리</button>
+        </form>
+        <p class="text-sm text-slate-500 dark:text-slate-400">USB·블루투스 QR 리더기는 위 칸에 자동 입력됩니다(엔터 포함 설정).</p>
+      </div>
+
+      <div class="space-y-3">
+        <div id="result" class="rounded-2xl p-5 min-h-[240px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"></div>
+        <div class="flex items-center justify-between gap-2">
+          <h3 class="text-xl font-bold">최근 처리</h3>
+          <button id="undoBtn" type="button" class="h-12 px-4 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-base font-semibold">↶ 직전 처리 취소</button>
+        </div>
+        <ul id="recent" class="space-y-2"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ② 명단·수동 처리 -->
+  <section id="tab-list" role="tabpanel" class="hidden">
+    <input id="q" type="search" enterkeyhint="search" autocomplete="off"
+      class="w-full h-16 rounded-2xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 text-2xl"
+      placeholder="이름 · 전화 뒷자리 · 소속 · 초성">
+    <div id="filters" class="flex gap-2 mt-3 overflow-x-auto pb-1"></div>
+    <div id="listInfo" class="text-base text-slate-500 dark:text-slate-400 mt-2"></div>
+    <div id="list" class="grid md:grid-cols-2 gap-3 mt-2"></div>
+  </section>
+
+  <!-- ③ 데이터·설정 -->
+  <section id="tab-data" role="tabpanel" class="hidden space-y-4">
+    <div class="rounded-2xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+      <h2 class="text-2xl font-extrabold">명단 올리기</h2>
+      <p class="mt-2 text-base text-slate-600 dark:text-slate-300">
+        엑셀에서 표를 <b>제목 줄까지</b> 복사해 붙여넣거나 CSV 파일을 고르세요.<br>
+        인식하는 제목: <b>이름 · 소속 · 전화번호 · 면허번호 · QR코드ID</b> (출결상태 · 입실시간 · 퇴실시간도 읽음)<br>
+        제목 줄이 없으면 <b>이름, 소속, 전화번호, QR코드ID</b> 순서로 읽습니다. QR코드ID가 비면 자동으로 만듭니다.
+      </p>
+      <textarea id="pasteBox" rows="6" class="mt-3 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 p-3 font-mono text-base" placeholder="이름	소속	전화번호	면허번호	QR코드ID&#10;홍길동	서울대병원	010-1234-5678	12345	A0001"></textarea>
+      <div class="mt-3 grid sm:grid-cols-3 gap-2">
+        <button id="parseBtn" type="button" class="h-14 rounded-xl bg-emerald-600 text-white text-lg font-bold">붙여넣은 명단 확인</button>
+        <label class="h-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-lg font-semibold flex items-center justify-center cursor-pointer">
+          CSV 파일 고르기<input id="fileInput" type="file" accept=".csv,.tsv,.txt,text/csv" class="hidden">
+        </label>
+        <button id="sampleBtn" type="button" class="h-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-lg font-semibold">예시 명단 넣기</button>
+      </div>
+    </div>
+
+    <div class="rounded-2xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+      <h2 class="text-2xl font-extrabold">내보내기 · 백업</h2>
+      <div class="mt-3 grid sm:grid-cols-2 gap-2">
+        <button id="exportBtn" type="button" class="h-14 rounded-xl bg-sky-600 text-white text-lg font-bold">출결 현황 CSV 받기</button>
+        <button id="exportLogBtn" type="button" class="h-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-lg font-semibold">스캔 기록 전체 CSV</button>
+        <button id="backupBtn" type="button" class="h-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-lg font-semibold">백업 파일 저장(JSON)</button>
+        <label class="h-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-lg font-semibold flex items-center justify-center cursor-pointer">
+          백업 파일 불러오기<input id="restoreInput" type="file" accept=".json,application/json" class="hidden">
+        </label>
+        <button id="printQrBtn" type="button" class="h-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-lg font-semibold sm:col-span-2">QR 명찰 인쇄용 페이지 열기</button>
+      </div>
+      <p class="mt-3 text-base text-slate-600 dark:text-slate-300">
+        자료는 <b>이 기기의 이 브라우저</b>에만 저장됩니다. 기기를 바꾸거나 브라우저 기록을 지우기 전에 꼭 백업 파일을 저장하세요.
+        CSV는 엑셀에서 한글이 깨지지 않게 저장됩니다.
+      </p>
+    </div>
+
+    <div class="rounded-2xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+      <h2 class="text-2xl font-extrabold">운영 규칙 설정</h2>
+      <div class="mt-3 grid sm:grid-cols-2 gap-4 text-base">
+        <label class="block"><span class="font-semibold">행사명</span>
+          <input id="setEvent" class="mt-1 w-full h-12 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-lg"></label>
+        <label class="block"><span class="font-semibold">장소 목록 (쉼표로 구분)</span>
+          <input id="setLocs" class="mt-1 w-full h-12 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-lg" placeholder="등록데스크, 그랜드볼룸, 라일락룸"></label>
+        <label class="block"><span class="font-semibold">중복 스캔 무시 (초)</span>
+          <input id="setCooldown" type="number" min="0" max="3600" inputmode="numeric" class="mt-1 w-full h-12 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-lg">
+          <span class="text-sm text-slate-500 dark:text-slate-400">같은 사람이 이 시간 안에 다시 찍으면 기록하지 않습니다.</span></label>
+        <label class="block"><span class="font-semibold">자동 모드 퇴실 최소 간격 (분)</span>
+          <input id="setMinStay" type="number" min="0" max="600" inputmode="numeric" class="mt-1 w-full h-12 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-lg">
+          <span class="text-sm text-slate-500 dark:text-slate-400">입실 직후 실수로 한 번 더 찍어 퇴실되는 것을 막습니다. 퇴실 전용 모드는 바로 처리합니다.</span></label>
+        <label class="block"><span class="font-semibold">평점 1점당 체류 시간 (분)</span>
+          <input id="setPerCredit" type="number" min="1" max="600" inputmode="numeric" class="mt-1 w-full h-12 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-lg"></label>
+        <label class="block"><span class="font-semibold">하루 최대 평점</span>
+          <input id="setMaxCredit" type="number" min="0" max="24" inputmode="numeric" class="mt-1 w-full h-12 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-lg"></label>
+        <label class="flex items-start gap-3 sm:col-span-2">
+          <input id="setVerify" type="checkbox" class="mt-1 h-6 w-6 shrink-0">
+          <span><span class="font-semibold">수동 처리 때 항상 전화번호 뒷자리 입력</span><br>
+          <span class="text-sm text-slate-500 dark:text-slate-400">끄면 동명이인이 있는 사람만 뒷자리를 입력해야 처리됩니다.</span></span></label>
+        <label class="block"><span class="font-semibold">관리자 PIN (빈칸이면 잠금 없음)</span>
+          <input id="setPin" type="password" inputmode="numeric" autocomplete="new-password" class="mt-1 w-full h-12 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-lg">
+          <span class="text-sm text-slate-500 dark:text-slate-400">이 화면(명단·내보내기·설정)과 직전 처리 취소에 PIN을 묻습니다.</span></label>
+      </div>
+      <p class="mt-3 text-sm text-slate-500 dark:text-slate-400">예상 평점은 체류 시간으로 계산한 참고값입니다. 실제 인정 평점은 학회·대한의사협회 연수교육 기준으로 확정하세요.</p>
+      <button id="saveSettings" type="button" class="mt-4 h-14 w-full rounded-xl bg-emerald-600 text-white text-lg font-bold">설정 저장</button>
+    </div>
+
+    <div class="rounded-2xl p-5 bg-white dark:bg-slate-900 border-2 border-red-300 dark:border-red-900">
+      <h2 class="text-2xl font-extrabold text-red-600 dark:text-red-400">초기화</h2>
+      <div class="mt-3 grid sm:grid-cols-2 gap-2">
+        <button id="resetAttBtn" type="button" class="h-14 rounded-xl border-2 border-red-400 text-red-600 dark:text-red-400 text-lg font-semibold">출결 기록만 지우기</button>
+        <button id="resetAllBtn" type="button" class="h-14 rounded-xl bg-red-600 text-white text-lg font-bold">명단까지 모두 지우기</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- 아래 탭 -->
+<nav class="fixed bottom-0 inset-x-0 z-30 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800" style="padding-bottom: env(safe-area-inset-bottom)">
+  <div class="max-w-5xl mx-auto grid grid-cols-3" role="tablist">
+    <button type="button" class="tabbtn h-20 text-xl font-bold" data-tab="scan" role="tab">📷<br>QR 스캔</button>
+    <button type="button" class="tabbtn h-20 text-xl font-bold" data-tab="list" role="tab">🔎<br>검색·수동</button>
+    <button type="button" class="tabbtn h-20 text-xl font-bold" data-tab="data" role="tab">⚙️<br>명단·설정</button>
+  </div>
+</nav>
+
+<div id="modal" class="hidden fixed inset-0 z-40 bg-black/60 flex items-end sm:items-center justify-center sm:p-4">
+  <div id="modalBody" class="w-full sm:max-w-lg max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white dark:bg-slate-900 p-5 shadow-2xl"></div>
+</div>
+<div id="toast" class="hidden"></div>
+
+<script>
+'use strict';
+/* =========================================================
+   공용 도구
+   ========================================================= */
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad = (n) => String(n).padStart(2, '0');
+const fmt = (t) => {
+  if (!t) return '';
+  const d = new Date(t);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+};
+const hm = (t) => (t ? fmt(t).slice(11, 16) : '-');
+const digits = (s) => String(s ?? '').replace(/\D/g, '');
+const normPhone = (p) => {
+  let d = digits(p);
+  if (d.length === 10 && d.startsWith('1')) d = '0' + d; // 엑셀이 앞의 0을 지운 경우
+  return d;
+};
+const fmtPhone = (p) => {
+  const d = normPhone(p);
+  if (d.length === 11) return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return d.startsWith('02') ? `02-${d.slice(2, 6)}-${d.slice(6)}` : `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+  if (d.length === 9 && d.startsWith('02')) return `02-${d.slice(2, 5)}-${d.slice(5)}`;
+  return String(p ?? '');
+};
+const last4 = (p) => digits(p).slice(-4) || '----';
+const maskPhone = (p) => {
+  const d = normPhone(p);
+  return d.length >= 8 ? `${d.slice(0, 3)}-••••-${d.slice(-4)}` : (d || '번호 없음');
+};
+const dur = (m) => (m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분`);
+const stamp = () => fmt(Date.now()).replace(/[-: ]/g, '').slice(0, 12);
+
+const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
+const toCho = (s) => Array.from(String(s)).map((ch) => {
+  const c = ch.charCodeAt(0) - 0xac00;
+  return c >= 0 && c < 11172 ? CHO[Math.floor(c / 588)] : ch;
+}).join('');
+const isCho = (q) => /^[ㄱ-ㅎ]+$/.test(q);
+
+/* =========================================================
+   저장소 (LocalStorage)
+   ========================================================= */
+const KEY = 'conf-attendance-v1';
+const DEFAULTS = {
+  eventName: '학술대회 출결',
+  locations: ['등록데스크'],
+  location: '등록데스크',
+  mode: 'auto',
+  cooldownSec: 60,
+  minStayMin: 10,
+  minutesPerCredit: 60,
+  maxCredits: 6,
+  alwaysVerify: false,
+  pin: '',
+};
+let S;
+function load() {
+  try { S = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { S = {}; }
+  S.settings = { ...DEFAULTS, ...(S.settings || {}) };
+  S.attendees = Array.isArray(S.attendees) ? S.attendees : [];
+  S.log = Array.isArray(S.log) ? S.log : [];
+  S.undo = S.undo || null;
+  S.attendees.forEach((a) => { a.sessions = Array.isArray(a.sessions) ? a.sessions : []; });
+}
+function save() {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(S));
+  } catch (e) {
+    toast('저장 공간이 부족합니다. 백업 파일을 저장한 뒤 정리하세요.', 'error');
+  }
+}
+
+/* 색인: QR → 참석자, 이름 → 인원 수 */
+let idx = new Map();
+let nameCount = new Map();
+function reindex() {
+  idx = new Map(S.attendees.map((a) => [String(a.qr).toLowerCase(), a]));
+  nameCount = new Map();
+  S.attendees.forEach((a) => nameCount.set(a.name, (nameCount.get(a.name) || 0) + 1));
+}
+const isDup = (a) => (nameCount.get(a.name) || 0) > 1;
+
+/* =========================================================
+   출결 계산
+   ========================================================= */
+const lastSession = (a) => a.sessions[a.sessions.length - 1];
+function status(a) {
+  const s = lastSession(a);
+  if (!s) return '미출석';
+  return s.out ? '퇴실' : '입실중';
+}
+function lastTime(a) {
+  const s = lastSession(a);
+  return s ? (s.out || s.in) : 0;
+}
+/* 체류 시간(분). includeOpen 이면 아직 퇴실 안 한 구간을 지금까지로 계산 */
+function stayMin(a, includeOpen = false) {
+  let ms = 0;
+  const now = Date.now();
+  a.sessions.forEach((s) => {
+    if (s.out) ms += s.out - s.in;
+    else if (includeOpen) ms += now - s.in;
+  });
+  return Math.floor(ms / 60000);
+}
+function credit(a) {
+  const st = S.settings;
+  return Math.max(0, Math.min(Number(st.maxCredits) || 0, Math.floor(stayMin(a) / (Number(st.minutesPerCredit) || 60))));
+}
+const usedManual = (a) => a.sessions.some((s) => s.inBy === '수동' || s.outBy === '수동');
+
+/* 입실/퇴실 기록. 모든 처리는 로그에 남는다 */
+function apply(a, type, by) {
+  const now = Date.now();
+  const loc = S.settings.location;
+  S.undo = { qr: a.qr, name: a.name, type, at: now, sessions: JSON.parse(JSON.stringify(a.sessions)) };
+  if (type === '입실') {
+    a.sessions.push({ in: now, out: null, inLoc: loc, inBy: by });
+  } else {
+    const s = lastSession(a);
+    s.out = now; s.outLoc = loc; s.outBy = by;
+  }
+  S.log.push({ t: now, qr: a.qr, name: a.name, p4: last4(a.phone), type, loc, by });
+  save();
+  renderAll();
+  return now;
+}
+
+/* QR 내용 → 참석자. 주소형 QR 이면 마지막 조각도 본다 */
+function findByCode(raw) {
+  const c = String(raw ?? '').trim();
+  if (!c) return null;
+  let a = idx.get(c.toLowerCase());
+  if (a) return a;
+  const seg = c.split(/[\/?#=&]/).filter(Boolean).pop();
+  if (seg && (a = idx.get(seg.toLowerCase()))) return a;
+  return null;
+}
+
+function handleCode(raw, by) {
+  if (!S.attendees.length) {
+    return feedback('error', { title: '명단이 비어 있습니다', hint: '«명단·설정» 탭에서 참석자 명단을 먼저 올리세요.' });
+  }
+  const a = findByCode(raw);
+  if (!a) {
+    return feedback('error', { title: '등록되지 않은 QR', sub: String(raw).slice(0, 80), hint: '등록데스크에서 이름으로 찾아 수동 처리하세요.' });
+  }
+  const st = S.settings;
+  const now = Date.now();
+  const inside = status(a) === '입실중';
+  const last = lastTime(a);
+  const cur = lastSession(a);
+
+  if (last && now - last < st.cooldownSec * 1000) {
+    return feedback('warn', { a, title: '이미 처리됨', hint: `${Math.round((now - last) / 1000)}초 전에 ${inside ? '입실' : '퇴실'} 처리되었습니다. 다시 기록하지 않았습니다.` });
+  }
+  let type;
+  if (st.mode === 'in') {
+    if (inside) return feedback('warn', { a, title: '이미 입실 중', hint: `${hm(cur.in)}에 입실한 기록이 있습니다. 나가실 때 퇴실 스캔을 해 주세요.` });
+    type = '입실';
+  } else if (st.mode === 'out') {
+    if (!inside) return feedback('warn', { a, title: '입실 기록 없음', hint: '입실 스캔 없이는 퇴실을 기록할 수 없습니다. 등록데스크로 안내하세요.' });
+    type = '퇴실';
+  } else if (!inside) {
+    type = '입실';
+  } else {
+    const mins = (now - cur.in) / 60000;
+    if (mins < st.minStayMin) {
+      return feedback('warn', { a, title: '입실 직후 재스캔', hint: `입실 ${Math.floor(mins)}분째입니다. 자동 모드는 입실 ${st.minStayMin}분 후부터 퇴실로 처리합니다. 지금 나가시면 «퇴실 전용»으로 찍으세요.` });
+    }
+    type = '퇴실';
+  }
+  const reentry = type === '입실' && a.sessions.length > 0;
+  const t = apply(a, type, by);
+  feedback(type === '입실' ? 'in' : 'out', { a, title: reentry ? '재입실 완료' : `${type} 완료`, time: t });
+}
+
+/* =========================================================
+   알림: 화면 반짝임 · 소리 · 진동 · 결과 카드
+   ========================================================= */
+let audioCtx = null;
+function unlockAudio() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch (e) {}
+}
+function beep(kind) {
+  try {
+    unlockAudio();
+    if (!audioCtx) return;
+    const seq = {
+      in: [[1175, 0.14]],
+      out: [[988, 0.1], [1319, 0.14]],
+      warn: [[523, 0.12], [523, 0.12]],
+      error: [[196, 0.45]],
+    }[kind];
+    let t = audioCtx.currentTime + 0.01;
+    seq.forEach(([f, d]) => {
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = kind === 'error' ? 'square' : 'sine';
+      o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.5, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+      o.connect(g).connect(audioCtx.destination);
+      o.start(t);
+      o.stop(t + d + 0.02);
+      t += d + 0.07;
+    });
+  } catch (e) {}
+  try { navigator.vibrate && navigator.vibrate(kind === 'error' ? [200, 80, 200] : kind === 'warn' ? [80, 60, 80] : 90); } catch (e) {}
+}
+function flash(color) {
+  const f = $('#flash');
+  f.style.transition = 'none';
+  f.style.background = color;
+  f.style.opacity = '0.8';
+  void f.offsetWidth;
+  f.style.transition = 'opacity 800ms ease-out';
+  f.style.opacity = '0';
+}
+const FB = {
+  in: { flash: '#16a34a', card: 'bg-emerald-600 text-white', icon: '✅' },
+  out: { flash: '#16a34a', card: 'bg-sky-700 text-white', icon: '👋' },
+  warn: { flash: '#f59e0b', card: 'bg-amber-400 text-slate-950', icon: '⚠️' },
+  error: { flash: '#dc2626', card: 'bg-red-600 text-white', icon: '⛔' },
+};
+function feedback(kind, { a, title, hint, time, sub }) {
+  const f = FB[kind];
+  flash(f.flash);
+  beep(kind);
+  let body = '';
+  if (a) {
+    body += `<div class="text-4xl sm:text-5xl font-extrabold mt-3 break-all">${esc(a.name)}${isDup(a) ? ' <span class="align-middle text-base font-bold px-2 py-1 rounded-lg bg-black/25">동명이인</span>' : ''}</div>
+      <div class="text-xl mt-1 opacity-90">${esc(a.org || '')}</div>
+      <div class="mt-3 flex items-end gap-3"><span class="text-base opacity-80 pb-1">전화 뒷자리</span><span class="text-5xl font-mono font-black tracking-widest">${esc(last4(a.phone))}</span></div>`;
+    if (kind === 'out') body += `<div class="mt-2 text-xl font-semibold">체류 ${dur(stayMin(a))} · 예상 평점 ${credit(a)}점</div>`;
+  }
+  const el = $('#result');
+  el.className = `rounded-2xl p-5 min-h-[240px] ${f.card}`;
+  el.innerHTML = `<div class="text-3xl font-black">${f.icon} ${esc(title)}</div>
+    ${time ? `<div class="text-xl mt-1 font-mono">${fmt(time)} · ${esc(S.settings.location)}</div>` : ''}
+    ${body}
+    ${sub ? `<div class="mt-2 font-mono text-base break-all opacity-90">${esc(sub)}</div>` : ''}
+    ${hint ? `<div class="mt-3 text-lg font-semibold rounded-xl p-3 bg-black/15">${esc(hint)}</div>` : ''}`;
+  if (currentTab !== 'scan') toast(`${title}${a ? ' — ' + a.name : ''}`, kind === 'error' ? 'error' : kind === 'warn' ? 'warn' : 'ok');
+}
+function resultIdle() {
+  const el = $('#result');
+  el.className = 'rounded-2xl p-5 min-h-[240px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-center';
+  el.innerHTML = `<div class="text-2xl font-bold">대기 중</div>
+    <div class="mt-2 text-lg text-slate-500 dark:text-slate-400">QR을 비추면 여기에 이름과 <b>전화 뒷자리</b>가 크게 나옵니다.<br>뒷자리를 본인과 맞춰 보세요.</div>`;
+}
+
+let toastTimer;
+function toast(msg, kind = 'ok') {
+  const t = $('#toast');
+  const color = { ok: 'bg-slate-900 text-white dark:bg-white dark:text-slate-900', warn: 'bg-amber-400 text-slate-950', error: 'bg-red-600 text-white' }[kind];
+  t.className = `fixed left-1/2 -translate-x-1/2 bottom-28 z-50 px-5 py-3 rounded-2xl text-lg font-semibold shadow-xl max-w-[90vw] text-center ${color}`;
+  t.textContent = msg;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add('hidden'), 2800);
+}
+
+/* =========================================================
+   모달
+   ========================================================= */
+function openModal(html) {
+  $('#modalBody').innerHTML = html;
+  $('#modal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal() {
+  $('#modal').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+$('#modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closeModal(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+function askPin(onOk) {
+  openModal(`<h3 class="text-2xl font-extrabold">관리자 PIN</h3>
+    <input id="pinIn" type="password" inputmode="numeric" autocomplete="off" class="mt-4 w-full h-16 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 text-3xl tracking-widest text-center">
+    <div id="pinErr" class="mt-2 text-red-600 text-base h-6"></div>
+    <div class="mt-3 grid grid-cols-2 gap-2">
+      <button type="button" class="h-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-lg font-semibold" onclick="closeModal()">취소</button>
+      <button id="pinOk" type="button" class="h-14 rounded-xl bg-emerald-600 text-white text-lg font-bold">확인</button>
+    </div>`);
+  const go = () => {
+    if ($('#pinIn').value === String(S.settings.pin)) { closeModal(); onOk(); }
+    else { $('#pinErr').textContent = 'PIN이 맞지 않습니다'; $('#pinIn').value = ''; beep('error'); }
+  };
+  $('#pinOk').onclick = go;
+  $('#pinIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+  setTimeout(() => $('#pinIn').focus(), 50);
+}
+function withPin(fn) {
+  if (S.settings.pin && !pinUnlocked) askPin(() => { pinUnlocked = true; fn(); });
+  else fn();
+}
+let pinUnlocked = false;
+
+/* 위험한 작업은 단어를 직접 쳐야 진행 */
+function confirmTyped(title, desc, word, onOk) {
+  openModal(`<h3 class="text-2xl font-extrabold text-red-600 dark:text-red-400">${esc(title)}</h3>
+    <p class="mt-2 text-lg">${desc}</p>
+    <p class="mt-3 text-base">진행하려면 <b class="text-red-600">${esc(word)}</b> 를 입력하세요.</p>
+    <input id="typedIn" autocomplete="off" class="mt-2 w-full h-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 text-xl">
+    <div class="mt-4 grid grid-cols-2 gap-2">
+      <button type="button" class="h-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-lg font-semibold" onclick="closeModal()">취소</button>
+      <button id="typedOk" type="button" disabled class="h-14 rounded-xl bg-red-600 text-white text-lg font-bold">진행</button>
+    </div>`);
+  $('#typedIn').addEventListener('input', (e) => { $('#typedOk').disabled = e.target.value.trim() !== word; });
+  $('#typedOk').onclick = () => { closeModal(); onOk(); };
+}
+
+/* =========================================================
+   수동 처리 (본인 확인: 전화 뒷자리)
+   ========================================================= */
+function manual(qr, type) {
+  const a = idx.get(String(qr).toLowerCase());
+  if (!a) return;
+  const inside = status(a) === '입실중';
+  if (type === '입실' && inside) return toast('이미 입실 중입니다', 'warn');
+  if (type === '퇴실' && !inside) return toast('입실 기록이 없어 퇴실할 수 없습니다', 'warn');
+
+  const dup = isDup(a);
+  const l4 = last4(a.phone);
+  const hasPhone = digits(a.phone).length >= 4;
+  const needVerify = (dup || S.settings.alwaysVerify) && hasPhone;
+  const others = dup ? S.attendees.filter((x) => x.name === a.name && x !== a) : [];
+
+  openModal(`<div class="text-base font-semibold ${type === '입실' ? 'text-emerald-600' : 'text-sky-600'}">수동 ${type} 확인</div>
+    <div class="text-4xl font-extrabold mt-1 break-all">${esc(a.name)}</div>
+    <div class="text-xl text-slate-600 dark:text-slate-300 mt-1">${esc(a.org || '소속 없음')}</div>
+    ${a.license ? `<div class="text-base text-slate-500 mt-1">면허번호 ${esc(a.license)}</div>` : ''}
+    ${needVerify ? `
+      ${dup ? `<div class="mt-4 rounded-xl p-3 bg-amber-100 text-amber-950 dark:bg-amber-900/50 dark:text-amber-100 text-lg font-semibold">
+        같은 이름이 ${others.length + 1}명 있습니다. 본인에게 <u>전화번호 뒷자리 4자리</u>를 물어 입력하세요.
+        <div class="mt-2 text-base font-normal">${others.map((o) => `· ${esc(o.org || '소속 없음')} (뒷자리 ${esc(last4(o.phone))}, ${status(o)})`).join('<br>')}</div>
+      </div>` : `<div class="mt-4 text-lg font-semibold">본인에게 전화번호 뒷자리 4자리를 물어 입력하세요.</div>`}
+      <input id="v4" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="● ● ● ●"
+        class="mt-3 w-full h-20 rounded-2xl border-4 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-950 text-center text-5xl font-mono tracking-[.4em]">
+      <div id="v4msg" class="mt-2 h-7 text-lg font-semibold"></div>`
+    : `<div class="mt-4 flex items-end gap-3"><span class="text-lg pb-1">전화 뒷자리</span><span class="text-5xl font-mono font-black tracking-widest">${esc(l4)}</span></div>
+       <div class="mt-1 text-base text-slate-500">본인에게 뒷자리를 확인하세요.</div>`}
+    <div class="mt-4 grid grid-cols-2 gap-2">
+      <button type="button" class="h-16 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-xl font-semibold" onclick="closeModal()">취소</button>
+      <button id="manualOk" type="button" ${needVerify ? 'disabled' : ''} class="h-16 rounded-xl ${type === '입실' ? 'bg-emerald-600' : 'bg-sky-700'} text-white text-xl font-bold">${type} 처리</button>
+    </div>`);
+
+  if (needVerify) {
+    const inp = $('#v4');
+    inp.addEventListener('input', () => {
+      inp.value = digits(inp.value).slice(0, 4);
+      const ok = inp.value === l4;
+      $('#manualOk').disabled = !ok;
+      $('#v4msg').className = `mt-2 h-7 text-lg font-semibold ${ok ? 'text-emerald-600' : 'text-red-600'}`;
+      $('#v4msg').textContent = inp.value.length < 4 ? '' : ok ? '일치합니다' : '일치하지 않습니다 — 다른 사람일 수 있습니다';
+    });
+    setTimeout(() => inp.focus(), 50);
+  }
+  $('#manualOk').onclick = () => {
+    closeModal();
+    const t = apply(a, type, '수동');
+    feedback(type === '입실' ? 'in' : 'out', { a, title: `수동 ${type} 완료`, time: t });
+  };
+}
+
+function showDetail(qr) {
+  const a = idx.get(String(qr).toLowerCase());
+  if (!a) return;
+  let qrSvg = '';
+  if (typeof qrcode === 'function') {
+    try {
+      const q = qrcode(0, 'M'); q.addData(String(a.qr)); q.make();
+      qrSvg = q.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
+    } catch (e) {}
+  }
+  const rows = a.sessions.map((s, i) => `<tr class="border-t border-slate-200 dark:border-slate-800">
+      <td class="py-2 pr-2">${i + 1}</td>
+      <td class="py-2 pr-2 font-mono">${hm(s.in)}<div class="text-xs text-slate-500">${esc(s.inLoc || '')} · ${esc(s.inBy || '')}</div></td>
+      <td class="py-2 pr-2 font-mono">${s.out ? hm(s.out) : '<b class="text-emerald-600">입실중</b>'}<div class="text-xs text-slate-500">${esc(s.outLoc || '')}${s.outBy ? ' · ' + esc(s.outBy) : ''}</div></td>
+      <td class="py-2">${s.out ? dur(Math.floor((s.out - s.in) / 60000)) : '-'}</td></tr>`).join('');
+  openModal(`<div class="flex justify-between gap-3">
+      <div class="min-w-0"><div class="text-3xl font-extrabold break-all">${esc(a.name)}</div>
+      <div class="text-lg text-slate-600 dark:text-slate-300">${esc(a.org || '')}</div>
+      <div class="text-lg font-mono mt-1">${esc(fmtPhone(a.phone))}</div>
+      ${a.license ? `<div class="text-base">면허번호 ${esc(a.license)}</div>` : ''}
+      <div class="text-base font-mono text-slate-500">QR ${esc(a.qr)}</div></div>
+      ${qrSvg ? `<div class="w-28 shrink-0 bg-white p-1 rounded-lg">${qrSvg}</div>` : ''}
+    </div>
+    <div class="mt-3 text-lg">상태 <b>${status(a)}</b> · 체류 <b>${dur(stayMin(a, true))}</b> · 예상 평점 <b>${credit(a)}점</b></div>
+    ${a.sessions.length ? `<table class="mt-3 w-full text-base"><thead><tr class="text-left text-slate-500"><th>#</th><th>입실</th><th>퇴실</th><th>체류</th></tr></thead><tbody>${rows}</tbody></table>` : '<div class="mt-3 text-slate-500">출결 기록 없음</div>'}
+    <button type="button" class="mt-4 h-14 w-full rounded-xl border-2 border-slate-300 dark:border-slate-700 text-lg font-semibold" onclick="closeModal()">닫기</button>`);
+}
+
+/* =========================================================
+   화면 그리기
+   ========================================================= */
+let currentTab = 'scan';
+let listFilter = 'all';
+const STATUS_STYLE = {
+  '입실중': 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200',
+  '퇴실': 'bg-sky-100 text-sky-800 dark:bg-sky-900/60 dark:text-sky-200',
+  '미출석': 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+};
+const MODE_LABEL = { auto: '자동(입실↔퇴실)', in: '입실 전용', out: '퇴실 전용' };
+
+function renderHeader() {
+  $('#evName').textContent = S.settings.eventName;
+  $('#locLabel').textContent = S.settings.location;
+  $('#modeLabel').textContent = MODE_LABEL[S.settings.mode];
+  document.title = `${S.settings.eventName} · 출결`;
+}
+function renderStats() {
+  const c = { '입실중': 0, '퇴실': 0, '미출석': 0 };
+  S.attendees.forEach((a) => { c[status(a)]++; });
+  const tile = (key, label, n, cls) => `<button type="button" data-goto="${key}" class="rounded-xl py-2 ${cls} text-center">
+      <div class="text-2xl sm:text-3xl font-black leading-none">${n}</div><div class="text-sm font-semibold mt-1">${label}</div></button>`;
+  $('#stats').innerHTML =
+    tile('all', '전체', S.attendees.length, 'bg-slate-200 dark:bg-slate-800') +
+    tile('입실중', '입실중', c['입실중'], 'bg-emerald-600 text-white') +
+    tile('퇴실', '퇴실', c['퇴실'], 'bg-sky-700 text-white') +
+    tile('미출석', '미출석', c['미출석'], 'bg-slate-500 text-white');
+}
+function renderScan() {
+  $$('#modeBtns button').forEach((b) => {
+    const on = b.dataset.mode === S.settings.mode;
+    b.setAttribute('aria-checked', on);
+    b.className = `h-16 rounded-xl border-2 font-bold leading-tight ${on
+      ? (b.dataset.mode === 'out' ? 'bg-sky-700 border-sky-700 text-white' : 'bg-emerald-600 border-emerald-600 text-white')
+      : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900'}`;
+  });
+  const locs = S.settings.locations.length ? S.settings.locations : ['등록데스크'];
+  $('#locSel').innerHTML = locs.map((l) => `<option ${l === S.settings.location ? 'selected' : ''}>${esc(l)}</option>`).join('');
+  const recent = S.log.slice(-12).reverse();
+  $('#recent').innerHTML = recent.length ? recent.map((l) => {
+    const color = l.type === '입실' ? 'text-emerald-600 dark:text-emerald-400' : l.type === '퇴실' ? 'text-sky-600 dark:text-sky-400' : 'text-red-600';
+    return `<li class="flex items-center gap-3 rounded-xl px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+      <span class="font-mono text-base w-14 shrink-0">${hm(l.t)}</span>
+      <span class="font-bold ${color} w-12 shrink-0">${esc(l.type)}</span>
+      <span class="font-semibold truncate flex-1">${esc(l.name)} <span class="font-mono text-slate-500">·${esc(l.p4)}</span></span>
+      <span class="text-sm text-slate-500 shrink-0">${esc(l.by)}</span></li>`;
+  }).join('') : '<li class="text-slate-500 text-base">아직 처리 기록이 없습니다.</li>';
+  $('#undoBtn').disabled = !S.undo;
+}
+function matches(a, q) {
+  if (!q) return true;
+  if (isCho(q)) return toCho(a.name).includes(q);
+  const ql = q.toLowerCase();
+  if (a.name.toLowerCase().includes(ql)) return true;
+  if ((a.org || '').toLowerCase().includes(ql)) return true;
+  if (String(a.qr).toLowerCase() === ql) return true;
+  const d = digits(q);
+  if (d.length >= 3 && d.length === q.replace(/[\s-]/g, '').length) {
+    return digits(a.phone).includes(d) || digits(a.license).includes(d);
+  }
+  return false;
+}
+function renderList() {
+  const q = $('#q').value.trim();
+  const d = digits(q);
+  let arr = S.attendees.filter((a) => matches(a, q) && (listFilter === 'all' || status(a) === listFilter));
+  arr.sort((x, y) => {
+    if (d.length === 4) { // 뒷자리로 찾으면 뒷자리 일치가 먼저
+      const ex = digits(x.phone).endsWith(d) ? 0 : 1;
+      const ey = digits(y.phone).endsWith(d) ? 0 : 1;
+      if (ex !== ey) return ex - ey;
+    }
+    return x.name.localeCompare(y.name, 'ko') || (x.org || '').localeCompare(y.org || '', 'ko');
+  });
+  const total = arr.length;
+  const LIMIT = 120;
+  arr = arr.slice(0, LIMIT);
+
+  const fl = [['all', '전체'], ['입실중', '입실중'], ['퇴실', '퇴실'], ['미출석', '미출석']];
+  $('#filters').innerHTML = fl.map(([k, l]) => `<button type="button" data-filter="${k}" class="h-12 px-5 shrink-0 rounded-full text-lg font-semibold border-2 ${listFilter === k ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900 dark:border-white' : 'border-slate-300 dark:border-slate-700'}">${l}</button>`).join('');
+  $('#listInfo').textContent = !S.attendees.length ? '' : total > LIMIT ? `${total}명 중 ${LIMIT}명 표시 — 검색어를 더 입력하세요` : `${total}명`;
+
+  if (!S.attendees.length) {
+    $('#list').innerHTML = `<div class="md:col-span-2 rounded-2xl p-6 bg-white dark:bg-slate-900 text-center text-lg">명단이 없습니다. <button type="button" data-goto-tab="data" class="underline font-bold">명단 올리기</button></div>`;
+    return;
+  }
+  $('#list').innerHTML = arr.map((a) => {
+    const st = status(a);
+    const s = lastSession(a);
+    const first = a.sessions[0];
+    const p4 = last4(a.phone);
+    const hit4 = d.length === 4 && digits(a.phone).endsWith(d);
+    return `<div class="rounded-2xl p-4 bg-white dark:bg-slate-900 border-2 ${isDup(a) ? 'border-amber-400' : 'border-slate-200 dark:border-slate-800'}">
+      <div class="flex justify-between gap-3">
+        <div class="min-w-0">
+          <div class="text-2xl font-extrabold break-all">${esc(a.name)}
+            ${isDup(a) ? `<span class="align-middle text-sm font-bold px-2 py-0.5 rounded-md bg-amber-400 text-slate-950">동명이인 ${nameCount.get(a.name)}</span>` : ''}</div>
+          <div class="text-lg text-slate-600 dark:text-slate-300 truncate">${esc(a.org || '소속 없음')}</div>
+        </div>
+        <div class="text-right shrink-0">
+          <div class="text-xs text-slate-500">전화 뒷자리</div>
+          <div class="text-3xl font-mono font-black tracking-wider ${hit4 ? 'bg-yellow-200 dark:bg-yellow-700 rounded px-1' : ''}">${esc(p4)}</div>
+        </div>
+      </div>
+      <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-base">
+        <span class="px-2 py-0.5 rounded-lg font-bold ${STATUS_STYLE[st]}">${st}</span>
+        <span>입실 <b class="font-mono">${hm(first && first.in)}</b></span>
+        <span>퇴실 <b class="font-mono">${s && s.out ? hm(s.out) : '-'}</b></span>
+        ${a.sessions.length ? `<span class="text-slate-500">체류 ${dur(stayMin(a, true))}</span>` : ''}
+        ${usedManual(a) ? '<span class="text-sm text-amber-600 font-semibold">수동</span>' : ''}
+      </div>
+      <div class="mt-3 grid grid-cols-[1fr_1fr_auto] gap-2">
+        <button type="button" data-act="입실" data-qr="${esc(a.qr)}" ${st === '입실중' ? 'disabled' : ''} class="h-14 rounded-xl bg-emerald-600 text-white text-xl font-bold">${st === '퇴실' ? '재입실' : '입실'}</button>
+        <button type="button" data-act="퇴실" data-qr="${esc(a.qr)}" ${st !== '입실중' ? 'disabled' : ''} class="h-14 rounded-xl bg-sky-700 text-white text-xl font-bold">퇴실</button>
+        <button type="button" data-act="detail" data-qr="${esc(a.qr)}" class="h-14 w-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-2xl" aria-label="상세">⋯</button>
+      </div>
+    </div>`;
+  }).join('') || '<div class="md:col-span-2 text-center text-lg text-slate-500 py-8">찾는 사람이 없습니다</div>';
+}
+function fillSettings() {
+  const st = S.settings;
+  $('#setEvent').value = st.eventName;
+  $('#setLocs').value = st.locations.join(', ');
+  $('#setCooldown').value = st.cooldownSec;
+  $('#setMinStay').value = st.minStayMin;
+  $('#setPerCredit').value = st.minutesPerCredit;
+  $('#setMaxCredit').value = st.maxCredits;
+  $('#setVerify').checked = !!st.alwaysVerify;
+  $('#setPin').value = st.pin;
+}
+function renderAll() {
+  reindex();
+  renderHeader();
+  renderStats();
+  renderScan();
+  if (currentTab === 'list') renderList();
+}
+
+function showTab(t) {
+  if (t === 'data' && S.settings.pin && !pinUnlocked) {
+    askPin(() => { pinUnlocked = true; showTab('data'); });
+    return;
+  }
+  currentTab = t;
+  ['scan', 'list', 'data'].forEach((k) => $('#tab-' + k).classList.toggle('hidden', k !== t));
+  $$('.tabbtn').forEach((b) => b.setAttribute('aria-selected', b.dataset.tab === t));
+  if (t !== 'scan') stopCam();
+  if (t === 'list') renderList();
+  if (t === 'data') fillSettings();
+  if (t === 'scan' && finePointer) setTimeout(() => $('#readerInput').focus(), 50);
+  window.scrollTo(0, 0);
+}
+const finePointer = window.matchMedia('(pointer: fine)').matches;
+
+/* =========================================================
+   카메라 · QR 인식
+   ========================================================= */
+const video = $('#video');
+const canvas = document.createElement('canvas');
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
+let stream = null;
+let camDevices = [];
+let camIdx = -1;
+let detector = null;
+let lastText = '';
+let lastTextAt = 0;
+let wakeLock = null;
+let busy = false;
+
+if ('BarcodeDetector' in window) {
+  try {
+    (BarcodeDetector.getSupportedFormats ? BarcodeDetector.getSupportedFormats() : Promise.resolve(['qr_code']))
+      .then((f) => { if (f.includes('qr_code')) detector = new BarcodeDetector({ formats: ['qr_code'] }); })
+      .catch(() => {});
+  } catch (e) {}
+}
+
+async function startCam() {
+  unlockAudio();
+  $('#camErr').textContent = '';
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    $('#camErr').textContent = '이 브라우저에서는 카메라를 쓸 수 없습니다. https 주소로 열거나, 아래 칸에 QR 리더기를 연결하세요.';
+    return;
+  }
+  if (!detector && typeof jsQR !== 'function') {
+    $('#camErr').textContent = 'QR 인식 기능을 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 새로고침하세요.';
+    return;
+  }
+  try {
+    const v = camIdx >= 0 && camDevices[camIdx]
+      ? { deviceId: { exact: camDevices[camIdx].deviceId } }
+      : { facingMode: { ideal: 'environment' } };
+    v.width = { ideal: 1280 };
+    v.height = { ideal: 720 };
+    stream = await navigator.mediaDevices.getUserMedia({ video: v, audio: false });
+    video.srcObject = stream;
+    await video.play();
+    const track = stream.getVideoTracks()[0];
+    const ts = track.getSettings ? track.getSettings() : {};
+    camDevices = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'videoinput');
+    if (camIdx < 0) camIdx = Math.max(0, camDevices.findIndex((d) => d.deviceId === ts.deviceId));
+    video.style.transform = ts.facingMode === 'user' || (!ts.facingMode && camDevices.length <= 1) ? 'scaleX(-1)' : '';
+    $('#camPlaceholder').classList.add('hidden');
+    $('#aim').classList.remove('hidden');
+    $('#camBtn').textContent = '카메라 끄기';
+    $('#camBtn').className = 'h-16 rounded-xl bg-slate-700 hover:bg-slate-800 text-white text-xl font-bold';
+    try { if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
+    tick();
+  } catch (e) {
+    stopCam();
+    const msg = {
+      NotAllowedError: '카메라 권한이 거부되었습니다. 주소창 옆 자물쇠 → 카메라 «허용» 후 다시 누르세요.',
+      NotFoundError: '카메라를 찾을 수 없습니다. QR 리더기 입력을 사용하세요.',
+      NotReadableError: '다른 앱이 카메라를 쓰고 있습니다. 다른 앱을 닫고 다시 누르세요.',
+      OverconstrainedError: '이 카메라를 열 수 없습니다. «카메라 전환»을 눌러 보세요.',
+    }[e.name] || `카메라 오류: ${e.message || e.name}`;
+    $('#camErr').textContent = window.isSecureContext ? msg : msg + ' (https 주소에서만 카메라가 켜지는 기기가 많습니다)';
+    if (e.name === 'OverconstrainedError') camIdx = -1;
+  }
+}
+function stopCam() {
+  if (stream) stream.getTracks().forEach((t) => t.stop());
+  stream = null;
+  video.srcObject = null;
+  $('#camPlaceholder').classList.remove('hidden');
+  $('#aim').classList.add('hidden');
+  $('#camBtn').textContent = '카메라 켜기';
+  $('#camBtn').className = 'h-16 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xl font-bold';
+  try { if (wakeLock) wakeLock.release(); } catch (e) {}
+  wakeLock = null;
+}
+async function decodeFrame() {
+  if (detector) {
+    try {
+      const r = await detector.detect(video);
+      return r.length ? r[0].rawValue : null;
+    } catch (e) {
+      detector = null; // 기본 인식기가 실패하면 jsQR 로 넘어간다
+    }
+  }
+  if (typeof jsQR !== 'function') return null;
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  if (!vw || !vh) return null;
+  const scale = Math.min(1, 800 / Math.max(vw, vh));
+  const w = Math.round(vw * scale);
+  const h = Math.round(vh * scale);
+  canvas.width = w;
+  canvas.height = h;
+  ctx.drawImage(video, 0, 0, w, h);
+  const img = ctx.getImageData(0, 0, w, h);
+  const code = jsQR(img.data, w, h, { inversionAttempts: 'dontInvert' });
+  return code ? code.data : null;
+}
+async function tick() {
+  if (!stream) return;
+  if (video.readyState >= 2 && !busy && $('#modal').classList.contains('hidden')) {
+    busy = true;
+    try {
+      const text = await decodeFrame();
+      if (text) {
+        const now = Date.now();
+        // 같은 QR 을 계속 비추고 있으면 한 번만 처리
+        if (text !== lastText || now - lastTextAt > 3000) handleCode(text, 'QR');
+        lastText = text;
+        lastTextAt = now;
+      }
+    } catch (e) {}
+    busy = false;
+  }
+  setTimeout(() => requestAnimationFrame(tick), 120);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) stopCam(); });
+
+/* =========================================================
+   명단 읽기 (붙여넣기 · CSV)
+   ========================================================= */
+function parseDelimited(text) {
+  text = String(text).replace(/^﻿/, '');
+  const first = text.split(/\r?\n/)[0] || '';
+  const delim = first.includes('\t') ? '\t' : (first.split(';').length > first.split(',').length ? ';' : ',');
+  const rows = [];
+  let row = [];
+  let field = '';
+  let quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quoted) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; } else quoted = false;
+      } else field += c;
+    } else if (c === '"' && field === '') quoted = true;
+    else if (c === delim) { row.push(field); field = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(field); rows.push(row); row = []; field = '';
+    } else field += c;
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows.map((r) => r.map((s) => s.trim())).filter((r) => r.some(Boolean));
+}
+const ALIAS = {
+  name: ['이름', '성명', '성함', '참석자', '참석자명', 'name'],
+  org: ['소속', '소속기관', '기관', '기관명', '병원', '병원명', '근무처', '회사', 'organization', 'affiliation', 'org'],
+  phone: ['전화번호', '전화', '휴대폰', '휴대폰번호', '휴대전화', '연락처', '핸드폰', '핸드폰번호', 'phone', 'mobile', 'tel'],
+  license: ['면허번호', '면허', '의사면허번호', '의사면허', 'license'],
+  qr: ['qr코드id', 'qrid', 'qr', 'qr코드', 'qrcode', '코드', '등록번호', '참가번호', 'id', 'code'],
+  status: ['출결상태', '상태', 'status'],
+  inT: ['입실시간', '입실', 'checkin'],
+  outT: ['퇴실시간', '퇴실', 'checkout'],
+};
+const normHead = (h) => String(h).toLowerCase().replace(/\(.*?\)/g, '').replace(/[\s_\-·./]/g, '');
+function parseTime(s) {
+  if (!s) return null;
+  const t = new Date(String(s).trim().replace(/\./g, '-').replace(' ', 'T')).getTime();
+  return Number.isFinite(t) ? t : null;
+}
+function buildRecords(rows) {
+  if (!rows.length) return { recs: [], errors: ['읽을 줄이 없습니다'], header: false };
+  const map = {};
+  rows[0].forEach((h, i) => {
+    const n = normHead(h);
+    for (const [k, list] of Object.entries(ALIAS)) {
+      if (map[k] === undefined && list.includes(n)) { map[k] = i; break; }
+    }
+  });
+  const header = map.name !== undefined;
+  const col = header ? map : { name: 0, org: 1, phone: 2, qr: 3, status: 4, inT: 5, outT: 6 };
+  const body = header ? rows.slice(1) : rows;
+  const recs = [];
+  const errors = [];
+  const seen = new Set();
+  body.forEach((r, i) => {
+    const line = i + (header ? 2 : 1);
+    const get = (k) => (col[k] !== undefined ? (r[col[k]] || '').trim() : '');
+    const name = get('name');
+    if (!name) { errors.push(`${line}번째 줄: 이름이 비어 건너뜀`); return; }
+    const qr = get('qr');
+    if (qr && seen.has(qr.toLowerCase())) { errors.push(`${line}번째 줄: QR코드ID «${qr}» 중복 — 건너뜀`); return; }
+    if (qr) seen.add(qr.toLowerCase());
+    const inT = parseTime(get('inT'));
+    const outT = parseTime(get('outT'));
+    const sessions = inT ? [{ in: inT, out: outT && outT > inT ? outT : null, inLoc: '불러옴', inBy: '불러옴', outLoc: outT ? '불러옴' : undefined, outBy: outT ? '불러옴' : undefined }] : [];
+    recs.push({ qr, name, org: get('org'), phone: normPhone(get('phone')) || get('phone'), license: get('license'), sessions });
+  });
+  return { recs, errors, header };
+}
+function assignQr(recs, taken) {
+  let n = 1;
+  recs.forEach((r) => {
+    if (r.qr) return;
+    let id;
+    do { id = 'A' + String(n++).padStart(4, '0'); } while (taken.has(id.toLowerCase()));
+    taken.add(id.toLowerCase());
+    r.qr = id;
+  });
+}
+function previewImport(text) {
+  const { recs, errors, header } = buildRecords(parseDelimited(text));
+  if (!recs.length) {
+    openModal(`<h3 class="text-2xl font-extrabold">명단을 읽지 못했습니다</h3>
+      <div class="mt-3 text-lg">${errors.map(esc).join('<br>') || '내용이 없습니다'}</div>
+      <button type="button" class="mt-4 h-14 w-full rounded-xl border-2 border-slate-300 dark:border-slate-700 text-lg font-semibold" onclick="closeModal()">닫기</button>`);
+    return;
+  }
+  const noQr = recs.filter((r) => !r.qr).length;
+  const sample = recs.slice(0, 5).map((r) => `<tr class="border-t border-slate-200 dark:border-slate-800"><td class="py-1 pr-2 font-bold">${esc(r.name)}</td><td class="py-1 pr-2">${esc(r.org)}</td><td class="py-1 pr-2 font-mono">${esc(maskPhone(r.phone))}</td><td class="py-1 font-mono">${esc(r.qr || '(자동)')}</td></tr>`).join('');
+  const hasRecords = S.log.length > 0 || S.attendees.some((a) => a.sessions.length);
+  openModal(`<h3 class="text-2xl font-extrabold">명단 확인 — ${recs.length}명</h3>
+    <div class="mt-1 text-base text-slate-500">${header ? '제목 줄을 인식했습니다' : '제목 줄이 없어 «이름, 소속, 전화번호, QR코드ID» 순서로 읽었습니다'}${noQr ? ` · QR코드ID 없는 ${noQr}명은 자동 번호` : ''}</div>
+    <div class="mt-3 overflow-x-auto"><table class="w-full text-base"><thead><tr class="text-left text-slate-500"><th>이름</th><th>소속</th><th>전화</th><th>QR</th></tr></thead><tbody>${sample}</tbody></table></div>
+    ${recs.length > 5 ? `<div class="text-sm text-slate-500 mt-1">… 외 ${recs.length - 5}명</div>` : ''}
+    ${errors.length ? `<div class="mt-3 rounded-xl p-3 bg-amber-100 text-amber-950 dark:bg-amber-900/50 dark:text-amber-100 text-base max-h-32 overflow-y-auto">${errors.map(esc).join('<br>')}</div>` : ''}
+    <div class="mt-4 grid gap-2">
+      <button id="impMerge" type="button" class="h-14 rounded-xl bg-emerald-600 text-white text-lg font-bold">기존 명단에 추가 (같은 QR은 정보만 갱신)</button>
+      <button id="impReplace" type="button" class="h-14 rounded-xl border-2 border-red-400 text-red-600 dark:text-red-400 text-lg font-semibold">새 명단으로 바꾸기${hasRecords ? ' (출결 기록 삭제)' : ''}</button>
+      <button type="button" class="h-12 rounded-xl text-lg" onclick="closeModal()">취소</button>
+    </div>`);
+  $('#impMerge').onclick = () => {
+    let added = 0;
+    let updated = 0;
+    const taken = new Set(S.attendees.map((a) => String(a.qr).toLowerCase()));
+    recs.filter((r) => r.qr).forEach((r) => taken.add(r.qr.toLowerCase()));
+    assignQr(recs, taken);
+    recs.forEach((r) => {
+      const ex = idx.get(r.qr.toLowerCase());
+      if (ex) {
+        Object.assign(ex, { name: r.name, org: r.org, phone: r.phone, license: r.license || ex.license });
+        if (!ex.sessions.length && r.sessions.length) ex.sessions = r.sessions;
+        updated++;
+      } else { S.attendees.push(r); added++; }
+    });
+    finishImport(`${added}명 추가 · ${updated}명 갱신`);
+  };
+  $('#impReplace').onclick = () => {
+    const go = () => {
+      const taken = new Set(recs.filter((r) => r.qr).map((r) => r.qr.toLowerCase()));
+      assignQr(recs, taken);
+      S.attendees = recs;
+      S.log = [];
+      S.undo = null;
+      finishImport(`새 명단 ${recs.length}명`);
+    };
+    if (hasRecords) confirmTyped('명단 바꾸기', '지금까지의 출결 기록이 모두 지워집니다. 먼저 «출결 현황 CSV 받기»나 백업을 해 두세요.', '바꾸기', go);
+    else go();
+  };
+}
+function finishImport(msg) {
+  closeModal();
+  save();
+  renderAll();
+  $('#pasteBox').value = '';
+  toast(msg);
+}
+async function readFileText(file) {
+  const buf = await file.arrayBuffer();
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(buf);
+  } catch (e) {
+    return new TextDecoder('euc-kr').decode(buf); // 한글 엑셀 기본 CSV
+  }
+}
+
+/* =========================================================
+   내보내기 · 백업 · QR 인쇄
+   ========================================================= */
+function csvCell(v) {
+  const s = String(v ?? '');
+  return /[",\r\n]/.test(s) || /^[=+\-@]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+function download(name, text, type) {
+  const blob = new Blob([text], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+const safeName = () => S.settings.eventName.replace(/[\\/:*?"<>|\s]+/g, '_');
+function exportSummary() {
+  if (!S.attendees.length) return toast('내보낼 명단이 없습니다', 'warn');
+  const head = ['이름', '소속', '전화번호', '면허번호', 'QR코드ID', '출결상태', '입실시간', '퇴실시간', '입퇴실횟수', '총체류시간(분)', '예상평점', '처리방식', '비고'];
+  const rows = S.attendees.map((a) => {
+    const st = status(a);
+    const first = a.sessions[0];
+    const last = lastSession(a);
+    const notes = [];
+    if (st === '입실중') notes.push('퇴실 미기록(체류시간 미포함)');
+    if (a.sessions.length > 1) notes.push(`재입실 ${a.sessions.length - 1}회`);
+    return [a.name, a.org, fmtPhone(a.phone), a.license, a.qr, st === '미출석' ? '미출석' : '출석',
+      first ? fmt(first.in) : '', last && last.out ? fmt(last.out) : '', a.sessions.length, stayMin(a), credit(a),
+      a.sessions.length ? (usedManual(a) ? '수동 포함' : 'QR') : '', notes.join(' / ')];
+  });
+  const csv = '﻿' + [head, ...rows].map((r) => r.map(csvCell).join(',')).join('\r\n');
+  download(`출결현황_${safeName()}_${stamp()}.csv`, csv, 'text/csv;charset=utf-8');
+  toast('출결 현황 CSV를 저장했습니다');
+}
+function exportLog() {
+  if (!S.log.length) return toast('스캔 기록이 없습니다', 'warn');
+  const head = ['시간', '구분', '이름', '전화뒷자리', 'QR코드ID', '장소', '방식', '비고'];
+  const rows = S.log.map((l) => [fmt(l.t), l.type, l.name, l.p4, l.qr, l.loc, l.by, l.note || '']);
+  const csv = '﻿' + [head, ...rows].map((r) => r.map(csvCell).join(',')).join('\r\n');
+  download(`스캔기록_${safeName()}_${stamp()}.csv`, csv, 'text/csv;charset=utf-8');
+}
+function backup() {
+  download(`출결백업_${safeName()}_${stamp()}.json`, JSON.stringify({ app: 'conf-attendance', v: 1, savedAt: Date.now(), ...S }), 'application/json');
+}
+async function restore(file) {
+  try {
+    const data = JSON.parse(await readFileText(file));
+    if (!Array.isArray(data.attendees) || !Array.isArray(data.log)) throw new Error('형식');
+    confirmTyped('백업 불러오기', `${data.attendees.length}명 · 기록 ${data.log.length}건(${fmt(data.savedAt)} 저장)으로 <b>지금 자료를 덮어씁니다</b>.`, '불러오기', () => {
+      S = { settings: { ...DEFAULTS, ...(data.settings || {}) }, attendees: data.attendees, log: data.log, undo: null };
+      S.attendees.forEach((a) => { a.sessions = Array.isArray(a.sessions) ? a.sessions : []; });
+      save();
+      renderAll();
+      fillSettings();
+      toast('백업을 불러왔습니다');
+    });
+  } catch (e) {
+    toast('이 파일은 출결 백업 파일이 아닙니다', 'error');
+  }
+}
+function printQr() {
+  if (!S.attendees.length) return toast('명단이 없습니다', 'warn');
+  if (typeof qrcode !== 'function') return toast('QR 생성 기능을 불러오지 못했습니다(인터넷 연결 확인)', 'error');
+  const cards = [...S.attendees].sort((x, y) => x.name.localeCompare(y.name, 'ko')).map((a) => {
+    const q = qrcode(0, 'M');
+    q.addData(String(a.qr));
+    q.make();
+    return `<div class="card">${q.createSvgTag({ cellSize: 4, margin: 2, scalable: true })}<b>${esc(a.name)}</b><span>${esc(a.org || '')}</span><small>${esc(a.qr)} · ${esc(last4(a.phone))}</small></div>`;
+  }).join('');
+  const w = window.open('', '_blank');
+  if (!w) return toast('팝업이 막혔습니다. 팝업 허용 후 다시 누르세요', 'warn');
+  w.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>QR 명찰 · ${esc(S.settings.eventName)}</title>
+    <style>body{font-family:system-ui,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;margin:16px;color:#000;background:#fff}
+    h1{font-size:18px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+    .card{border:1px dashed #999;padding:8px;text-align:center;display:flex;flex-direction:column;align-items:center;break-inside:avoid;page-break-inside:avoid}
+    .card svg{width:120px;height:120px}.card b{font-size:18px;margin-top:4px}.card span{font-size:12px}.card small{font-size:11px;color:#555}
+    @media(max-width:600px){.grid{grid-template-columns:repeat(2,1fr)}}@media print{h1{display:none}}</style></head>
+    <body><h1>${esc(S.settings.eventName)} — QR 명찰 ${S.attendees.length}장</h1><div class="grid">${cards}</div>
+    <script>setTimeout(function(){window.print()},400)<\/script></body></html>`);
+  w.document.close();
+}
+
+function undoLast() {
+  const u = S.undo;
+  if (!u) return;
+  const a = idx.get(String(u.qr).toLowerCase());
+  if (!a) { S.undo = null; save(); renderScan(); return; }
+  openModal(`<h3 class="text-2xl font-extrabold">직전 처리 취소</h3>
+    <p class="mt-3 text-xl"><b>${esc(u.name)}</b>님의 <b>${fmt(u.at)} ${esc(u.type)}</b> 기록을 되돌립니다.</p>
+    <p class="mt-2 text-base text-slate-500">취소한 사실도 스캔 기록에 남습니다.</p>
+    <div class="mt-4 grid grid-cols-2 gap-2">
+      <button type="button" class="h-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-lg font-semibold" onclick="closeModal()">그대로 두기</button>
+      <button id="undoOk" type="button" class="h-14 rounded-xl bg-red-600 text-white text-lg font-bold">취소하기</button>
+    </div>`);
+  $('#undoOk').onclick = () => {
+    a.sessions = u.sessions;
+    S.log.push({ t: Date.now(), qr: a.qr, name: a.name, p4: last4(a.phone), type: '취소', loc: S.settings.location, by: '수동', note: `${fmt(u.at)} ${u.type} 취소` });
+    S.undo = null;
+    save();
+    closeModal();
+    renderAll();
+    resultIdle();
+    toast(`${a.name}님 ${u.type} 기록을 취소했습니다`);
+  };
+}
+
+const SAMPLE = `이름\t소속\t전화번호\t면허번호\tQR코드ID
+김민준\t서울대학교병원 내과\t010-2345-1111\t100231\tA0001
+김민준\t세브란스병원 외과\t010-8765-2222\t100877\tA0002
+김민준\t부산 해운대 김내과의원\t010-5555-3333\t101544\tA0003
+이서연\t삼성서울병원 소아청소년과\t010-1234-5678\t102310\tA0004
+이서연\t아주대학교병원 가정의학과\t010-9988-7766\t102998\tA0005
+박지훈\t분당서울대병원 신경과\t010-3141-5926\t103412\tA0006
+최수아\t서울아산병원 영상의학과\t010-2718-2818\t104001\tA0007
+정도윤\t강남세브란스 정형외과\t010-4444-1234\t104550\tA0008
+강하은\t고려대 안암병원 피부과\t010-6060-7070\t105120\tA0009
+조예준\t대구 수성 조이비인후과\t010-1357-2468\t105777\tA0010
+윤지우\t인하대병원 응급의학과\t010-8080-9090\t106222\tA0011
+장서윤\t전남대병원 마취통증의학과\t010-2020-3030\t106888\tA0012`;
+
+/* =========================================================
+   이벤트 연결
+   ========================================================= */
+$$('.tabbtn').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+$('#stats').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-goto]');
+  if (!b) return;
+  listFilter = b.dataset.goto;
+  showTab('list');
+});
+$('#themeBtn').addEventListener('click', () => {
+  const dark = document.documentElement.classList.toggle('dark');
+  try { localStorage.setItem('conf-attendance-theme', dark ? 'dark' : 'light'); } catch (e) {}
+});
+$('#modeBtns').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-mode]');
+  if (!b) return;
+  S.settings.mode = b.dataset.mode;
+  save();
+  renderHeader();
+  renderScan();
+});
+$('#locSel').addEventListener('change', (e) => {
+  S.settings.location = e.target.value;
+  save();
+  renderHeader();
+});
+$('#camBtn').addEventListener('click', () => (stream ? stopCam() : startCam()));
+$('#camSwitch').addEventListener('click', async () => {
+  if (!stream) { await startCam(); return; }
+  if (camDevices.length < 2) return toast('전환할 다른 카메라가 없습니다', 'warn');
+  camIdx = (camIdx + 1) % camDevices.length;
+  stopCam();
+  startCam();
+});
+$('#readerForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  unlockAudio();
+  const v = $('#readerInput').value.trim();
+  $('#readerInput').value = '';
+  if (v) handleCode(v, '리더기');
+  if (finePointer) $('#readerInput').focus();
+});
+$('#undoBtn').addEventListener('click', () => withPin(undoLast));
+
+let searchTimer;
+$('#q').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(renderList, 80); });
+$('#filters').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-filter]');
+  if (!b) return;
+  listFilter = b.dataset.filter;
+  renderList();
+});
+$('#list').addEventListener('click', (e) => {
+  const g = e.target.closest('[data-goto-tab]');
+  if (g) return showTab(g.dataset.gotoTab);
+  const b = e.target.closest('[data-act]');
+  if (!b || b.disabled) return;
+  unlockAudio();
+  if (b.dataset.act === 'detail') showDetail(b.dataset.qr);
+  else manual(b.dataset.qr, b.dataset.act);
+});
+
+$('#parseBtn').addEventListener('click', () => {
+  const t = $('#pasteBox').value;
+  if (!t.trim()) return toast('붙여넣은 내용이 없습니다', 'warn');
+  previewImport(t);
+});
+$('#fileInput').addEventListener('change', async (e) => {
+  const f = e.target.files[0];
+  e.target.value = '';
+  if (f) previewImport(await readFileText(f));
+});
+$('#sampleBtn').addEventListener('click', () => { $('#pasteBox').value = SAMPLE; previewImport(SAMPLE); });
+$('#exportBtn').addEventListener('click', exportSummary);
+$('#exportLogBtn').addEventListener('click', exportLog);
+$('#backupBtn').addEventListener('click', backup);
+$('#restoreInput').addEventListener('change', (e) => {
+  const f = e.target.files[0];
+  e.target.value = '';
+  if (f) restore(f);
+});
+$('#printQrBtn').addEventListener('click', printQr);
+$('#saveSettings').addEventListener('click', () => {
+  const st = S.settings;
+  const num = (id, min, max, def) => {
+    const n = Number($(id).value);
+    return Number.isFinite(n) && $(id).value !== '' ? Math.min(max, Math.max(min, Math.round(n))) : def;
+  };
+  st.eventName = $('#setEvent').value.trim() || DEFAULTS.eventName;
+  const locs = $('#setLocs').value.split(',').map((s) => s.trim()).filter(Boolean);
+  st.locations = locs.length ? [...new Set(locs)] : ['등록데스크'];
+  if (!st.locations.includes(st.location)) st.location = st.locations[0];
+  st.cooldownSec = num('#setCooldown', 0, 3600, DEFAULTS.cooldownSec);
+  st.minStayMin = num('#setMinStay', 0, 600, DEFAULTS.minStayMin);
+  st.minutesPerCredit = num('#setPerCredit', 1, 600, DEFAULTS.minutesPerCredit);
+  st.maxCredits = num('#setMaxCredit', 0, 24, DEFAULTS.maxCredits);
+  st.alwaysVerify = $('#setVerify').checked;
+  st.pin = $('#setPin').value.trim();
+  pinUnlocked = true;
+  save();
+  renderAll();
+  fillSettings();
+  toast('설정을 저장했습니다');
+});
+$('#resetAttBtn').addEventListener('click', () => confirmTyped('출결 기록 지우기', '모든 참석자의 입실·퇴실 기록과 스캔 기록이 지워집니다. 명단은 남습니다.', '초기화', () => {
+  S.attendees.forEach((a) => { a.sessions = []; });
+  S.log = [];
+  S.undo = null;
+  save(); renderAll(); resultIdle();
+  toast('출결 기록을 지웠습니다');
+}));
+$('#resetAllBtn').addEventListener('click', () => confirmTyped('모두 지우기', '명단과 출결 기록이 모두 지워집니다. 설정은 남습니다.', '전체삭제', () => {
+  S.attendees = [];
+  S.log = [];
+  S.undo = null;
+  save(); renderAll(); resultIdle();
+  toast('모두 지웠습니다');
+}));
+
+/* 다른 탭(창)에서 바뀐 내용 반영 */
+window.addEventListener('storage', (e) => { if (e.key === KEY) { load(); renderAll(); } });
+
+function tickClock() { $('#clock').textContent = fmt(Date.now()).slice(11); }
+setInterval(tickClock, 1000);
+
+/* 시작 */
+load();
+tickClock();
+renderAll();
+resultIdle();
+showTab('scan');
+</script>
+</body>
+</html>
