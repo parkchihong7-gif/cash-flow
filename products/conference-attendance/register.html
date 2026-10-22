@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>현장 등록</title>
+<script>
+  (function () {
+    try {
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.classList.add('dark');
+    } catch (e) {}
+  })();
+</script>
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<script>tailwind.config = { darkMode: 'class' };</script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<style>
+  body { word-break: keep-all; -webkit-tap-highlight-color: transparent; }
+  button:disabled { opacity: .4; }
+</style>
+</head>
+<body class="min-h-screen bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased text-lg">
+<main class="max-w-md mx-auto px-4 py-6">
+  <div id="loading" class="py-24 text-center text-xl text-slate-500">불러오는 중…</div>
+
+  <!-- 오류 -->
+  <div id="fatal" class="hidden rounded-2xl p-6 bg-white dark:bg-slate-900 text-center">
+    <div class="text-5xl">⚠️</div>
+    <div id="fatalMsg" class="mt-3 text-xl font-bold"></div>
+    <div class="mt-2 text-base text-slate-500">현장 직원에게 문의해 주세요.</div>
+  </div>
+
+  <!-- 등록 양식 -->
+  <form id="form" class="hidden space-y-4" novalidate>
+    <header class="text-center">
+      <div id="evName" class="text-3xl font-extrabold"></div>
+      <div id="evSub" class="mt-1 text-lg text-slate-500 dark:text-slate-400"></div>
+    </header>
+
+    <div class="rounded-2xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
+      <label class="block"><span class="font-bold">이름 <span class="text-red-600">*</span></span>
+        <input id="fName" autocomplete="name" maxlength="40" required class="mt-1 w-full h-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 text-xl"></label>
+      <label class="block"><span class="font-bold">휴대폰 번호 <span class="text-red-600">*</span></span>
+        <input id="fPhone" type="tel" inputmode="numeric" autocomplete="tel" maxlength="13" placeholder="010-0000-0000" required class="mt-1 w-full h-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 text-xl font-mono"></label>
+      <label class="block"><span class="font-bold">소속 <span id="orgReq" class="text-sm font-normal text-slate-500">(선택)</span></span>
+        <input id="fOrg" autocomplete="organization" maxlength="80" class="mt-1 w-full h-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 text-xl"></label>
+      <label id="licWrap" class="hidden block"><span class="font-bold">면허번호 <span class="text-sm font-normal text-slate-500">(평점 신청 시)</span></span>
+        <input id="fLicense" inputmode="numeric" maxlength="20" class="mt-1 w-full h-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 text-xl font-mono"></label>
+      <label class="block"><span class="font-bold">이메일 <span class="text-sm font-normal text-slate-500">(선택)</span></span>
+        <input id="fEmail" type="email" inputmode="email" autocomplete="email" maxlength="80" class="mt-1 w-full h-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 text-xl"></label>
+    </div>
+
+    <div class="rounded-2xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
+      <div>
+        <div class="font-bold">개인정보 수집·이용 안내</div>
+        <table class="mt-2 w-full text-base">
+          <tr class="border-t border-slate-200 dark:border-slate-800"><th class="py-2 pr-3 text-left align-top w-24 text-slate-500 font-semibold">수집 주체</th><td id="ptHost" class="py-2"></td></tr>
+          <tr class="border-t border-slate-200 dark:border-slate-800"><th class="py-2 pr-3 text-left align-top text-slate-500 font-semibold">항목</th><td id="ptItems" class="py-2"></td></tr>
+          <tr class="border-t border-slate-200 dark:border-slate-800"><th class="py-2 pr-3 text-left align-top text-slate-500 font-semibold">목적</th><td id="ptPurpose" class="py-2"></td></tr>
+          <tr class="border-t border-slate-200 dark:border-slate-800"><th class="py-2 pr-3 text-left align-top text-slate-500 font-semibold">보유 기간</th><td id="ptKeep" class="py-2"></td></tr>
+        </table>
+        <p class="mt-2 text-sm text-slate-500">동의하지 않으실 수 있으며, 이 경우 현장 등록이 어렵습니다. 등록데스크에서 도와드립니다.</p>
+      </div>
+      <label class="flex items-start gap-3 cursor-pointer">
+        <input id="cPrivacy" type="checkbox" class="mt-1 h-7 w-7 shrink-0">
+        <span class="font-bold">[필수] 개인정보 수집·이용에 동의합니다</span></label>
+      <label class="flex items-start gap-3 cursor-pointer">
+        <input id="cAge" type="checkbox" class="mt-1 h-7 w-7 shrink-0">
+        <span class="font-bold">[필수] 만 14세 이상입니다</span></label>
+      <label class="flex items-start gap-3 cursor-pointer">
+        <input id="cMarketing" type="checkbox" class="mt-1 h-7 w-7 shrink-0">
+        <span><span class="font-bold">[선택] 다음 행사·이벤트 소식 받기</span><br>
+        <span class="text-base text-slate-500">휴대폰 문자·이메일로 안내드립니다. 동의하지 않아도 등록할 수 있고, 언제든 철회할 수 있습니다.</span></span></label>
+    </div>
+
+    <div id="formErr" class="hidden rounded-xl p-4 bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200 text-lg font-semibold"></div>
+    <button id="submitBtn" type="submit" class="h-16 w-full rounded-2xl bg-emerald-600 text-white text-2xl font-extrabold">등록하기</button>
+    <p id="contact" class="text-center text-base text-slate-500"></p>
+  </form>
+
+  <!-- 완료: 개인 QR -->
+  <section id="done" class="hidden text-center">
+    <div class="text-5xl">✅</div>
+    <div id="doneTitle" class="mt-2 text-3xl font-extrabold"></div>
+    <div id="doneSub" class="mt-1 text-lg text-slate-600 dark:text-slate-300"></div>
+    <div class="mt-5 mx-auto w-72 max-w-full bg-white p-3 rounded-3xl shadow-lg" id="qrBox"></div>
+    <div id="doneName" class="mt-3 text-3xl font-extrabold"></div>
+    <div id="doneCode" class="font-mono text-slate-500"></div>
+    <div id="doneHow" class="mt-4 rounded-2xl p-4 bg-white dark:bg-slate-900 text-lg font-semibold"></div>
+    <p class="mt-3 text-base text-slate-500">이 화면을 <b>캡처</b>해 두세요. 이 주소를 다시 열어도 같은 QR이 나옵니다.</p>
+    <button id="again" type="button" class="mt-6 h-12 px-5 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-base font-semibold">다른 사람 등록하기</button>
+  </section>
+</main>
+
+<script>
+'use strict';
+const $ = (s) => document.querySelector(s);
+const API = new URLSearchParams(location.search).get('api') || '';
+const SAVE_KEY = 'conf-register:' + API;
+let EV = null;
+
+function show(id) {
+  ['loading', 'fatal', 'form', 'done'].forEach((k) => $('#' + k).classList.toggle('hidden', k !== id));
+  window.scrollTo(0, 0);
+}
+function fatal(msg) { $('#fatalMsg').textContent = msg; show('fatal'); }
+
+async function api(payload) {
+  const r = await fetch(API, { method: 'POST', body: JSON.stringify(payload), redirect: 'follow' });
+  if (!r.ok) throw new Error('서버에 연결하지 못했습니다 (' + r.status + ')');
+  return r.json();
+}
+
+function fmtPhoneInput(v) {
+  const d = v.replace(/\D/g, '').slice(0, 11);
+  if (d.length < 4) return d;
+  if (d.length < 8) return d.slice(0, 3) + '-' + d.slice(3);
+  return d.slice(0, 3) + '-' + d.slice(3, d.length - 4) + '-' + d.slice(-4);
+}
+
+function renderDone(rec) {
+  const ev = rec.event || EV || {};
+  const popup = ev.mode === 'popup';
+  document.title = (ev.name || '등록') + ' · 내 QR';
+  $('#doneTitle').textContent = rec.existing ? '이미 등록되어 있습니다' : '등록되었습니다';
+  $('#doneSub').textContent = ev.name || '';
+  $('#doneName').textContent = rec.name;
+  $('#doneCode').textContent = rec.qr;
+  $('#doneHow').textContent = popup
+    ? (rec.checkedIn ? '방문이 기록되었습니다. 이벤트 참여 때 이 QR을 직원에게 보여 주세요.' : '이 QR을 직원에게 보여 주세요.')
+    : '입장할 때와 나갈 때 이 QR을 입구 패드에 찍어 주세요. 퇴장 기록이 없으면 평점이 인정되지 않을 수 있습니다.';
+  try {
+    const q = qrcode(0, 'M'); q.addData(rec.qr); q.make();
+    $('#qrBox').innerHTML = q.createSvgTag({ cellSize: 8, margin: 2, scalable: true });
+  } catch (e) {
+    $('#qrBox').innerHTML = '<div class="py-10 text-3xl font-mono text-black">' + rec.qr + '</div>';
+  }
+  show('done');
+}
+
+function renderForm(ev) {
+  const popup = ev.mode === 'popup';
+  document.title = ev.name + ' · 현장 등록';
+  $('#evName').textContent = ev.name;
+  $('#evSub').textContent = popup ? '방문 등록' : '현장 등록';
+  $('#licWrap').classList.toggle('hidden', !ev.license);
+  $('#ptHost').textContent = ev.host || ev.name;
+  $('#ptItems').textContent = ['이름', '휴대폰 번호', '소속(선택)', ev.license ? '면허번호(선택)' : '', '이메일(선택)'].filter(Boolean).join(', ');
+  $('#ptPurpose').textContent = popup ? '행사 방문 확인, 참가자 안내 연락' : '행사 출결 확인' + (ev.license ? ' 및 연수평점 신청' : '') + ', 참가자 안내 연락';
+  $('#ptKeep').textContent = ev.retention || '행사 종료 후 1년';
+  $('#contact').textContent = ev.contact ? '문의 ' + ev.contact : '';
+  show('form');
+  setTimeout(() => $('#fName').focus(), 100);
+}
+
+$('#fPhone').addEventListener('input', (e) => { e.target.value = fmtPhoneInput(e.target.value); });
+
+$('#form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const err = (m) => { $('#formErr').textContent = m; $('#formErr').classList.remove('hidden'); $('#formErr').scrollIntoView({ block: 'center' }); };
+  $('#formErr').classList.add('hidden');
+  const name = $('#fName').value.trim();
+  const phone = $('#fPhone').value.replace(/\D/g, '');
+  if (!name) return err('이름을 입력해 주세요');
+  if (!/^01[016789]\d{7,8}$/.test(phone)) return err('휴대폰 번호를 확인해 주세요');
+  const email = $('#fEmail').value.trim();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return err('이메일 주소를 확인해 주세요');
+  if (!$('#cPrivacy').checked) return err('[필수] 개인정보 수집·이용에 동의해 주세요');
+  if (!$('#cAge').checked) return err('만 14세 미만은 보호자 동의가 필요합니다. 등록데스크에 문의해 주세요.');
+  $('#submitBtn').disabled = true;
+  $('#submitBtn').textContent = '등록 중…';
+  try {
+    const j = await api({
+      action: 'register', name, phone, email,
+      org: $('#fOrg').value.trim(), license: $('#fLicense').value.trim(),
+      privacy: true, age14: true, marketing: $('#cMarketing').checked,
+    });
+    if (!j.ok) throw new Error(j.error || '등록하지 못했습니다');
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(j)); } catch (x) {}
+    renderDone(j);
+  } catch (x) {
+    err(x.message || '등록하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+  } finally {
+    $('#submitBtn').disabled = false;
+    $('#submitBtn').textContent = '등록하기';
+  }
+});
+
+$('#again').addEventListener('click', () => {
+  try { localStorage.removeItem(SAVE_KEY); } catch (x) {}
+  $('#form').reset();
+  show('loading');
+  start(); // 행사 설정이 바뀌었을 수 있어 다시 읽는다
+});
+
+async function start() {
+  if (!/^https:\/\//.test(API)) return fatal('등록 주소가 올바르지 않습니다');
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (x) {}
+  if (saved && saved.qr) renderDone(saved); // 다시 열면 내 QR 부터
+  try {
+    const j = await api({ action: 'info' });
+    if (!j.ok) throw new Error(j.error);
+    EV = j.event;
+    if (saved && saved.qr) return;
+    if (!EV.open) return fatal('현장 등록이 지금은 닫혀 있습니다');
+    renderForm(EV);
+  } catch (x) {
+    if (!(saved && saved.qr)) fatal('등록 서버에 연결하지 못했습니다. 인터넷 연결을 확인해 주세요.');
+  }
+}
+start();
+</script>
+</body>
+</html>

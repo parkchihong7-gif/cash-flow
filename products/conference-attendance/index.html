@@ -29,6 +29,11 @@
   .tabbtn[aria-selected="true"]::after { content: ""; display: block; height: 4px; width: 48px; margin: 4px auto 0; border-radius: 4px; background: currentColor; }
   button:disabled { opacity: .35; cursor: not-allowed; }
   input[type=search]::-webkit-search-cancel-button { transform: scale(1.6); }
+  /* 무인(키오스크) 모드: 카메라와 결과만 */
+  #kioskBar { display: none; }
+  body.kiosk header, body.kiosk nav, body.kiosk .kh { display: none !important; }
+  body.kiosk #kioskBar { display: flex; }
+  body.kiosk main { max-width: none; padding-bottom: 1rem; }
 </style>
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased text-lg">
@@ -41,7 +46,7 @@
     <div class="min-w-0 flex-1">
       <div id="evName" class="text-xl sm:text-2xl font-extrabold truncate"></div>
       <div class="text-base text-slate-500 dark:text-slate-400 truncate">
-        <span id="clock" class="font-mono font-semibold"></span> · <span id="locLabel"></span> · <span id="modeLabel"></span>
+        <span id="clock" class="font-mono font-semibold"></span> · <span id="locLabel"></span> · <span id="modeLabel"></span> <span id="syncLabel"></span>
       </div>
     </div>
     <button id="themeBtn" type="button" class="h-12 w-12 shrink-0 rounded-xl border border-slate-300 dark:border-slate-700 text-2xl" aria-label="밝은 화면/어두운 화면 전환">🌓</button>
@@ -53,14 +58,19 @@
 
   <!-- ① 스캔 -->
   <section id="tab-scan" role="tabpanel">
+    <div id="kioskBar" class="items-center gap-3 mb-4">
+      <div class="flex-1 min-w-0"><div id="kioskTitle" class="text-3xl font-extrabold truncate"></div><div id="kioskSub" class="text-lg text-slate-500 dark:text-slate-400"></div></div>
+      <button id="kioskExit" type="button" class="h-12 px-4 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-base font-semibold shrink-0">관리자</button>
+    </div>
     <div class="grid md:grid-cols-2 gap-4">
       <div class="space-y-3">
-        <div id="modeBtns" class="grid grid-cols-3 gap-2" role="radiogroup" aria-label="스캔 방식">
+        <div id="modeBtns" class="kh grid grid-cols-3 gap-2" role="radiogroup" aria-label="스캔 방식">
           <button type="button" data-mode="auto" class="h-16 rounded-xl border-2 font-bold leading-tight">자동<br><span class="text-sm font-medium">입실↔퇴실</span></button>
           <button type="button" data-mode="in" class="h-16 rounded-xl border-2 font-bold leading-tight">입실<br><span class="text-sm font-medium">전용</span></button>
           <button type="button" data-mode="out" class="h-16 rounded-xl border-2 font-bold leading-tight">퇴실<br><span class="text-sm font-medium">전용</span></button>
         </div>
-        <label class="flex items-center gap-2">
+        <div id="popupNote" class="kh hidden rounded-xl p-3 bg-emerald-50 dark:bg-emerald-950 border-2 border-emerald-600 text-lg font-bold">팝업 모드 — QR을 찍으면 방문으로 기록합니다</div>
+        <label class="kh flex items-center gap-2">
           <span class="text-base font-semibold shrink-0">현재 장소</span>
           <select id="locSel" class="flex-1 min-w-0 h-12 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-lg"></select>
         </label>
@@ -76,24 +86,25 @@
             <div class="w-3/5 aspect-square border-4 border-white/80 rounded-3xl shadow-[0_0_0_2000px_rgba(0,0,0,.25)]"></div>
           </div>
         </div>
-        <div class="grid grid-cols-2 gap-2">
+        <div class="kh grid grid-cols-2 gap-2">
           <button id="camBtn" type="button" class="h-16 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xl font-bold">카메라 켜기</button>
           <button id="camSwitch" type="button" class="h-16 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-lg font-semibold">카메라 전환</button>
         </div>
-        <form id="readerForm" class="flex gap-2" autocomplete="off">
+        <form id="readerForm" class="kh flex gap-2" autocomplete="off">
           <input id="readerInput" class="flex-1 min-w-0 h-14 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 text-lg" placeholder="QR 리더기 / 코드 직접 입력" aria-label="QR 코드 직접 입력">
           <button class="h-14 px-5 rounded-xl bg-slate-800 dark:bg-slate-200 dark:text-slate-900 text-white text-lg font-bold">처리</button>
         </form>
-        <p class="text-sm text-slate-500 dark:text-slate-400">USB·블루투스 QR 리더기는 위 칸에 자동 입력됩니다(엔터 포함 설정).</p>
+        <p class="kh text-sm text-slate-500 dark:text-slate-400">USB·블루투스 QR 리더기는 위 칸에 자동 입력됩니다(엔터 포함 설정).</p>
+        <button id="kioskBtn" type="button" class="kh h-14 w-full rounded-xl border-2 border-slate-300 dark:border-slate-700 text-lg font-semibold">🖥 무인 모드 (거치대 패드용)</button>
       </div>
 
       <div class="space-y-3">
         <div id="result" class="rounded-2xl p-5 min-h-[240px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"></div>
-        <div class="flex items-center justify-between gap-2">
+        <div class="kh flex items-center justify-between gap-2">
           <h3 class="text-xl font-bold">최근 처리</h3>
           <button id="undoBtn" type="button" class="h-12 px-4 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-base font-semibold">↶ 직전 처리 취소</button>
         </div>
-        <ul id="recent" class="space-y-2"></ul>
+        <ul id="recent" class="kh space-y-2"></ul>
       </div>
     </div>
   </section>
@@ -128,13 +139,41 @@
     </div>
 
     <div class="rounded-2xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+      <h2 class="text-2xl font-extrabold">여러 기기 연동 (구글 시트)</h2>
+      <p class="mt-2 text-base text-slate-600 dark:text-slate-300">입구·출구 패드와 현장 등록 페이지가 <b>같은 구글 시트</b>에 기록을 모읍니다. 와이파이가 끊겨도 스캔은 계속되고, 연결되면 자동으로 올라갑니다. 설치 방법은 안내서 «구글 시트 연동»을 보세요.</p>
+      <div id="syncStatus" class="mt-3 text-lg font-semibold"></div>
+      <div class="mt-3 grid sm:grid-cols-2 gap-3 text-base">
+        <label class="block sm:col-span-2"><span class="font-semibold">웹 앱 주소</span>
+          <input id="syncUrl" inputmode="url" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec" class="mt-1 w-full h-12 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-base font-mono"></label>
+        <label class="block"><span class="font-semibold">직원코드</span>
+          <input id="syncKey" type="password" autocomplete="off" class="mt-1 w-full h-12 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-lg"></label>
+        <label class="block"><span class="font-semibold">이 기기 이름</span>
+          <input id="syncDevice" autocomplete="off" placeholder="예: 1층 입구 패드" class="mt-1 w-full h-12 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-lg"></label>
+      </div>
+      <div class="mt-3 grid sm:grid-cols-3 gap-2">
+        <button id="syncConnect" type="button" class="h-14 rounded-xl bg-emerald-600 text-white text-lg font-bold">연결</button>
+        <button id="syncNowBtn" type="button" class="h-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-lg font-semibold">지금 맞추기</button>
+        <button id="syncOff" type="button" class="h-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-lg font-semibold">연결 끊기</button>
+      </div>
+    </div>
+
+    <div class="rounded-2xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+      <h2 class="text-2xl font-extrabold">현장 등록 QR</h2>
+      <p class="mt-2 text-base text-slate-600 dark:text-slate-300">입구에 붙여 두면 참가자가 <b>자기 휴대폰으로 찍어 직접 등록</b>합니다(개인정보 동의 포함). 등록하면 휴대폰에 개인 QR이 나오고, 시트 «명단»에 바로 들어갑니다. 구글 시트 연동이 필요합니다.</p>
+      <label class="block mt-3 text-base"><span class="font-semibold">등록 페이지 주소</span>
+        <input id="setRegUrl" inputmode="url" autocomplete="off" class="mt-1 w-full h-12 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-base font-mono">
+        <span class="text-sm text-slate-500 dark:text-slate-400">비우면 이 앱과 같은 폴더의 register.html 을 씁니다.</span></label>
+      <button id="regQrBtn" type="button" class="mt-3 h-14 w-full rounded-xl bg-violet-700 text-white text-lg font-bold">등록 QR 보기 · 인쇄</button>
+    </div>
+
+    <div class="rounded-2xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
       <h2 class="text-2xl font-extrabold">내보내기 · 백업</h2>
       <div class="mt-3 grid sm:grid-cols-2 gap-2">
         <button id="exportBtn" type="button" class="h-14 rounded-xl bg-sky-600 text-white text-lg font-bold">출결 현황 CSV 받기</button>
         <button id="exportLogBtn" type="button" class="h-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-lg font-semibold">스캔 기록 전체 CSV</button>
         <button id="backupBtn" type="button" class="h-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-lg font-semibold">백업 파일 저장(JSON)</button>
         <label class="h-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-lg font-semibold flex items-center justify-center cursor-pointer">
-          백업 파일 불러오기<input id="restoreInput" type="file" accept=".json,application/json" class="hidden">
+          백업 불러오기·합치기<input id="restoreInput" type="file" accept=".json,application/json" class="hidden">
         </label>
         <button id="printQrBtn" type="button" class="h-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-lg font-semibold sm:col-span-2">QR 명찰 인쇄용 페이지 열기</button>
       </div>
@@ -149,6 +188,16 @@
       <div class="mt-3 grid sm:grid-cols-2 gap-4 text-base">
         <label class="block"><span class="font-semibold">행사명</span>
           <input id="setEvent" class="mt-1 w-full h-12 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-lg"></label>
+        <label class="block"><span class="font-semibold">운영 방식</span>
+          <select id="setProgram" class="mt-1 w-full h-12 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-lg">
+            <option value="conference">학술대회 — 입실·퇴실 + 평점</option>
+            <option value="popup">팝업 — 방문 기록 + 현장 등록</option>
+          </select></label>
+        <label class="block"><span class="font-semibold">카메라 기본 방향</span>
+          <select id="setFacing" class="mt-1 w-full h-12 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-lg">
+            <option value="environment">뒤 카메라 (직원이 들고 찍기)</option>
+            <option value="user">앞 카메라 (거치대 · 참가자가 화면 보며 찍기)</option>
+          </select></label>
         <label class="block"><span class="font-semibold">장소 목록 (쉼표로 구분)</span>
           <input id="setLocs" class="mt-1 w-full h-12 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-lg" placeholder="등록데스크, 그랜드볼룸, 라일락룸"></label>
         <label class="block"><span class="font-semibold">중복 스캔 무시 (초)</span>
@@ -169,6 +218,7 @@
           <input id="setPin" type="password" inputmode="numeric" autocomplete="new-password" class="mt-1 w-full h-12 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-lg">
           <span class="text-sm text-slate-500 dark:text-slate-400">이 화면(명단·내보내기·설정)과 직전 처리 취소에 PIN을 묻습니다.</span></label>
       </div>
+      <p id="syncedNote" class="hidden mt-3 text-base text-amber-700 dark:text-amber-300">구글 시트에 연동 중입니다. 행사명·운영 방식은 시트의 «설정» 탭에서 바꾸세요.</p>
       <p class="mt-3 text-sm text-slate-500 dark:text-slate-400">예상 평점은 체류 시간으로 계산한 참고값입니다. 실제 인정 평점은 학회·대한의사협회 연수교육 기준으로 확정하세요.</p>
       <button id="saveSettings" type="button" class="mt-4 h-14 w-full rounded-xl bg-emerald-600 text-white text-lg font-bold">설정 저장</button>
     </div>
@@ -196,6 +246,7 @@
   <div id="modalBody" class="w-full sm:max-w-lg max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white dark:bg-slate-900 p-5 shadow-2xl"></div>
 </div>
 <div id="toast" class="hidden"></div>
+<button id="kioskStart" type="button" class="hidden fixed inset-0 z-40 bg-slate-950/90 text-white text-4xl font-extrabold">화면을 눌러 시작하세요</button>
 
 <script>
 'use strict';
@@ -255,23 +306,37 @@ const DEFAULTS = {
   maxCredits: 6,
   alwaysVerify: false,
   pin: '',
+  program: 'conference', // conference: 학술대회 평점 출결 / popup: 팝업 방문 기록
+  facing: 'environment', // environment: 뒤 카메라 / user: 앞 카메라(거치대)
+  registerUrl: '',
+  kiosk: false,
 };
+const SYNC_DEFAULTS = { url: '', key: '', device: '', cursor: 0, pending: [], pendingAtt: [], lastOk: 0, lastErr: '' };
 let S;
+const rid = (n = 6) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join('');
+const newId = () => `${S.deviceId}-${Date.now().toString(36)}-${rid(4)}`;
 function load() {
   try { S = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { S = {}; }
   S.settings = { ...DEFAULTS, ...(S.settings || {}) };
+  S.sync = { ...SYNC_DEFAULTS, ...(S.sync || {}) };
+  S.deviceId = S.deviceId || rid(5);
   S.attendees = Array.isArray(S.attendees) ? S.attendees : [];
   S.log = Array.isArray(S.log) ? S.log : [];
-  S.undo = S.undo || null;
-  S.attendees.forEach((a) => { a.sessions = Array.isArray(a.sessions) ? a.sessions : []; });
+  S.undo = S.undo && S.undo.id ? S.undo : null;
+  S.log.forEach((e) => { if (!e.id) e.id = newId(); });
+  S.attendees.forEach((a) => { a.sessions = []; });
 }
 function save() {
   try {
-    localStorage.setItem(KEY, JSON.stringify(S));
+    // 입·퇴실 구간(sessions)은 기록(log)에서 다시 계산하므로 저장하지 않는다
+    localStorage.setItem(KEY, JSON.stringify(S, (k, v) => (k === 'sessions' ? undefined : v)));
   } catch (e) {
     toast('저장 공간이 부족합니다. 백업 파일을 저장한 뒤 정리하세요.', 'error');
   }
 }
+const isPopup = () => S.settings.program === 'popup';
+/* 화면에 쓰는 상태 이름. 팝업은 입실=방문 */
+const L = (k) => (isPopup() ? { '입실중': '방문', '미출석': '미방문', '퇴실': '퇴장', '입실': '방문' }[k] || k : k);
 
 /* 색인: QR → 참석자, 이름 → 인원 수 */
 let idx = new Map();
@@ -312,21 +377,38 @@ function credit(a) {
 }
 const usedManual = (a) => a.sessions.some((s) => s.inBy === '수동' || s.outBy === '수동');
 
-/* 입실/퇴실 기록. 모든 처리는 로그에 남는다 */
-function apply(a, type, by) {
-  const now = Date.now();
-  const loc = S.settings.location;
-  S.undo = { qr: a.qr, name: a.name, type, at: now, sessions: JSON.parse(JSON.stringify(a.sessions)) };
-  if (type === '입실') {
-    a.sessions.push({ in: now, out: null, inLoc: loc, inBy: by });
-  } else {
+/* 기록(log)이 원본이다. 입·퇴실 구간은 기록을 시간순으로 다시 읽어 만든다.
+   여러 기기의 기록이 섞여 들어와도 같은 결과가 나온다. */
+function recompute() {
+  const canceled = new Set(S.log.filter((e) => e.type === '취소').map((e) => e.ref));
+  S.attendees.forEach((a) => { a.sessions = []; });
+  const evs = S.log
+    .filter((e) => e.type !== '취소' && !canceled.has(e.id))
+    .sort((x, y) => x.t - y.t || String(x.id).localeCompare(String(y.id)));
+  for (const e of evs) {
+    const a = idx.get(String(e.qr).toLowerCase());
+    if (!a) continue;
     const s = lastSession(a);
-    s.out = now; s.outLoc = loc; s.outBy = by;
+    const inside = s && !s.out;
+    if (e.type === '입실' && !inside) a.sessions.push({ in: e.t, out: null, inLoc: e.loc, inBy: e.by, inDev: e.device });
+    else if (e.type === '퇴실' && inside) Object.assign(s, { out: e.t, outLoc: e.loc, outBy: e.by, outDev: e.device });
   }
-  S.log.push({ t: now, qr: a.qr, name: a.name, p4: last4(a.phone), type, loc, by });
+}
+
+/* 입실/퇴실 기록. 모든 처리는 기록에 남는다 */
+function addEvent(e) {
+  const ev = { id: newId(), t: Date.now(), device: S.sync.device || '', ...e };
+  S.log.push(ev);
+  if (connected()) S.sync.pending.push(ev.id);
+  return ev;
+}
+function apply(a, type, by) {
+  const ev = addEvent({ qr: a.qr, name: a.name, p4: last4(a.phone), type, loc: S.settings.location, by });
+  S.undo = { id: ev.id, qr: a.qr, name: a.name, type, at: ev.t };
   save();
   renderAll();
-  return now;
+  kickSync();
+  return ev.t;
 }
 
 /* QR 내용 → 참석자. 주소형 QR 이면 마지막 조각도 본다 */
@@ -355,14 +437,22 @@ function handleCode(raw, by) {
   const cur = lastSession(a);
 
   if (last && now - last < st.cooldownSec * 1000) {
-    return feedback('warn', { a, title: '이미 처리됨', hint: `${Math.round((now - last) / 1000)}초 전에 ${inside ? '입실' : '퇴실'} 처리되었습니다. 다시 기록하지 않았습니다.` });
+    return feedback('warn', { a, title: '이미 처리됨', hint: `${Math.round((now - last) / 1000)}초 전에 ${L(inside ? '입실' : '퇴실')} 처리되었습니다. 다시 기록하지 않았습니다.` });
   }
   let type;
+  if (isPopup()) {
+    if (inside) return feedback('warn', { a, title: '이미 방문 확인됨', hint: `${hm(cur.in)}에 방문이 기록되었습니다.` });
+    const t = apply(a, '입실', by);
+    return feedback('in', { a, title: '방문 확인', time: t });
+  }
   if (st.mode === 'in') {
     if (inside) return feedback('warn', { a, title: '이미 입실 중', hint: `${hm(cur.in)}에 입실한 기록이 있습니다. 나가실 때 퇴실 스캔을 해 주세요.` });
     type = '입실';
   } else if (st.mode === 'out') {
-    if (!inside) return feedback('warn', { a, title: '입실 기록 없음', hint: '입실 스캔 없이는 퇴실을 기록할 수 없습니다. 등록데스크로 안내하세요.' });
+    if (!inside) {
+      const stale = connected() && Date.now() - S.sync.lastOk > 60000;
+      return feedback('warn', { a, title: '입실 기록 없음', hint: '입실 스캔 없이는 퇴실을 기록할 수 없습니다. 등록데스크로 안내하세요.' + (stale ? ' (연동이 1분 넘게 끊겨 있어 다른 기기의 입실 기록이 아직 안 왔을 수 있습니다)' : '') });
+    }
     type = '퇴실';
   } else if (!inside) {
     type = '입실';
@@ -439,8 +529,10 @@ function feedback(kind, { a, title, hint, time, sub }) {
     body += `<div class="text-4xl sm:text-5xl font-extrabold mt-3 break-all">${esc(a.name)}${isDup(a) ? ' <span class="align-middle text-base font-bold px-2 py-1 rounded-lg bg-black/25">동명이인</span>' : ''}</div>
       <div class="text-xl mt-1 opacity-90">${esc(a.org || '')}</div>
       <div class="mt-3 flex items-end gap-3"><span class="text-base opacity-80 pb-1">전화 뒷자리</span><span class="text-5xl font-mono font-black tracking-widest">${esc(last4(a.phone))}</span></div>`;
-    if (kind === 'out') body += `<div class="mt-2 text-xl font-semibold">체류 ${dur(stayMin(a))} · 예상 평점 ${credit(a)}점</div>`;
+    if (kind === 'out' && !isPopup()) body += `<div class="mt-2 text-xl font-semibold">체류 ${dur(stayMin(a))} · 예상 평점 ${credit(a)}점</div>`;
   }
+  clearTimeout(idleTimer);
+  if (S.settings.kiosk) idleTimer = setTimeout(resultIdle, 6000);
   const el = $('#result');
   el.className = `rounded-2xl p-5 min-h-[240px] ${f.card}`;
   el.innerHTML = `<div class="text-3xl font-black">${f.icon} ${esc(title)}</div>
@@ -450,11 +542,15 @@ function feedback(kind, { a, title, hint, time, sub }) {
     ${hint ? `<div class="mt-3 text-lg font-semibold rounded-xl p-3 bg-black/15">${esc(hint)}</div>` : ''}`;
   if (currentTab !== 'scan') toast(`${title}${a ? ' — ' + a.name : ''}`, kind === 'error' ? 'error' : kind === 'warn' ? 'warn' : 'ok');
 }
+let idleTimer;
 function resultIdle() {
   const el = $('#result');
   el.className = 'rounded-2xl p-5 min-h-[240px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-center';
-  el.innerHTML = `<div class="text-2xl font-bold">대기 중</div>
-    <div class="mt-2 text-lg text-slate-500 dark:text-slate-400">QR을 비추면 여기에 이름과 <b>전화 뒷자리</b>가 크게 나옵니다.<br>뒷자리를 본인과 맞춰 보세요.</div>`;
+  el.innerHTML = S.settings.kiosk
+    ? `<div class="text-3xl font-extrabold">QR 코드를 카메라에 비춰 주세요</div>
+       <div class="mt-3 text-xl text-slate-500 dark:text-slate-400">${isPopup() ? '방문이 확인되면 초록색으로 바뀝니다.' : '입장할 때와 나갈 때 모두 찍어 주세요.'}</div>`
+    : `<div class="text-2xl font-bold">대기 중</div>
+       <div class="mt-2 text-lg text-slate-500 dark:text-slate-400">QR을 비추면 여기에 이름과 <b>전화 뒷자리</b>가 크게 나옵니다.<br>뒷자리를 본인과 맞춰 보세요.</div>`;
 }
 
 let toastTimer;
@@ -534,7 +630,7 @@ function manual(qr, type) {
   const needVerify = (dup || S.settings.alwaysVerify) && hasPhone;
   const others = dup ? S.attendees.filter((x) => x.name === a.name && x !== a) : [];
 
-  openModal(`<div class="text-base font-semibold ${type === '입실' ? 'text-emerald-600' : 'text-sky-600'}">수동 ${type} 확인</div>
+  openModal(`<div class="text-base font-semibold ${type === '입실' ? 'text-emerald-600' : 'text-sky-600'}">수동 ${L(type)} 확인</div>
     <div class="text-4xl font-extrabold mt-1 break-all">${esc(a.name)}</div>
     <div class="text-xl text-slate-600 dark:text-slate-300 mt-1">${esc(a.org || '소속 없음')}</div>
     ${a.license ? `<div class="text-base text-slate-500 mt-1">면허번호 ${esc(a.license)}</div>` : ''}
@@ -550,7 +646,7 @@ function manual(qr, type) {
        <div class="mt-1 text-base text-slate-500">본인에게 뒷자리를 확인하세요.</div>`}
     <div class="mt-4 grid grid-cols-2 gap-2">
       <button type="button" class="h-16 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-xl font-semibold" onclick="closeModal()">취소</button>
-      <button id="manualOk" type="button" ${needVerify ? 'disabled' : ''} class="h-16 rounded-xl ${type === '입실' ? 'bg-emerald-600' : 'bg-sky-700'} text-white text-xl font-bold">${type} 처리</button>
+      <button id="manualOk" type="button" ${needVerify ? 'disabled' : ''} class="h-16 rounded-xl ${type === '입실' ? 'bg-emerald-600' : 'bg-sky-700'} text-white text-xl font-bold">${L(type)} 처리</button>
     </div>`);
 
   if (needVerify) {
@@ -567,7 +663,7 @@ function manual(qr, type) {
   $('#manualOk').onclick = () => {
     closeModal();
     const t = apply(a, type, '수동');
-    feedback(type === '입실' ? 'in' : 'out', { a, title: `수동 ${type} 완료`, time: t });
+    feedback(type === '입실' ? 'in' : 'out', { a, title: `수동 ${L(type)} 완료`, time: t });
   };
 }
 
@@ -584,17 +680,19 @@ function showDetail(qr) {
   const rows = a.sessions.map((s, i) => `<tr class="border-t border-slate-200 dark:border-slate-800">
       <td class="py-2 pr-2">${i + 1}</td>
       <td class="py-2 pr-2 font-mono">${hm(s.in)}<div class="text-xs text-slate-500">${esc(s.inLoc || '')} · ${esc(s.inBy || '')}</div></td>
-      <td class="py-2 pr-2 font-mono">${s.out ? hm(s.out) : '<b class="text-emerald-600">입실중</b>'}<div class="text-xs text-slate-500">${esc(s.outLoc || '')}${s.outBy ? ' · ' + esc(s.outBy) : ''}</div></td>
+      <td class="py-2 pr-2 font-mono">${s.out ? hm(s.out) : `<b class="text-emerald-600">${L('입실중')}</b>`}<div class="text-xs text-slate-500">${esc(s.outLoc || '')}${s.outBy ? ' · ' + esc(s.outBy) : ''}</div></td>
       <td class="py-2">${s.out ? dur(Math.floor((s.out - s.in) / 60000)) : '-'}</td></tr>`).join('');
   openModal(`<div class="flex justify-between gap-3">
       <div class="min-w-0"><div class="text-3xl font-extrabold break-all">${esc(a.name)}</div>
       <div class="text-lg text-slate-600 dark:text-slate-300">${esc(a.org || '')}</div>
       <div class="text-lg font-mono mt-1">${esc(fmtPhone(a.phone))}</div>
       ${a.license ? `<div class="text-base">면허번호 ${esc(a.license)}</div>` : ''}
+      ${a.email ? `<div class="text-base break-all">${esc(a.email)}</div>` : ''}
+      ${a.source ? `<div class="text-base text-slate-500">${esc(a.source)}${a.regAt ? ' · ' + esc(a.regAt) : ''}${a.marketing ? ' · 마케팅 동의' : ''}</div>` : ''}
       <div class="text-base font-mono text-slate-500">QR ${esc(a.qr)}</div></div>
       ${qrSvg ? `<div class="w-28 shrink-0 bg-white p-1 rounded-lg">${qrSvg}</div>` : ''}
     </div>
-    <div class="mt-3 text-lg">상태 <b>${status(a)}</b> · 체류 <b>${dur(stayMin(a, true))}</b> · 예상 평점 <b>${credit(a)}점</b></div>
+    <div class="mt-3 text-lg">상태 <b>${L(status(a))}</b>${isPopup() ? '' : ` · 체류 <b>${dur(stayMin(a, true))}</b> · 예상 평점 <b>${credit(a)}점</b>`}</div>
     ${a.sessions.length ? `<table class="mt-3 w-full text-base"><thead><tr class="text-left text-slate-500"><th>#</th><th>입실</th><th>퇴실</th><th>체류</th></tr></thead><tbody>${rows}</tbody></table>` : '<div class="mt-3 text-slate-500">출결 기록 없음</div>'}
     <button type="button" class="mt-4 h-14 w-full rounded-xl border-2 border-slate-300 dark:border-slate-700 text-lg font-semibold" onclick="closeModal()">닫기</button>`);
 }
@@ -616,12 +714,25 @@ function renderHeader() {
   $('#locLabel').textContent = S.settings.location;
   $('#modeLabel').textContent = MODE_LABEL[S.settings.mode];
   document.title = `${S.settings.eventName} · 출결`;
+  $('#modeLabel').textContent = isPopup() ? '팝업 방문' : MODE_LABEL[S.settings.mode];
+  $('#kioskTitle').textContent = S.settings.eventName;
+  $('#kioskSub').textContent = `${S.settings.location} · ${isPopup() ? '방문 확인' : MODE_LABEL[S.settings.mode]}`;
+  document.body.classList.toggle('kiosk', !!S.settings.kiosk);
 }
 function renderStats() {
   const c = { '입실중': 0, '퇴실': 0, '미출석': 0 };
   S.attendees.forEach((a) => { c[status(a)]++; });
   const tile = (key, label, n, cls) => `<button type="button" data-goto="${key}" class="rounded-xl py-2 ${cls} text-center">
       <div class="text-2xl sm:text-3xl font-black leading-none">${n}</div><div class="text-sm font-semibold mt-1">${label}</div></button>`;
+  if (isPopup()) {
+    const walkin = S.attendees.filter((a) => a.source === '현장등록').length;
+    $('#stats').innerHTML =
+      tile('all', '전체 등록', S.attendees.length, 'bg-slate-200 dark:bg-slate-800') +
+      tile('입실중', '방문', c['입실중'] + c['퇴실'], 'bg-emerald-600 text-white') +
+      tile('미출석', '미방문', c['미출석'], 'bg-slate-500 text-white') +
+      tile('all', '현장 등록', walkin, 'bg-violet-700 text-white');
+    return;
+  }
   $('#stats').innerHTML =
     tile('all', '전체', S.attendees.length, 'bg-slate-200 dark:bg-slate-800') +
     tile('입실중', '입실중', c['입실중'], 'bg-emerald-600 text-white') +
@@ -629,6 +740,8 @@ function renderStats() {
     tile('미출석', '미출석', c['미출석'], 'bg-slate-500 text-white');
 }
 function renderScan() {
+  $('#modeBtns').classList.toggle('hidden', isPopup());
+  $('#popupNote').classList.toggle('hidden', !isPopup());
   $$('#modeBtns button').forEach((b) => {
     const on = b.dataset.mode === S.settings.mode;
     b.setAttribute('aria-checked', on);
@@ -665,7 +778,8 @@ function matches(a, q) {
 function renderList() {
   const q = $('#q').value.trim();
   const d = digits(q);
-  let arr = S.attendees.filter((a) => matches(a, q) && (listFilter === 'all' || status(a) === listFilter));
+  const inFilter = (a) => listFilter === 'all' || status(a) === listFilter || (isPopup() && listFilter === '입실중' && status(a) === '퇴실');
+  let arr = S.attendees.filter((a) => matches(a, q) && inFilter(a));
   arr.sort((x, y) => {
     if (d.length === 4) { // 뒷자리로 찾으면 뒷자리 일치가 먼저
       const ex = digits(x.phone).endsWith(d) ? 0 : 1;
@@ -678,7 +792,9 @@ function renderList() {
   const LIMIT = 120;
   arr = arr.slice(0, LIMIT);
 
-  const fl = [['all', '전체'], ['입실중', '입실중'], ['퇴실', '퇴실'], ['미출석', '미출석']];
+  const fl = isPopup()
+    ? [['all', '전체'], ['입실중', '방문'], ['미출석', '미방문']]
+    : [['all', '전체'], ['입실중', '입실중'], ['퇴실', '퇴실'], ['미출석', '미출석']];
   $('#filters').innerHTML = fl.map(([k, l]) => `<button type="button" data-filter="${k}" class="h-12 px-5 shrink-0 rounded-full text-lg font-semibold border-2 ${listFilter === k ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900 dark:border-white' : 'border-slate-300 dark:border-slate-700'}">${l}</button>`).join('');
   $('#listInfo').textContent = !S.attendees.length ? '' : total > LIMIT ? `${total}명 중 ${LIMIT}명 표시 — 검색어를 더 입력하세요` : `${total}명`;
 
@@ -705,15 +821,16 @@ function renderList() {
         </div>
       </div>
       <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-base">
-        <span class="px-2 py-0.5 rounded-lg font-bold ${STATUS_STYLE[st]}">${st}</span>
-        <span>입실 <b class="font-mono">${hm(first && first.in)}</b></span>
+        <span class="px-2 py-0.5 rounded-lg font-bold ${STATUS_STYLE[st]}">${L(st)}</span>
+        <span>${L('입실')} <b class="font-mono">${hm(first && first.in)}</b></span>
+        ${isPopup() ? (a.source === '현장등록' ? '<span class="text-sm text-violet-600 font-semibold">현장 등록</span>' : '') : `
         <span>퇴실 <b class="font-mono">${s && s.out ? hm(s.out) : '-'}</b></span>
-        ${a.sessions.length ? `<span class="text-slate-500">체류 ${dur(stayMin(a, true))}</span>` : ''}
+        ${a.sessions.length ? `<span class="text-slate-500">체류 ${dur(stayMin(a, true))}</span>` : ''}`}
         ${usedManual(a) ? '<span class="text-sm text-amber-600 font-semibold">수동</span>' : ''}
       </div>
-      <div class="mt-3 grid grid-cols-[1fr_1fr_auto] gap-2">
-        <button type="button" data-act="입실" data-qr="${esc(a.qr)}" ${st === '입실중' ? 'disabled' : ''} class="h-14 rounded-xl bg-emerald-600 text-white text-xl font-bold">${st === '퇴실' ? '재입실' : '입실'}</button>
-        <button type="button" data-act="퇴실" data-qr="${esc(a.qr)}" ${st !== '입실중' ? 'disabled' : ''} class="h-14 rounded-xl bg-sky-700 text-white text-xl font-bold">퇴실</button>
+      <div class="mt-3 grid ${isPopup() ? 'grid-cols-[1fr_auto]' : 'grid-cols-[1fr_1fr_auto]'} gap-2">
+        <button type="button" data-act="입실" data-qr="${esc(a.qr)}" ${st === '입실중' || (isPopup() && st === '퇴실') ? 'disabled' : ''} class="h-14 rounded-xl bg-emerald-600 text-white text-xl font-bold">${isPopup() ? '방문 처리' : st === '퇴실' ? '재입실' : '입실'}</button>
+        ${isPopup() ? '' : `<button type="button" data-act="퇴실" data-qr="${esc(a.qr)}" ${st !== '입실중' ? 'disabled' : ''} class="h-14 rounded-xl bg-sky-700 text-white text-xl font-bold">퇴실</button>`}
         <button type="button" data-act="detail" data-qr="${esc(a.qr)}" class="h-14 w-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-2xl" aria-label="상세">⋯</button>
       </div>
     </div>`;
@@ -729,10 +846,23 @@ function fillSettings() {
   $('#setMaxCredit').value = st.maxCredits;
   $('#setVerify').checked = !!st.alwaysVerify;
   $('#setPin').value = st.pin;
+  $('#setProgram').value = st.program;
+  $('#setFacing').value = st.facing;
+  $('#setRegUrl').value = st.registerUrl;
+  $('#setRegUrl').placeholder = defaultRegisterUrl() || 'https://…/register.html';
+  $('#setEvent').disabled = connected();
+  $('#setProgram').disabled = connected();
+  $('#syncedNote').classList.toggle('hidden', !connected());
+  $('#syncUrl').value = S.sync.url;
+  $('#syncKey').value = S.sync.key;
+  $('#syncDevice').value = S.sync.device;
+  renderSync();
 }
 function renderAll() {
   reindex();
+  recompute();
   renderHeader();
+  renderSync();
   renderStats();
   renderScan();
   if (currentTab === 'list') renderList();
@@ -791,7 +921,7 @@ async function startCam() {
   try {
     const v = camIdx >= 0 && camDevices[camIdx]
       ? { deviceId: { exact: camDevices[camIdx].deviceId } }
-      : { facingMode: { ideal: 'environment' } };
+      : { facingMode: { ideal: S.settings.facing } };
     v.width = { ideal: 1280 };
     v.height = { ideal: 720 };
     stream = await navigator.mediaDevices.getUserMedia({ video: v, audio: false });
@@ -906,6 +1036,7 @@ const ALIAS = {
   org: ['소속', '소속기관', '기관', '기관명', '병원', '병원명', '근무처', '회사', 'organization', 'affiliation', 'org'],
   phone: ['전화번호', '전화', '휴대폰', '휴대폰번호', '휴대전화', '연락처', '핸드폰', '핸드폰번호', 'phone', 'mobile', 'tel'],
   license: ['면허번호', '면허', '의사면허번호', '의사면허', 'license'],
+  email: ['이메일', '메일', 'email'],
   qr: ['qr코드id', 'qrid', 'qr', 'qr코드', 'qrcode', '코드', '등록번호', '참가번호', 'id', 'code'],
   status: ['출결상태', '상태', 'status'],
   inT: ['입실시간', '입실', 'checkin'],
@@ -942,17 +1073,17 @@ function buildRecords(rows) {
     if (qr) seen.add(qr.toLowerCase());
     const inT = parseTime(get('inT'));
     const outT = parseTime(get('outT'));
-    const sessions = inT ? [{ in: inT, out: outT && outT > inT ? outT : null, inLoc: '불러옴', inBy: '불러옴', outLoc: outT ? '불러옴' : undefined, outBy: outT ? '불러옴' : undefined }] : [];
-    recs.push({ qr, name, org: get('org'), phone: normPhone(get('phone')) || get('phone'), license: get('license'), sessions });
+    recs.push({ qr, name, org: get('org'), phone: normPhone(get('phone')) || get('phone'), license: get('license'),
+      email: get('email'), source: '명단', times: inT ? { inT, outT: outT && outT > inT ? outT : null } : null });
   });
   return { recs, errors, header };
 }
+/* 비어 있는 QR코드ID 는 추측하기 어려운 무작위 코드로 (남의 번호로 대리 출석 방지) */
 function assignQr(recs, taken) {
-  let n = 1;
   recs.forEach((r) => {
     if (r.qr) return;
     let id;
-    do { id = 'A' + String(n++).padStart(4, '0'); } while (taken.has(id.toLowerCase()));
+    do { id = 'A' + rid(6); } while (taken.has(id.toLowerCase()));
     taken.add(id.toLowerCase());
     r.qr = id;
   });
@@ -967,15 +1098,16 @@ function previewImport(text) {
   }
   const noQr = recs.filter((r) => !r.qr).length;
   const sample = recs.slice(0, 5).map((r) => `<tr class="border-t border-slate-200 dark:border-slate-800"><td class="py-1 pr-2 font-bold">${esc(r.name)}</td><td class="py-1 pr-2">${esc(r.org)}</td><td class="py-1 pr-2 font-mono">${esc(maskPhone(r.phone))}</td><td class="py-1 font-mono">${esc(r.qr || '(자동)')}</td></tr>`).join('');
-  const hasRecords = S.log.length > 0 || S.attendees.some((a) => a.sessions.length);
+  const hasRecords = S.log.length > 0;
   openModal(`<h3 class="text-2xl font-extrabold">명단 확인 — ${recs.length}명</h3>
     <div class="mt-1 text-base text-slate-500">${header ? '제목 줄을 인식했습니다' : '제목 줄이 없어 «이름, 소속, 전화번호, QR코드ID» 순서로 읽었습니다'}${noQr ? ` · QR코드ID 없는 ${noQr}명은 자동 번호` : ''}</div>
     <div class="mt-3 overflow-x-auto"><table class="w-full text-base"><thead><tr class="text-left text-slate-500"><th>이름</th><th>소속</th><th>전화</th><th>QR</th></tr></thead><tbody>${sample}</tbody></table></div>
     ${recs.length > 5 ? `<div class="text-sm text-slate-500 mt-1">… 외 ${recs.length - 5}명</div>` : ''}
     ${errors.length ? `<div class="mt-3 rounded-xl p-3 bg-amber-100 text-amber-950 dark:bg-amber-900/50 dark:text-amber-100 text-base max-h-32 overflow-y-auto">${errors.map(esc).join('<br>')}</div>` : ''}
+    ${connected() ? '<div class="mt-3 text-base text-slate-500">구글 시트에 연동되어 있어 «추가»만 됩니다. 추가한 명단은 시트로도 올라갑니다.</div>' : ''}
     <div class="mt-4 grid gap-2">
       <button id="impMerge" type="button" class="h-14 rounded-xl bg-emerald-600 text-white text-lg font-bold">기존 명단에 추가 (같은 QR은 정보만 갱신)</button>
-      <button id="impReplace" type="button" class="h-14 rounded-xl border-2 border-red-400 text-red-600 dark:text-red-400 text-lg font-semibold">새 명단으로 바꾸기${hasRecords ? ' (출결 기록 삭제)' : ''}</button>
+      <button id="impReplace" type="button" ${connected() ? 'hidden' : ''} class="h-14 rounded-xl border-2 border-red-400 text-red-600 dark:text-red-400 text-lg font-semibold">새 명단으로 바꾸기${hasRecords ? ' (출결 기록 삭제)' : ''}</button>
       <button type="button" class="h-12 rounded-xl text-lg" onclick="closeModal()">취소</button>
     </div>`);
   $('#impMerge').onclick = () => {
@@ -987,11 +1119,12 @@ function previewImport(text) {
     recs.forEach((r) => {
       const ex = idx.get(r.qr.toLowerCase());
       if (ex) {
-        Object.assign(ex, { name: r.name, org: r.org, phone: r.phone, license: r.license || ex.license });
-        if (!ex.sessions.length && r.sessions.length) ex.sessions = r.sessions;
+        Object.assign(ex, { name: r.name, org: r.org, phone: r.phone, license: r.license || ex.license, email: r.email || ex.email });
         updated++;
       } else { S.attendees.push(r); added++; }
+      if (connected()) S.sync.pendingAtt.push(r.qr);
     });
+    importTimes(recs);
     finishImport(`${added}명 추가 · ${updated}명 갱신`);
   };
   $('#impReplace').onclick = () => {
@@ -1001,14 +1134,27 @@ function previewImport(text) {
       S.attendees = recs;
       S.log = [];
       S.undo = null;
+      importTimes(recs);
       finishImport(`새 명단 ${recs.length}명`);
     };
     if (hasRecords) confirmTyped('명단 바꾸기', '지금까지의 출결 기록이 모두 지워집니다. 먼저 «출결 현황 CSV 받기»나 백업을 해 두세요.', '바꾸기', go);
     else go();
   };
 }
+/* 다시 읽어 들인 출결 현황 CSV 의 입실·퇴실 시간은 «불러옴» 기록으로 */
+function importTimes(recs) {
+  const has = new Set(S.log.map((e) => String(e.qr).toLowerCase()));
+  recs.forEach((r) => {
+    if (!r.times || has.has(r.qr.toLowerCase())) return;
+    const base = { qr: r.qr, name: r.name, p4: last4(r.phone), loc: '불러옴', by: '불러옴' };
+    addEvent({ ...base, type: '입실', t: r.times.inT });
+    if (r.times.outT) addEvent({ ...base, type: '퇴실', t: r.times.outT });
+  });
+  recs.forEach((r) => { delete r.times; });
+}
 function finishImport(msg) {
   closeModal();
+  kickSync();
   save();
   renderAll();
   $('#pasteBox').value = '';
@@ -1044,6 +1190,16 @@ function download(name, text, type) {
 const safeName = () => S.settings.eventName.replace(/[\\/:*?"<>|\s]+/g, '_');
 function exportSummary() {
   if (!S.attendees.length) return toast('내보낼 명단이 없습니다', 'warn');
+  if (isPopup()) {
+    const ph = ['이름', '소속', '전화번호', '이메일', 'QR코드ID', '등록경로', '등록시각', '마케팅동의', '방문여부', '방문시각', '처리방식'];
+    const pr = S.attendees.map((a) => {
+      const first = a.sessions[0];
+      return [a.name, a.org, fmtPhone(a.phone), a.email, a.qr, a.source || '명단', a.regAt || '', a.marketing ? '동의' : '',
+        first ? '방문' : '미방문', first ? fmt(first.in) : '', first ? first.inBy : ''];
+    });
+    download(`방문자_${safeName()}_${stamp()}.csv`, '\uFEFF' + [ph, ...pr].map((r) => r.map(csvCell).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
+    return toast('방문자 CSV를 저장했습니다');
+  }
   const head = ['이름', '소속', '전화번호', '면허번호', 'QR코드ID', '출결상태', '입실시간', '퇴실시간', '입퇴실횟수', '총체류시간(분)', '예상평점', '처리방식', '비고'];
   const rows = S.attendees.map((a) => {
     const st = status(a);
@@ -1062,29 +1218,62 @@ function exportSummary() {
 }
 function exportLog() {
   if (!S.log.length) return toast('스캔 기록이 없습니다', 'warn');
-  const head = ['시간', '구분', '이름', '전화뒷자리', 'QR코드ID', '장소', '방식', '비고'];
-  const rows = S.log.map((l) => [fmt(l.t), l.type, l.name, l.p4, l.qr, l.loc, l.by, l.note || '']);
+  const head = ['시간', '구분', '이름', '전화뒷자리', 'QR코드ID', '장소', '방식', '기기', '비고'];
+  const rows = [...S.log].sort((x, y) => x.t - y.t).map((l) => [fmt(l.t), l.type, l.name, l.p4, l.qr, l.loc, l.by, l.device || '', l.note || '']);
   const csv = '﻿' + [head, ...rows].map((r) => r.map(csvCell).join(',')).join('\r\n');
   download(`스캔기록_${safeName()}_${stamp()}.csv`, csv, 'text/csv;charset=utf-8');
 }
 function backup() {
-  download(`출결백업_${safeName()}_${stamp()}.json`, JSON.stringify({ app: 'conf-attendance', v: 1, savedAt: Date.now(), ...S }), 'application/json');
+  // 직원코드는 백업 파일에 넣지 않는다
+  const data = { app: 'conf-attendance', v: 2, savedAt: Date.now(), settings: S.settings, attendees: S.attendees, log: S.log, sync: { device: S.sync.device } };
+  download(`출결백업_${safeName()}_${stamp()}.json`, JSON.stringify(data, (k, v) => (k === 'sessions' ? undefined : v)), 'application/json');
 }
 async function restore(file) {
+  let data;
   try {
-    const data = JSON.parse(await readFileText(file));
+    data = JSON.parse(await readFileText(file));
     if (!Array.isArray(data.attendees) || !Array.isArray(data.log)) throw new Error('형식');
-    confirmTyped('백업 불러오기', `${data.attendees.length}명 · 기록 ${data.log.length}건(${fmt(data.savedAt)} 저장)으로 <b>지금 자료를 덮어씁니다</b>.`, '불러오기', () => {
-      S = { settings: { ...DEFAULTS, ...(data.settings || {}) }, attendees: data.attendees, log: data.log, undo: null };
-      S.attendees.forEach((a) => { a.sessions = Array.isArray(a.sessions) ? a.sessions : []; });
-      save();
-      renderAll();
-      fillSettings();
+  } catch (e) {
+    return toast('이 파일은 출결 백업 파일이 아닙니다', 'error');
+  }
+  openModal(`<h3 class="text-2xl font-extrabold">백업 불러오기</h3>
+    <p class="mt-2 text-lg">${data.attendees.length}명 · 기록 ${data.log.length}건 (${esc(fmt(data.savedAt))} 저장${data.sync && data.sync.device ? ' · ' + esc(data.sync.device) : ''})</p>
+    <div class="mt-4 grid gap-2">
+      <button id="rsMerge" type="button" class="h-14 rounded-xl bg-emerald-600 text-white text-lg font-bold">이 기기 자료와 합치기</button>
+      <div class="text-base text-slate-500 -mt-1">인터넷 없이 여러 기기를 썼을 때, 다른 기기의 백업을 모아 합칩니다. 같은 기록은 한 번만 들어갑니다.</div>
+      <button id="rsReplace" type="button" class="h-14 rounded-xl border-2 border-red-400 text-red-600 dark:text-red-400 text-lg font-semibold">지금 자료를 지우고 덮어쓰기</button>
+      <button type="button" class="h-12 rounded-xl text-lg" onclick="closeModal()">취소</button>
+    </div>`);
+  const mergeIn = () => {
+    const have = new Set(S.log.map((e) => e.id));
+    let addedLog = 0;
+    data.log.forEach((e) => {
+      if (!e.id) e.id = newId();
+      if (have.has(e.id)) return;
+      have.add(e.id); S.log.push(e); addedLog++;
+      if (connected()) S.sync.pending.push(e.id);
+    });
+    let addedAtt = 0;
+    data.attendees.forEach((a) => {
+      if (!a.qr || idx.has(String(a.qr).toLowerCase())) return;
+      delete a.sessions;
+      S.attendees.push(a); idx.set(String(a.qr).toLowerCase(), a); addedAtt++;
+      if (connected()) S.sync.pendingAtt.push(a.qr);
+    });
+    return `명단 ${addedAtt}명 · 기록 ${addedLog}건을 합쳤습니다`;
+  };
+  $('#rsMerge').onclick = () => { closeModal(); const msg = mergeIn(); save(); renderAll(); kickSync(); toast(msg); };
+  $('#rsReplace').onclick = () => {
+    if (connected()) return toast('구글 시트에 연동 중에는 덮어쓸 수 없습니다. «합치기»를 쓰세요', 'warn');
+    confirmTyped('백업으로 덮어쓰기', '지금 이 기기의 명단과 기록이 모두 지워지고 백업 내용으로 바뀝니다.', '불러오기', () => {
+      S.settings = { ...DEFAULTS, ...(data.settings || {}) };
+      S.attendees = []; S.log = []; S.undo = null;
+      reindex();
+      mergeIn();
+      save(); renderAll(); fillSettings();
       toast('백업을 불러왔습니다');
     });
-  } catch (e) {
-    toast('이 파일은 출결 백업 파일이 아닙니다', 'error');
-  }
+  };
 }
 function printQr() {
   if (!S.attendees.length) return toast('명단이 없습니다', 'warn');
@@ -1121,10 +1310,10 @@ function undoLast() {
       <button id="undoOk" type="button" class="h-14 rounded-xl bg-red-600 text-white text-lg font-bold">취소하기</button>
     </div>`);
   $('#undoOk').onclick = () => {
-    a.sessions = u.sessions;
-    S.log.push({ t: Date.now(), qr: a.qr, name: a.name, p4: last4(a.phone), type: '취소', loc: S.settings.location, by: '수동', note: `${fmt(u.at)} ${u.type} 취소` });
+    addEvent({ qr: a.qr, name: a.name, p4: last4(a.phone), type: '취소', ref: u.id, loc: S.settings.location, by: '수동', note: `${fmt(u.at)} ${u.type} 취소` });
     S.undo = null;
     save();
+    kickSync();
     closeModal();
     renderAll();
     resultIdle();
@@ -1245,26 +1434,265 @@ $('#saveSettings').addEventListener('click', () => {
   st.maxCredits = num('#setMaxCredit', 0, 24, DEFAULTS.maxCredits);
   st.alwaysVerify = $('#setVerify').checked;
   st.pin = $('#setPin').value.trim();
+  if (!connected()) st.program = $('#setProgram').value;
+  if (st.facing !== $('#setFacing').value) camIdx = -1;
+  st.facing = $('#setFacing').value;
+  st.registerUrl = $('#setRegUrl').value.trim();
   pinUnlocked = true;
   save();
   renderAll();
   fillSettings();
   toast('설정을 저장했습니다');
 });
-$('#resetAttBtn').addEventListener('click', () => confirmTyped('출결 기록 지우기', '모든 참석자의 입실·퇴실 기록과 스캔 기록이 지워집니다. 명단은 남습니다.', '초기화', () => {
-  S.attendees.forEach((a) => { a.sessions = []; });
+const blockIfSynced = (fn) => () => (connected() ? toast('연동 중에는 시트의 기록이 다시 내려옵니다. 지우려면 연결을 끊거나 시트에서 지우세요', 'warn') : fn());
+$('#resetAttBtn').addEventListener('click', blockIfSynced(() => confirmTyped('출결 기록 지우기', '모든 참석자의 입실·퇴실 기록과 스캔 기록이 지워집니다. 명단은 남습니다.', '초기화', () => {
   S.log = [];
   S.undo = null;
   save(); renderAll(); resultIdle();
   toast('출결 기록을 지웠습니다');
-}));
-$('#resetAllBtn').addEventListener('click', () => confirmTyped('모두 지우기', '명단과 출결 기록이 모두 지워집니다. 설정은 남습니다.', '전체삭제', () => {
+})));
+$('#resetAllBtn').addEventListener('click', blockIfSynced(() => confirmTyped('모두 지우기', '명단과 출결 기록이 모두 지워집니다. 설정은 남습니다.', '전체삭제', () => {
   S.attendees = [];
   S.log = [];
   S.undo = null;
   save(); renderAll(); resultIdle();
   toast('모두 지웠습니다');
-}));
+})));
+
+
+/* =========================================================
+   구글 시트 연동 — 기록은 이 기기에 먼저 저장하고, 연결되면 올리고 내려받는다
+   ========================================================= */
+const connected = () => !!(S.sync.url && S.sync.key);
+let syncTimer = null;
+let syncing = false;
+let kickTimer = null;
+async function api(url, payload) {
+  // text/plain 본문이면 브라우저가 사전 확인 요청 없이 바로 보낸다 (Apps Script 웹 앱 방식)
+  const r = await fetch(url, { method: 'POST', body: JSON.stringify(payload), redirect: 'follow' });
+  if (!r.ok) throw new Error(`서버 응답 ${r.status}`);
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || '서버 오류');
+  return j;
+}
+const attOut = (a) => ({ qr: a.qr, name: a.name, org: a.org || '', phone: fmtPhone(a.phone), license: a.license || '', email: a.email || '', source: a.source || '명단' });
+function kickSync() {
+  if (!connected()) return;
+  clearTimeout(kickTimer);
+  kickTimer = setTimeout(syncNow, 300);
+}
+async function syncNow() {
+  if (!connected() || syncing) return;
+  syncing = true;
+  const key = S.sync.key;
+  const url = S.sync.url;
+  try {
+    // 1) 올리기 — 500건씩
+    while (S.sync.pending.length || S.sync.pendingAtt.length) {
+      const ids = new Set(S.sync.pending.slice(0, 500));
+      const qrs = new Set(S.sync.pendingAtt.slice(0, 500));
+      const events = S.log.filter((e) => ids.has(e.id));
+      const attendees = S.attendees.filter((a) => qrs.has(a.qr)).map(attOut);
+      await api(url, { action: 'push', key, events, attendees });
+      S.sync.pending = S.sync.pending.filter((id) => !ids.has(id));
+      S.sync.pendingAtt = S.sync.pendingAtt.filter((q) => !qrs.has(q));
+      save();
+    }
+    // 2) 내려받기 — 명단 전체 + 새 기록
+    const j = await api(url, { action: 'pull', key, since: S.sync.cursor });
+    if (url !== S.sync.url) return; // 그 사이 연결이 바뀜
+    let changed = false;
+    if (j.reset) {
+      const keep = new Set(S.sync.pending);
+      S.log = S.log.filter((e) => keep.has(e.id));
+      changed = true;
+    }
+    const have = new Set(S.log.map((e) => e.id));
+    j.events.forEach((e) => { if (!have.has(e.id)) { S.log.push(e); have.add(e.id); changed = true; } });
+    S.sync.cursor = j.next;
+    const pendingQr = new Set(S.sync.pendingAtt);
+    j.attendees.forEach((r) => {
+      const ex = idx.get(String(r.qr).toLowerCase());
+      if (ex && pendingQr.has(ex.qr)) return; // 이 기기에서 고친 것이 아직 안 올라감
+      if (ex) {
+        for (const k of ['name', 'org', 'phone', 'license', 'email', 'source', 'regAt', 'marketing']) {
+          if (r[k] !== undefined && ex[k] !== r[k]) { ex[k] = r[k]; changed = true; }
+        }
+      } else {
+        S.attendees.push({ ...r }); idx.set(String(r.qr).toLowerCase(), r); changed = true;
+      }
+    });
+    if (j.event) {
+      const prog = j.event.mode === 'popup' ? 'popup' : 'conference';
+      if (S.settings.eventName !== j.event.name || S.settings.program !== prog) {
+        S.settings.eventName = j.event.name; S.settings.program = prog; changed = true;
+      }
+      S.sync.event = j.event;
+    }
+    S.sync.lastOk = Date.now();
+    S.sync.lastErr = '';
+    save();
+    if (changed) {
+      renderAll();
+      if (currentTab === 'data') fillSettings();
+    }
+  } catch (e) {
+    S.sync.lastErr = e.message || String(e);
+  } finally {
+    syncing = false;
+    renderSync();
+  }
+}
+function startSyncLoop() {
+  clearInterval(syncTimer);
+  syncTimer = null;
+  if (connected()) {
+    syncNow();
+    syncTimer = setInterval(syncNow, 8000);
+  }
+  renderSync();
+}
+function renderSync() {
+  const lab = $('#syncLabel');
+  const box = $('#syncStatus');
+  if (!connected()) {
+    lab.textContent = '';
+    if (box) box.innerHTML = '<span class="text-slate-500">연결 안 됨 — 이 기기에만 저장합니다</span>';
+    return;
+  }
+  const waiting = S.sync.pending.length + S.sync.pendingAtt.length;
+  const ago = S.sync.lastOk ? Math.round((Date.now() - S.sync.lastOk) / 1000) : null;
+  const fresh = ago !== null && ago < 30 && !S.sync.lastErr;
+  lab.innerHTML = fresh
+    ? `· <span class="text-emerald-600 dark:text-emerald-400 font-bold">● 연동</span>${waiting ? ` (보내는 중 ${waiting})` : ''}`
+    : `· <span class="text-red-600 dark:text-red-400 font-bold">● 연동 끊김</span>${waiting ? ` (대기 ${waiting}건)` : ''}`;
+  if (box) {
+    box.innerHTML = `${fresh ? '<span class="text-emerald-600">● 연결됨</span>' : '<span class="text-red-600">● 연결 안 됨</span>'}
+      <span class="text-base font-normal text-slate-500"> · ${esc(S.sync.device || '이름 없는 기기')} · 마지막 맞춤 ${S.sync.lastOk ? hm(S.sync.lastOk) : '-'} · 보낼 것 ${waiting}건</span>
+      ${S.sync.lastErr ? `<div class="text-base text-red-600 mt-1">${esc(S.sync.lastErr)}</div>` : ''}`;
+  }
+}
+async function connectSync() {
+  const url = $('#syncUrl').value.trim();
+  const key = $('#syncKey').value.trim();
+  const device = $('#syncDevice').value.trim();
+  if (!/^https:\/\//.test(url)) return toast('웹 앱 주소(https://…/exec)를 넣으세요', 'warn');
+  if (!key) return toast('직원코드를 넣으세요', 'warn');
+  if (!device) return toast('이 기기 이름을 넣으세요 (예: 1층 입구)', 'warn');
+  $('#syncConnect').disabled = true;
+  let j;
+  try {
+    j = await api(url, { action: 'pull', key, since: 0 });
+  } catch (e) {
+    $('#syncConnect').disabled = false;
+    return toast(`연결 실패: ${e.message}`, 'error');
+  }
+  $('#syncConnect').disabled = false;
+  const remoteQr = new Set(j.attendees.map((a) => String(a.qr).toLowerCase()));
+  const remoteIds = new Set(j.events.map((e) => e.id));
+  const onlyAtt = S.attendees.filter((a) => !remoteQr.has(String(a.qr).toLowerCase()));
+  const onlyLog = S.log.filter((e) => !remoteIds.has(e.id));
+  const finish = (send) => {
+    closeModal();
+    S.sync = { ...SYNC_DEFAULTS, url, key, device, pending: send ? onlyLog.map((e) => e.id) : [], pendingAtt: send ? onlyAtt.map((a) => a.qr) : [] };
+    if (!send) { // 이 기기 것은 버리고 시트 기준으로
+      S.attendees = []; S.log = []; S.undo = null; reindex();
+    }
+    save();
+    startSyncLoop();
+    fillSettings();
+    toast(`«${j.event.name}» 시트에 연결했습니다`);
+  };
+  if (!onlyAtt.length && !onlyLog.length) return finish(true);
+  openModal(`<h3 class="text-2xl font-extrabold">이 기기에만 있는 자료</h3>
+    <p class="mt-2 text-lg">시트에 없는 명단 <b>${onlyAtt.length}명</b>, 기록 <b>${onlyLog.length}건</b>이 이 기기에 있습니다.</p>
+    <div class="mt-4 grid gap-2">
+      <button id="cnSend" type="button" class="h-14 rounded-xl bg-emerald-600 text-white text-lg font-bold">시트로 보내고 연결 (보통 이것)</button>
+      <button id="cnDrop" type="button" class="h-14 rounded-xl border-2 border-red-400 text-red-600 dark:text-red-400 text-lg font-semibold">이 기기 자료는 버리고 시트 것만 쓰기</button>
+      <button type="button" class="h-12 rounded-xl text-lg" onclick="closeModal()">취소</button>
+    </div>`);
+  $('#cnSend').onclick = () => finish(true);
+  $('#cnDrop').onclick = () => confirmTyped('이 기기 자료 버리기', '시트로 보내지 않은 명단과 기록이 이 기기에서 지워집니다.', '버리기', () => finish(false));
+}
+function disconnectSync() {
+  const waiting = S.sync.pending.length + S.sync.pendingAtt.length;
+  const go = () => {
+    S.sync = { ...SYNC_DEFAULTS, device: S.sync.device };
+    save(); startSyncLoop(); fillSettings();
+    toast('연결을 끊었습니다. 자료는 이 기기에 남아 있습니다');
+  };
+  if (waiting) confirmTyped('연결 끊기', `아직 시트로 못 보낸 것이 ${waiting}건 있습니다. 끊으면 이 기기에만 남습니다.`, '끊기', go);
+  else go();
+}
+
+/* 현장 등록 QR */
+function defaultRegisterUrl() {
+  return /^https?:$/.test(location.protocol) ? location.href.replace(/[?#].*$/, '').replace(/[^/]*$/, 'register.html') : '';
+}
+function registerLink() {
+  const base = S.settings.registerUrl || defaultRegisterUrl();
+  if (!base || !connected()) return '';
+  return `${base}${base.includes('?') ? '&' : '?'}api=${encodeURIComponent(S.sync.url)}`;
+}
+function showRegisterQr() {
+  if (!connected()) return toast('먼저 «여러 기기 연동»에서 구글 시트에 연결하세요', 'warn');
+  const link = registerLink();
+  if (!link) return toast('등록 페이지 주소를 넣으세요 (파일로 열었을 때는 자동으로 알 수 없습니다)', 'warn');
+  if (typeof qrcode !== 'function') return toast('QR 생성 기능을 불러오지 못했습니다(인터넷 연결 확인)', 'error');
+  const q = qrcode(0, 'M'); q.addData(link); q.make();
+  const svg = q.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
+  openModal(`<h3 class="text-2xl font-extrabold">현장 등록 QR</h3>
+    <div class="mt-3 mx-auto w-64 bg-white p-2 rounded-xl">${svg}</div>
+    <div class="mt-2 text-sm font-mono break-all text-slate-500">${esc(link)}</div>
+    <div class="mt-4 grid grid-cols-2 gap-2">
+      <a href="${esc(link)}" target="_blank" rel="noopener" class="h-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-lg font-semibold flex items-center justify-center">등록 화면 열어 보기</a>
+      <button id="regPrint" type="button" class="h-14 rounded-xl bg-violet-700 text-white text-lg font-bold">A4 안내문 인쇄</button>
+    </div>
+    <button type="button" class="mt-2 h-12 w-full rounded-xl text-lg" onclick="closeModal()">닫기</button>`);
+  $('#regPrint').onclick = () => {
+    const w = window.open('', '_blank');
+    if (!w) return toast('팝업이 막혔습니다. 팝업 허용 후 다시 누르세요', 'warn');
+    w.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>현장 등록 QR</title>
+      <style>body{font-family:system-ui,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;text-align:center;margin:40px;color:#000;background:#fff}
+      h1{font-size:40px;margin:0}h2{font-size:28px;font-weight:600;margin:12px 0 30px}svg{width:420px;height:420px}p{font-size:22px}</style></head>
+      <body><h1>${esc(S.settings.eventName)}</h1><h2>${isPopup() ? '휴대폰 카메라로 찍고 방문 등록하세요' : '현장 등록 — 휴대폰 카메라로 찍으세요'}</h2>${svg}
+      <p>등록하면 휴대폰에 나오는 개인 QR을 ${isPopup() ? '직원에게 보여 주세요' : '입장·퇴장 때 패드에 찍어 주세요'}.</p>
+      <script>setTimeout(function(){window.print()},400)<\/script></body></html>`);
+    w.document.close();
+  };
+}
+
+/* 무인(키오스크) 모드 */
+function enterKiosk() {
+  S.settings.kiosk = true;
+  save();
+  renderHeader();
+  resultIdle();
+  if (!stream) startCam();
+}
+function exitKiosk() {
+  const go = () => {
+    S.settings.kiosk = false;
+    save(); renderHeader(); resultIdle();
+  };
+  if (S.settings.pin) return askPin(go);
+  openModal(`<h3 class="text-2xl font-extrabold">무인 모드 끝내기</h3>
+    <p class="mt-2 text-lg">관리자 PIN을 설정하면 참가자가 무인 모드를 끌 수 없습니다.</p>
+    <div class="mt-4 grid grid-cols-2 gap-2">
+      <button type="button" class="h-14 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-lg font-semibold" onclick="closeModal()">계속 무인 모드</button>
+      <button id="kxOk" type="button" class="h-14 rounded-xl bg-slate-800 text-white text-lg font-bold">끝내기</button>
+    </div>`);
+  $('#kxOk').onclick = () => { closeModal(); go(); };
+}
+$('#kioskBtn').addEventListener('click', () => { unlockAudio(); enterKiosk(); });
+$('#kioskExit').addEventListener('click', exitKiosk);
+$('#kioskStart').addEventListener('click', () => { $('#kioskStart').classList.add('hidden'); unlockAudio(); startCam(); });
+$('#syncConnect').addEventListener('click', connectSync);
+$('#syncNowBtn').addEventListener('click', () => { if (!connected()) return toast('연결되어 있지 않습니다', 'warn'); syncNow().then(() => toast(S.sync.lastErr ? `실패: ${S.sync.lastErr}` : '맞췄습니다', S.sync.lastErr ? 'error' : 'ok')); });
+$('#syncOff').addEventListener('click', disconnectSync);
+$('#regQrBtn').addEventListener('click', showRegisterQr);
+window.addEventListener('online', kickSync);
+setInterval(renderSync, 5000);
 
 /* 다른 탭(창)에서 바뀐 내용 반영 */
 window.addEventListener('storage', (e) => { if (e.key === KEY) { load(); renderAll(); } });
@@ -1278,6 +1706,8 @@ tickClock();
 renderAll();
 resultIdle();
 showTab('scan');
+startSyncLoop();
+if (S.settings.kiosk) $('#kioskStart').classList.remove('hidden');
 </script>
 </body>
 </html>
