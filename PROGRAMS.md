@@ -21,6 +21,7 @@
 | 14 | 제휴 상품 매칭 로직 | `products/affiliate-matcher/` | `test_affiliate_matcher.py` | 이 저장소 |
 | 15 | 자동화 대행 납품 키트 | `products/agency-kit/` | `test_agency_kit.py` | 이 저장소 |
 | 16 | 니치 리서치 | `products/niche-research/` | `test_niche_research.py` | 이 저장소 |
+| 17 | 연예인 착용템 쇼츠 기획기 | `products/celeb-shorts/` | `test_celeb_shorts.py` | 이 저장소 |
 
 ## 공용 자산 (여러 번호가 함께 씀 — 번호 작업 중 고치려면 먼저 확인)
 

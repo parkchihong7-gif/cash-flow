@@ -39,6 +39,7 @@ import yaml
     "affiliate-matcher": (["test_affiliate_matcher.py"], "affiliate"),
     "agency-kit": (["test_agency_kit.py"], "agency"),
     "niche-research": (["test_niche_research.py"], "niche"),
+    "celeb-shorts": (["test_celeb_shorts.py"], "celeb"),
 }
 
 # 본체가 이 저장소 밖에 있는 번호. 그 저장소에서 따로 고치고 시험한다.

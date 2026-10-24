@@ -2,7 +2,7 @@
 //  접속키 서버 — 구글 앱스 스크립트에 붙여 넣는 **한 장짜리** 판입니다.
 //
 //  ■ 붙여넣기 전에 꼭 보세요
-//    이 파일은 1,586줄입니다. 맨 아래에 ⛳ 표가 있습니다.
+//    이 파일은 1,588줄입니다. 맨 아래에 ⛳ 표가 있습니다.
 //    붙여 넣은 뒤 **맨 아래에 그 ⛳ 표가 보이는지** 확인하세요.
 //    안 보이면 잘린 것이고, 그대로 저장하면
 //      구문 오류: SyntaxError: Unexpected end of input
@@ -208,9 +208,7 @@ window.PROGRAMS = [
   },
   {
     "id": "naver-blog",
-    "name": "네이버 블로그 초안 생성기",
-    "url": "https://maim-1048530680370.us-central1.run.app/",
-    "adminUrl": "https://maim-1048530680370.us-central1.run.app/"
+    "name": "네이버 블로그 초안 생성기"
   },
   {
     "id": "speaker-desk",
@@ -265,6 +263,10 @@ window.PROGRAMS = [
     "name": "니치 리서치"
   },
   {
+    "id": "celeb-shorts",
+    "name": "연예인 착용템 쇼츠 기획기"
+  },
+  {
     "id": "maim",
     "name": "maim 블로그 (바깥 프로그램)"
   }
@@ -313,11 +315,11 @@ window.PROGRAMS = [
     return 기억[이름] || "";
   }
   function 넣기(창고이름, 이름, 값) {
-    기억[이름] = 값;`;
+    기억[이름] = 값;
+    try { window[창고이름].setItem(이름, 값); } catch (_) { /* 막혀 있다 */ }
+  }`;
 
-var ADMIN_HTML_2 = `    try { window[창고이름].setItem(이름, 값); } catch (_) { /* 막혀 있다 */ }
-  }
-  function 지우기(창고이름, 이름) {
+var ADMIN_HTML_2 = `  function 지우기(창고이름, 이름) {
     delete 기억[이름];
     try { window[창고이름].removeItem(이름); } catch (_) { /* 막혀 있다 */ }
   }
@@ -554,10 +556,10 @@ var ADMIN_HTML_2 = `    try { window[창고이름].setItem(이름, 값); } catch
       var copy = document.createElement("button");
       copy.className = "quiet";
       copy.style.marginTop = "10px";
-      copy.textContent = "전부 복사";`;
+      copy.textContent = "전부 복사";
+      copy.onclick = function () {`;
 
-var ADMIN_HTML_3 = `      copy.onclick = function () {
-        navigator.clipboard.writeText(lines.join("\\n")).then(function () {
+var ADMIN_HTML_3 = `        navigator.clipboard.writeText(lines.join("\\n")).then(function () {
           copy.textContent = "복사했습니다";
         }).catch(function () { copy.textContent = "복사하지 못했습니다"; });
       };

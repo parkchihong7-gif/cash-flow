@@ -187,9 +187,7 @@ window.PROGRAMS = [
   },
   {
     "id": "naver-blog",
-    "name": "네이버 블로그 초안 생성기",
-    "url": "https://maim-1048530680370.us-central1.run.app/",
-    "adminUrl": "https://maim-1048530680370.us-central1.run.app/"
+    "name": "네이버 블로그 초안 생성기"
   },
   {
     "id": "speaker-desk",
@@ -244,6 +242,10 @@ window.PROGRAMS = [
     "name": "니치 리서치"
   },
   {
+    "id": "celeb-shorts",
+    "name": "연예인 착용템 쇼츠 기획기"
+  },
+  {
     "id": "maim",
     "name": "maim 블로그 (바깥 프로그램)"
   }
@@ -292,6 +294,8 @@ window.PROGRAMS = [
     return 기억[이름] || "";
   }
   function 넣기(창고이름, 이름, 값) {
-    기억[이름] = 값;`;
+    기억[이름] = 값;
+    try { window[창고이름].setItem(이름, 값); } catch (_) { /* 막혀 있다 */ }
+  }`;
 
 // ⛳ 1/6 끝 — 이 줄이 안 보이면 붙여넣기가 잘린 것입니다.

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ s.channel_name }} 관리자</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+  :root {
+    --navy: {{ s.color_navy }}; --mustard: {{ s.color_mustard }}; --coral: {{ s.color_coral }};
+    --pink: {{ s.color_pink }}; --cream: {{ s.color_cream }};
+  }
+</style>
+</head>
+<body>
+<header class="masthead">
+  <div class="brand">
+    <span class="orbit" aria-hidden="true">✦</span>
+    <div>
+      <div class="name">{{ s.channel_name }} <small>{{ s.channel_name_en }}</small></div>
+      <div class="slogan">{{ s.slogan }}</div>
+    </div>
+  </div>
+  <nav>
+    {% for href, label, ready in menu %}
+      <a href="{{ href }}" class="{{ 'on' if path == href else '' }} {{ '' if ready else 'soon' }}">{{ label }}</a>
+    {% endfor %}
+  </nav>
+</header>
+<main>
+  {% if flash %}<p class="flash ok">{{ flash }}</p>{% endif %}
+  {% if error %}<p class="flash err">{{ error }}</p>{% endif %}
+  {% block body %}{% endblock %}
+</main>
+<footer>관리자 승인 없이 공개되는 영상은 없습니다 · 이 PC 에서만 열립니다 (127.0.0.1)</footer>
+</body>
+</html>

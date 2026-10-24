@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>오늘 할 일</h1>
+<div class="tiles">
+  {% for label, n in counts.items() %}
+    <div class="tile {{ 'warn' if label == '실패한 작업' and n else '' }}">
+      <div class="n">{{ n }}</div><div class="l">{{ label }}</div>
+    </div>
+  {% endfor %}
+</div>
+
+<section class="card">
+  <h2>제휴 판매 성과</h2>
+  <p class="muted">미연동 — 쿠팡파트너스·YouTube 분석을 연결하기 전에는 숫자를 보여 주지 않습니다.
+  추정 수익을 확정처럼 표시하지 않기 위해서입니다 (4단계).</p>
+</section>
+
+<section class="card">
+  <h2>지금 만들어진 것</h2>
+  <ol class="steps">
+    <li class="done">뼈대 — DB · 브랜드 설정 · 백업/복원 · 작업 기록</li>
+    <li class="done">상품 · 출처 · 검증 · 제휴 링크 · 이미지 라이선스</li>
+    <li class="done">대본 3안 생성과 승인</li>
+    <li class="done">레트로 템플릿 5종 영상 렌더</li>
+    <li class="done">권리 검사 · 미리보기 · 다운로드 · 업로드용 제목과 설명</li>
+  </ol>
+</section>
+
+<section class="card">
+  <h2>최근 작업</h2>
+  {% if recent %}
+  <table><tr><th>시각</th><th>작업</th><th>상태</th><th>내용</th></tr>
+    {% for j in recent %}<tr><td>{{ j.created_at[:16].replace('T',' ') }}</td><td>{{ j.kind }}</td>
+      <td class="st-{{ j.status }}">{{ j.status }}</td><td>{{ j.message or j.last_error }}</td></tr>{% endfor %}
+  </table>
+  {% else %}<p class="muted">아직 기록이 없습니다.</p>{% endif %}
+</section>
+{% endblock %}

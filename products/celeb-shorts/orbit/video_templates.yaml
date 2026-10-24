@@ -1,0 +1,83 @@
+# 셀럽오르빗 영상 템플릿 5종 — 고쳐도 됩니다(설정 화면에서 열어 볼 수 있음).
+#
+# 색 이름은 브랜드 색 5개 중 하나: navy · mustard · coral · pink · cream
+# 모든 템플릿이 같은 층을 씁니다: 종이 → 망점 → 색면 → 상품 → 글자 → 별·궤도
+# 다른 것은 배치·색 비율·상품 틀 모양뿐입니다. 그래서 어느 영상이든 «셀럽오르빗» 으로 보입니다.
+#
+# frame(상품 틀): arch(아치) · circle(원) · polaroid(폴라로이드) · tv(브라운관) · starburst(별 터짐)
+# halftone(망점): top · bottom · full · none
+
+fonts:
+  title: BlackHanSans-Regular.ttf
+  body: DoHyeon-Regular.ttf
+
+templates:
+  cosmetic_ad:
+    label: 80년대 화장품 광고형
+    bg: cream
+    block: pink          # 아래쪽 큰 색면
+    band: navy           # 상단 고정 제목 띠
+    band_text: cream
+    accent: coral
+    halftone: bottom
+    halftone_color: coral
+    frame: arch
+    stars: 6
+    subtitle_bg: navy
+    subtitle_text: cream
+
+  magazine:
+    label: 빈티지 패션잡지형
+    bg: cream
+    block: mustard
+    band: coral
+    band_text: cream
+    accent: navy
+    halftone: top
+    halftone_color: navy
+    frame: polaroid
+    stars: 3
+    subtitle_bg: cream
+    subtitle_text: navy
+
+  popart:
+    label: 레트로 팝아트형
+    bg: mustard
+    block: coral
+    band: navy
+    band_text: mustard
+    accent: pink
+    halftone: full
+    halftone_color: coral
+    frame: starburst
+    stars: 9
+    subtitle_bg: navy
+    subtitle_text: mustard
+
+  broadcast:
+    label: 방송 속 화제템 소개형
+    bg: navy
+    block: coral
+    band: mustard
+    band_text: navy
+    accent: pink
+    halftone: bottom
+    halftone_color: pink
+    frame: tv
+    stars: 5
+    subtitle_bg: mustard
+    subtitle_text: navy
+
+  shopping_list:
+    label: 스타 쇼핑 리스트형
+    bg: pink
+    block: cream
+    band: navy
+    band_text: pink
+    accent: mustard
+    halftone: top
+    halftone_color: cream
+    frame: circle
+    stars: 7
+    subtitle_bg: cream
+    subtitle_text: navy
