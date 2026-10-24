@@ -142,7 +142,8 @@ def generate(db: OrbitDB, product_id: int, *, dry_run: bool, model: str = "",
                 if "쿼터" in str(exc):
                     raise WaitError(str(exc)) from exc
                 raise
-        model = model or DEFAULT_MODEL
+        # .env 에 CLAUDE_MODEL= 이 빈칸이면 DEFAULT_MODEL 도 빈 값이 된다 — 그때도 기본 모델로.
+        model = model or DEFAULT_MODEL or "claude-sonnet-4-6"
 
     def call():
         return ask(system, json.dumps(request, ensure_ascii=False),

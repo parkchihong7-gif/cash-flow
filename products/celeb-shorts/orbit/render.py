@@ -57,7 +57,7 @@ class FFmpegMissing(RuntimeError):
 
 
 def find_ffmpeg() -> str:
-    path = os.getenv("FFMPEG_PATH") or shutil.which("ffmpeg")
+    path = (os.getenv("FFMPEG_PATH") or "").strip() or shutil.which("ffmpeg")
     if not path:
         raise FFmpegMissing("FFmpeg 가 없습니다. 명령 프롬프트에서 `winget install Gyan.FFmpeg` 로 설치하고 "
                             "실행.bat 을 다시 여세요. (다른 곳에 있으면 .env 에 FFMPEG_PATH=경로)")
@@ -518,7 +518,8 @@ def render_video(job: RenderJob, out: Path, *, music: Path | None = None,
 
 def probe(path: Path) -> dict:
     """ffprobe 로 해상도·길이·소리 유무를 확인한다(시험·검사용)."""
-    ffprobe = shutil.which("ffprobe") or str(Path(find_ffmpeg()).with_name("ffprobe"))
+    ffmpeg = Path(find_ffmpeg())
+    ffprobe = shutil.which("ffprobe") or str(ffmpeg.with_name("ffprobe" + ffmpeg.suffix))  # Windows: ffprobe.exe
     import json as _json
     raw = subprocess.run([ffprobe, "-v", "error", "-show_entries", "stream=codec_type,width,height:format=duration",
                           "-of", "json", str(path)], capture_output=True, text=True, check=True).stdout

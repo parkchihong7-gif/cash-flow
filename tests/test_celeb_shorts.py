@@ -1075,3 +1075,21 @@ def test_orbit_review_screens(orbit_client, orbit_db):
     r = orbit_client.post("/channel-checklist", data={"c0": "on"})
     assert "msg=" in str(r.url)
     assert orbit_client.get("/videos/999/review").status_code == 404
+
+
+def test_orbit_dashboard_counts_scripts_per_product(orbit_db):
+    pid = _verified_product(orbit_db)
+    orbit_scripts.generate(orbit_db, pid, dry_run=False, ask=_real_ask_from([_good_plan(), _good_plan(), _good_plan()]))
+    assert orbit_db.counts()["대본 승인 대기"] == 1
+    sid = orbit_scripts.list_scripts(orbit_db, pid)[0]["id"]
+    orbit_scripts.save_edit(orbit_db, sid, {"own_comment": "좋아요"})
+    orbit_scripts.approve(orbit_db, sid, "나")
+    counts = orbit_db.counts()
+    assert counts["대본 승인 대기"] == 0 and "올릴 영상" in counts
+
+
+def test_orbit_env_example_never_leaves_model_blank():
+    text = (PRODUCT_DIR / ".env.example").read_text(encoding="utf-8")
+    line = next(l for l in text.splitlines() if l.startswith("CLAUDE_MODEL="))
+    assert line.split("=", 1)[1].strip()
+    assert "GOOGLE_TTS_API_KEY=" in text and "FFMPEG_PATH=" in text

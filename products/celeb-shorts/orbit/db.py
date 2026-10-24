@@ -255,9 +255,13 @@ class OrbitDB:
         with self.connect() as con:
             return {
                 "검증 대기": con.execute("SELECT COUNT(*) FROM claim WHERE relation = '추정'").fetchone()[0],
-                "대본 승인 대기": con.execute("SELECT COUNT(*) FROM script WHERE approved_by = ''").fetchone()[0],
-                "영상 승인 대기": con.execute("SELECT COUNT(*) FROM video WHERE status = '렌더됨'").fetchone()[0],
-                "업로드 대기": con.execute("SELECT COUNT(*) FROM upload WHERE status = '대기'").fetchone()[0],
+                # 대본은 상품 단위로 센다 — 한 안을 승인하면 나머지 안은 할 일이 아니다.
+                "대본 승인 대기": con.execute(
+                    "SELECT COUNT(DISTINCT product_id) FROM script WHERE product_id NOT IN"
+                    " (SELECT product_id FROM script WHERE approved_by <> '')").fetchone()[0],
+                "영상 승인 대기": con.execute("SELECT COUNT(*) FROM video WHERE status IN ('렌더됨', '검사실패')").fetchone()[0],
+                # 최종 승인을 받았고 아직 올리지 않은 영상 (업로드 연결 전에는 스튜디오에서 직접 올린다)
+                "올릴 영상": con.execute("SELECT COUNT(*) FROM video WHERE status = '승인됨'").fetchone()[0],
                 "실패한 작업": con.execute("SELECT COUNT(*) FROM job WHERE status = '실패'").fetchone()[0],
             }
 
